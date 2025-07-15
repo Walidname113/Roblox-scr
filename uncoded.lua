@@ -1,4 +1,4 @@
--- Roblox UI Framework (fixed stacking bug)
+-- Roblox UI Framework (fixed stacking bug + improved tab logic)
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
@@ -29,14 +29,12 @@ gui_framework.Theme = {
 	Font = Enum.Font.GothamSemibold
 }
 
--- Скругления
 local function apply_rounding(obj, radius)
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, radius or 6)
 	corner.Parent = obj
 end
 
--- Окно
 function gui_framework:CreateWindow(title, author)
 	log("Создание окна")
 
@@ -48,10 +46,21 @@ function gui_framework:CreateWindow(title, author)
 	main.AnchorPoint = Vector2.new(0.5, 0.5)
 	main.BackgroundColor3 = self.Theme.BackgroundColor
 	main.BackgroundTransparency = self.Theme.Transparency
-	main.Active = true
-	main.Draggable = true
-	apply_rounding(main)
+	main.ZIndex = 10
 	main.Parent = self.ScreenGui
+
+	-- Сделать draggable только заголовок
+	local titleBar = Instance.new("TextLabel")
+	titleBar.Size = UDim2.new(1, 0, 0, 40)
+	titleBar.BackgroundTransparency = 1
+	titleBar.Text = string.format("%s | by %s", title or "UI", author or "unknown")
+	titleBar.Font = self.Theme.Font
+	titleBar.TextColor3 = self.Theme.TextColor
+	titleBar.TextSize = 20
+	titleBar.ZIndex = 11
+	titleBar.Parent = main
+	titleBar.Active = true
+	titleBar.Draggable = true
 
 	local minimizedBtn = Instance.new("TextButton")
 	minimizedBtn.Size = UDim2.new(0, 30, 0, 30)
@@ -61,6 +70,7 @@ function gui_framework:CreateWindow(title, author)
 	minimizedBtn.TextColor3 = Color3.new(1, 1, 1)
 	minimizedBtn.Font = self.Theme.Font
 	minimizedBtn.TextSize = 18
+	minimizedBtn.ZIndex = 11
 	apply_rounding(minimizedBtn)
 	minimizedBtn.Parent = main
 
@@ -73,10 +83,10 @@ function gui_framework:CreateWindow(title, author)
 	restoreBtn.Font = self.Theme.Font
 	restoreBtn.TextSize = 30
 	apply_rounding(restoreBtn)
-	restoreBtn.Parent = self.ScreenGui
+	restoreBtn.Parent = main
 	restoreBtn.Visible = false
-	restoreBtn.Active = true
-	restoreBtn.Draggable = true
+	restoreBtn.ZIndex = 12
+
 	restoreBtn.MouseButton1Click:Connect(function()
 		main.Visible = true
 		restoreBtn.Visible = false
@@ -89,15 +99,6 @@ function gui_framework:CreateWindow(title, author)
 		log("UI свернут")
 	end)
 
-	local titleBar = Instance.new("TextLabel")
-	titleBar.Size = UDim2.new(1, 0, 0, 40)
-	titleBar.BackgroundTransparency = 1
-	titleBar.Text = string.format("%s | by %s", title or "UI", author or "unknown")
-	titleBar.Font = self.Theme.Font
-	titleBar.TextColor3 = self.Theme.TextColor
-	titleBar.TextSize = 20
-	titleBar.Parent = main
-
 	local close = Instance.new("TextButton")
 	close.Size = UDim2.new(0, 30, 0, 30)
 	close.Position = UDim2.new(1, -35, 0, 5)
@@ -106,6 +107,7 @@ function gui_framework:CreateWindow(title, author)
 	close.TextColor3 = Color3.new(1, 1, 1)
 	close.Font = self.Theme.Font
 	close.TextSize = 18
+	close.ZIndex = 11
 	apply_rounding(close)
 	close.Parent = main
 	close.MouseButton1Click:Connect(function()
@@ -118,6 +120,7 @@ function gui_framework:CreateWindow(title, author)
 	tabContainer.Position = UDim2.new(0, 0, 0, 40)
 	tabContainer.Size = UDim2.new(0, 100, 1, -40)
 	tabContainer.BackgroundTransparency = 1
+	tabContainer.ZIndex = 11
 	tabContainer.Parent = main
 
 	local contentHolder = Instance.new("Frame")
@@ -125,11 +128,15 @@ function gui_framework:CreateWindow(title, author)
 	contentHolder.Position = UDim2.new(0, 100, 0, 40)
 	contentHolder.Size = UDim2.new(1, -100, 1, -40)
 	contentHolder.BackgroundTransparency = 1
+	contentHolder.ZIndex = 9
 	contentHolder.Parent = main
 
 	self.MainFrame = main
 	self.Tabs = tabContainer
 	self.Content = contentHolder
+
+	self._categories = {} -- храним кнопки для управления выделением
+
 	log("Окно создано")
 	return self
 end
@@ -144,6 +151,7 @@ function gui_framework:AddCategory(name)
 	button.TextColor3 = self.Theme.TextColor
 	button.TextSize = 16
 	apply_rounding(button)
+	button.ZIndex = 11
 	button.Parent = self.Tabs
 
 	local content = Instance.new("Frame")
@@ -151,6 +159,7 @@ function gui_framework:AddCategory(name)
 	content.Size = UDim2.new(1, 0, 1, 0)
 	content.BackgroundTransparency = 1
 	content.Name = name .. "_Content"
+	content.ZIndex = 9
 	content.Parent = self.Content
 
 	local layout = Instance.new("UIListLayout")
@@ -159,12 +168,30 @@ function gui_framework:AddCategory(name)
 	layout.Parent = content
 
 	button.MouseButton1Click:Connect(function()
+		-- Скрыть все контенты
 		for _, tab in ipairs(self.Content:GetChildren()) do
-			tab.Visible = false
+			if tab:IsA("Frame") then
+				tab.Visible = false
+			end
 		end
 		content.Visible = true
+
+		-- Сбросить цвет у всех кнопок и выделить активную
+		for _, btn in ipairs(self.Tabs:GetChildren()) do
+			if btn:IsA("TextButton") then
+				btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+			end
+		end
+		button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 	end)
 
+	-- Авто-выделение первого добавленного таба
+	if #self._categories == 0 then
+		button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		content.Visible = true
+	end
+
+	table.insert(self._categories, button)
 	log("Категория " .. name .. " добавлена")
 	return content
 end
@@ -179,6 +206,7 @@ function gui_framework:CreateButton(parent, text, callback)
 	btn.TextColor3 = self.Theme.TextColor
 	btn.TextSize = 14
 	apply_rounding(btn)
+	btn.ZIndex = 9
 	btn.Parent = parent
 	btn.LayoutOrder = 0
 	btn.MouseButton1Click:Connect(function()
@@ -198,6 +226,7 @@ function gui_framework:CreateToggle(parent, text, default, callback)
 	toggle.TextColor3 = self.Theme.TextColor
 	toggle.TextSize = 14
 	apply_rounding(toggle)
+	toggle.ZIndex = 9
 	toggle.Parent = parent
 	toggle.LayoutOrder = 0
 
@@ -221,6 +250,7 @@ function gui_framework:CreateSlider(parent, min, max, callback)
 	box.TextColor3 = self.Theme.TextColor
 	box.TextSize = 14
 	apply_rounding(box)
+	box.ZIndex = 9
 	box.Parent = parent
 	box.LayoutOrder = 0
 
@@ -246,6 +276,7 @@ function gui_framework:CreateDropdown(parent, list, callback)
 	dropdown.TextColor3 = self.Theme.TextColor
 	dropdown.TextSize = 14
 	apply_rounding(dropdown)
+	dropdown.ZIndex = 9
 	dropdown.Parent = parent
 	dropdown.LayoutOrder = 0
 
