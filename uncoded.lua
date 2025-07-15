@@ -3,7 +3,6 @@ local LocalPlayer = Players.LocalPlayer
 
 local gui_framework = {}
 
--- Настройки
 gui_framework.Theme = {
 	BackgroundColor = Color3.fromRGB(20, 20, 20),
 	Transparency = 0.25,
@@ -45,6 +44,41 @@ function gui_framework:CreateWindow(title, author)
 	titleBar.TextColor3 = self.Theme.TextColor
 	titleBar.TextSize = 20
 	titleBar.Parent = main
+
+	local minimizedBtn = Instance.new("TextButton")
+	minimizedBtn.Size = UDim2.new(0, 30, 0, 30)
+	minimizedBtn.Position = UDim2.new(1, -70, 0, 5)
+	minimizedBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 0)
+	minimizedBtn.Text = "-"
+	minimizedBtn.TextColor3 = Color3.new(1, 1, 1)
+	minimizedBtn.Font = self.Theme.Font
+	minimizedBtn.TextSize = 18
+	apply_rounding(minimizedBtn)
+	minimizedBtn.Parent = main
+
+	local restoreBtn = Instance.new("TextButton")
+	restoreBtn.Size = UDim2.new(0, 50, 0, 50)
+	restoreBtn.Position = UDim2.new(0.5, -25, 0.5, -25)
+	restoreBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	restoreBtn.Text = "+"
+	restoreBtn.TextColor3 = Color3.new(1, 1, 1)
+	restoreBtn.Font = self.Theme.Font
+	restoreBtn.TextSize = 30
+	apply_rounding(restoreBtn)
+	restoreBtn.Parent = gui
+	restoreBtn.Visible = false
+	restoreBtn.Active = true
+	restoreBtn.Draggable = true
+
+	restoreBtn.MouseButton1Click:Connect(function()
+		main.Visible = true
+		restoreBtn.Visible = false
+	end)
+
+	minimizedBtn.MouseButton1Click:Connect(function()
+		main.Visible = false
+		restoreBtn.Visible = true
+	end)
 
 	local close = Instance.new("TextButton")
 	close.Size = UDim2.new(0, 30, 0, 30)
@@ -94,7 +128,6 @@ function gui_framework:AddCategory(name)
 	button.Font = self.Theme.Font
 	button.TextColor3 = self.Theme.TextColor
 	button.TextSize = 16
-	button.LayoutOrder = #self.Tabs:GetChildren()
 	apply_rounding(button)
 	button.Parent = self.Tabs
 
@@ -168,19 +201,22 @@ function gui_framework:CreateDropdown(parent, list, callback)
 	dropdown.Parent = parent
 	dropdown.LayoutOrder = 0
 
-	local dropdownFrame = Instance.new("Frame")
-	dropdownFrame.Size = UDim2.new(1, -10, 0, math.clamp(#list,1,5) * 25)
-	dropdownFrame.Position = UDim2.new(0, 5, 0, 35)
-	dropdownFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-	dropdownFrame.Visible = false
-	dropdownFrame.ClipsDescendants = true
-	apply_rounding(dropdownFrame)
-	dropdownFrame.Parent = parent
+	local container = Instance.new("ScrollingFrame")
+	container.Size = UDim2.new(1, -10, 0, 100)
+	container.Position = UDim2.new(0, 5, 0, 35)
+	container.CanvasSize = UDim2.new(0, 0, 0, #list * 25)
+	container.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	container.ScrollBarThickness = 6
+	container.Visible = false
+	container.ClipsDescendants = true
+	container.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	apply_rounding(container)
+	container.Parent = parent
 
 	local layout = Instance.new("UIListLayout")
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Padding = UDim.new(0, 2)
-	layout.Parent = dropdownFrame
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = container
 
 	for _, item in ipairs(list) do
 		local option = Instance.new("TextButton")
@@ -190,17 +226,17 @@ function gui_framework:CreateDropdown(parent, list, callback)
 		option.TextColor3 = Color3.new(1, 1, 1)
 		option.Font = self.Theme.Font
 		option.TextSize = 14
-		option.Parent = dropdownFrame
+		option.Parent = container
 
 		option.MouseButton1Click:Connect(function()
 			dropdown.Text = item
-			dropdownFrame.Visible = false
+			container.Visible = false
 			if callback then callback(item) end
 		end)
 	end
 
 	dropdown.MouseButton1Click:Connect(function()
-		dropdownFrame.Visible = not dropdownFrame.Visible
+		container.Visible = not container.Visible
 	end)
 end
 
