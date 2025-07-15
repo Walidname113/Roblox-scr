@@ -1,4 +1,4 @@
--- Roblox UI Framework (ready for HttpGet & loadstring)
+-- Roblox UI Framework (ready for HttpGet & loadstring with minimize toggle)
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
@@ -39,10 +39,12 @@ end
 -- Окно
 function gui_framework:CreateWindow(title, author)
 	log("Создание окна")
+
+	local minimized = false
 	local main = Instance.new("Frame")
 	main.Name = "MainUI"
-	main.Size = UDim2.new(0, 500, 0, 400)
-	main.Position = UDim2.new(0.5, -250, 0.5, -200)
+	main.Size = UDim2.new(0, 400, 0, 320)
+	main.Position = UDim2.new(0.5, -200, 0.5, -160)
 	main.AnchorPoint = Vector2.new(0.5, 0.5)
 	main.BackgroundColor3 = self.Theme.BackgroundColor
 	main.BackgroundTransparency = self.Theme.Transparency
@@ -50,6 +52,42 @@ function gui_framework:CreateWindow(title, author)
 	main.Draggable = true
 	apply_rounding(main)
 	main.Parent = self.ScreenGui
+
+	local minimizedBtn = Instance.new("TextButton")
+	minimizedBtn.Size = UDim2.new(0, 30, 0, 30)
+	minimizedBtn.Position = UDim2.new(1, -70, 0, 5)
+	minimizedBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 0)
+	minimizedBtn.Text = "-"
+	minimizedBtn.TextColor3 = Color3.new(1, 1, 1)
+	minimizedBtn.Font = self.Theme.Font
+	minimizedBtn.TextSize = 18
+	apply_rounding(minimizedBtn)
+	minimizedBtn.Parent = main
+
+	local restoreBtn = Instance.new("TextButton")
+	restoreBtn.Size = UDim2.new(0, 50, 0, 50)
+	restoreBtn.Position = UDim2.new(0.5, -25, 0.5, -25)
+	restoreBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	restoreBtn.Text = "+"
+	restoreBtn.TextColor3 = Color3.new(1, 1, 1)
+	restoreBtn.Font = self.Theme.Font
+	restoreBtn.TextSize = 30
+	apply_rounding(restoreBtn)
+	restoreBtn.Parent = self.ScreenGui
+	restoreBtn.Visible = false
+	restoreBtn.Active = true
+	restoreBtn.Draggable = true
+	restoreBtn.MouseButton1Click:Connect(function()
+		main.Visible = true
+		restoreBtn.Visible = false
+		log("UI восстановлен")
+	end)
+
+	minimizedBtn.MouseButton1Click:Connect(function()
+		main.Visible = false
+		restoreBtn.Visible = true
+		log("UI свернут")
+	end)
 
 	local titleBar = Instance.new("TextLabel")
 	titleBar.Size = UDim2.new(1, 0, 0, 40)
@@ -78,14 +116,14 @@ function gui_framework:CreateWindow(title, author)
 	local tabContainer = Instance.new("Frame")
 	tabContainer.Name = "Tabs"
 	tabContainer.Position = UDim2.new(0, 0, 0, 40)
-	tabContainer.Size = UDim2.new(0, 120, 1, -40)
+	tabContainer.Size = UDim2.new(0, 100, 1, -40)
 	tabContainer.BackgroundTransparency = 1
 	tabContainer.Parent = main
 
 	local contentHolder = Instance.new("Frame")
 	contentHolder.Name = "Content"
-	contentHolder.Position = UDim2.new(0, 120, 0, 40)
-	contentHolder.Size = UDim2.new(1, -120, 1, -40)
+	contentHolder.Position = UDim2.new(0, 100, 0, 40)
+	contentHolder.Size = UDim2.new(1, -100, 1, -40)
 	contentHolder.BackgroundTransparency = 1
 	contentHolder.Parent = main
 
