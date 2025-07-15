@@ -267,18 +267,17 @@ function gui_framework:CreatePlayerDropdown(parent, callback)
     apply_rounding(container)
     container.Parent = parent
 
-    local layout
-    local function createLayout()
-        if layout then layout:Destroy() end
-        layout = Instance.new("UIListLayout")
-        layout.Padding = UDim.new(0, 2)
-        layout.SortOrder = Enum.SortOrder.LayoutOrder
-        layout.Parent = container
-    end
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 2)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Parent = container
 
     local function refreshPlayers()
-        container:ClearAllChildren()
-        createLayout()
+        for _, child in ipairs(container:GetChildren()) do
+            if child ~= layout then
+                child:Destroy()
+            end
+        end
 
         local players = {}
         for _, p in ipairs(Players:GetPlayers()) do
@@ -319,7 +318,7 @@ function gui_framework:CreatePlayerDropdown(parent, callback)
     refreshButton.Size = UDim2.new(0, 30, 0, 30)
     refreshButton.Position = UDim2.new(1, -30, 0, 0)
     refreshButton.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
-    refreshButton.Text = "↻"
+    refreshButton.Text = "R"
     refreshButton.Font = self.Theme.Font
     refreshButton.TextColor3 = Color3.new(1, 1, 1)
     refreshButton.TextSize = 16
@@ -332,8 +331,8 @@ function gui_framework:CreatePlayerDropdown(parent, callback)
     end)
 
     return dropdown, refreshButton
-end
-
+    end
+    
 function gui_framework:CreateSlider(parent, minValue, maxValue, defaultValue, callback)
     -- safe log wrapper to prevent errors if log not defined
     local function safe_log(msg)
