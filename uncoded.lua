@@ -250,6 +250,104 @@ function gui_framework:CreatePlayerDropdown(parent, callback)
 	self:CreateDropdown(parent, players, callback)
 end
 
+function gui_framework:CreateSlider(parent, minValue, maxValue, defaultValue, callback)
+	log("Создание слайдера")
+	minValue = math.floor(tonumber(minValue) or 1)
+	maxValue = math.floor(tonumber(maxValue) or 99999)
+	defaultValue = math.clamp(math.floor(tonumber(defaultValue) or minValue), minValue, maxValue)
+
+	local holder = Instance.new("Frame")
+	holder.Size = UDim2.new(1, -10, 0, 40)
+	holder.BackgroundTransparency = 1
+	holder.Parent = parent
+	holder.LayoutOrder = 0
+
+	local slider = Instance.new("TextButton")
+	slider.Size = UDim2.new(0.7, -5, 1, 0)
+	slider.Position = UDim2.new(0, 0, 0, 0)
+	slider.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+	slider.Text = ""
+	slider.AutoButtonColor = false
+	apply_rounding(slider)
+	slider.Parent = holder
+
+	local bar = Instance.new("Frame")
+	bar.Size = UDim2.new(1, 0, 0.3, 0)
+	bar.Position = UDim2.new(0, 0, 0.5, -5)
+	bar.AnchorPoint = Vector2.new(0, 0.5)
+	bar.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+	apply_rounding(bar)
+	bar.Parent = slider
+
+	local fill = Instance.new("Frame")
+	fill.Size = UDim2.new((defaultValue - minValue) / (maxValue - minValue), 0, 1, 0)
+	fill.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+	fill.BorderSizePixel = 0
+	apply_rounding(fill)
+	fill.Parent = bar
+
+	local input = Instance.new("TextBox")
+	input.Size = UDim2.new(0.3, 0, 1, 0)
+	input.Position = UDim2.new(0.7, 5, 0, 0)
+	input.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	input.Text = tostring(defaultValue)
+	input.ClearTextOnFocus = false
+	input.Font = self.Theme.Font
+	input.TextColor3 = self.Theme.TextColor
+	input.TextSize = 14
+	input.TextXAlignment = Enum.TextXAlignment.Center
+	apply_rounding(input)
+	input.Parent = holder
+
+	local currentValue = defaultValue
+
+	local function updateSlider(val)
+		currentValue = math.clamp(math.floor(val), minValue, maxValue)
+		input.Text = tostring(currentValue)
+		local ratio = (currentValue - minValue) / (maxValue - minValue)
+		fill.Size = UDim2.new(ratio, 0, 1, 0)
+		log("Слайдер установлен: " .. currentValue)
+		if callback then
+			pcall(function() callback(currentValue) end)
+		end
+	end
+
+	slider.InputBegan:Connect(function(io)
+		if io.UserInputType == Enum.UserInputType.MouseButton1 then
+			log("Слайдер: начало ввода мышкой")
+			local conn
+			conn = game:GetService("UserInputService").InputChanged:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseMovement then
+					local relX = input.Position.X - bar.AbsolutePosition.X
+					local percent = math.clamp(relX / bar.AbsoluteSize.X, 0, 1)
+					local val = math.floor(minValue + (maxValue - minValue) * percent + 0.5)
+					updateSlider(val)
+				end
+			end)
+			local endConn
+			endConn = game:GetService("UserInputService").InputEnded:Connect(function(endInput)
+				if endInput.UserInputType == Enum.UserInputType.MouseButton1 then
+					log("Слайдер: мышка отпущена")
+					if conn then conn:Disconnect() end
+					endConn:Disconnect()
+				end
+			end)
+		end
+	end)
+
+	input.FocusLost:Connect(function()
+		local val = tonumber(input.Text)
+		if val then
+			updateSlider(val)
+		else
+			log("Неверный ввод в поле значения, откат")
+			input.Text = tostring(currentValue)
+		end
+	end)
+
+	updateSlider(defaultValue)
+end
+
 function gui_framework:CheckGameId(expected)
 	return game.GameId == expected
 end
