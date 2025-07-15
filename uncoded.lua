@@ -1,28 +1,9 @@
--- Roblox UI Framework (centered + draggable frame fix)
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local RunService = game:GetService("RunService")
-
-local function log(msg)
-	print("[UI_LOG]: " .. tostring(msg))
-end
 
 local gui_framework = {}
-log("Инициализация фреймворка...")
 
--- GUI
-local success, err = pcall(function()
-	gui_framework.ScreenGui = Instance.new("ScreenGui")
-	gui_framework.ScreenGui.Name = "UniversalUI"
-	gui_framework.ScreenGui.ResetOnSpawn = false
-	gui_framework.ScreenGui.IgnoreGuiInset = true
-	gui_framework.ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	gui_framework.ScreenGui.Parent = game:GetService("CoreGui")
-	log("ScreenGui вставлен в CoreGui")
-end)
-if not success then error("Ошибка GUI: " .. tostring(err)) end
-
--- Тема
+-- Настройки
 gui_framework.Theme = {
 	BackgroundColor = Color3.fromRGB(20, 20, 20),
 	Transparency = 0.25,
@@ -30,32 +11,31 @@ gui_framework.Theme = {
 	Font = Enum.Font.GothamSemibold
 }
 
--- Скругления
 local function apply_rounding(obj, radius)
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, radius or 6)
 	corner.Parent = obj
 end
 
--- Окно
 function gui_framework:CreateWindow(title, author)
-	log("Создание окна")
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "UniversalUI"
+	gui.ResetOnSpawn = false
+	gui.IgnoreGuiInset = true
+	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	gui.Parent = game:GetService("CoreGui")
 
 	local main = Instance.new("Frame")
 	main.Name = "MainUI"
 	main.Size = UDim2.new(0, 400, 0, 320)
-	main.AnchorPoint = Vector2.new(0.5, 0.5)
 	main.Position = UDim2.new(0.5, -200, 0.5, -160)
+	main.AnchorPoint = Vector2.new(0.5, 0.5)
 	main.BackgroundColor3 = self.Theme.BackgroundColor
 	main.BackgroundTransparency = self.Theme.Transparency
 	main.Active = true
 	main.Draggable = true
 	apply_rounding(main)
-	main.Parent = self.ScreenGui
-
-	task.defer(function()
-		main.Position = UDim2.new(0.5, -200, 0.5, -160)
-	end)
+	main.Parent = gui
 
 	local titleBar = Instance.new("TextLabel")
 	titleBar.Size = UDim2.new(1, 0, 0, 40)
@@ -65,42 +45,6 @@ function gui_framework:CreateWindow(title, author)
 	titleBar.TextColor3 = self.Theme.TextColor
 	titleBar.TextSize = 20
 	titleBar.Parent = main
-
-	local minimizedBtn = Instance.new("TextButton")
-	minimizedBtn.Size = UDim2.new(0, 30, 0, 30)
-	minimizedBtn.Position = UDim2.new(1, -70, 0, 5)
-	minimizedBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 0)
-	minimizedBtn.Text = "-"
-	minimizedBtn.TextColor3 = Color3.new(1, 1, 1)
-	minimizedBtn.Font = self.Theme.Font
-	minimizedBtn.TextSize = 18
-	apply_rounding(minimizedBtn)
-	minimizedBtn.Parent = main
-
-	local restoreBtn = Instance.new("TextButton")
-	restoreBtn.Size = UDim2.new(0, 50, 0, 50)
-	restoreBtn.Position = UDim2.new(0.5, -25, 0.5, -25)
-	restoreBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	restoreBtn.Text = "+"
-	restoreBtn.TextColor3 = Color3.new(1, 1, 1)
-	restoreBtn.Font = self.Theme.Font
-	restoreBtn.TextSize = 30
-	apply_rounding(restoreBtn)
-	restoreBtn.Parent = self.ScreenGui
-	restoreBtn.Visible = false
-	restoreBtn.Active = true
-	restoreBtn.Draggable = true
-	restoreBtn.MouseButton1Click:Connect(function()
-		main.Visible = true
-		restoreBtn.Visible = false
-		log("UI восстановлен")
-	end)
-
-	minimizedBtn.MouseButton1Click:Connect(function()
-		main.Visible = false
-		restoreBtn.Visible = true
-		log("UI свернут")
-	end)
 
 	local close = Instance.new("TextButton")
 	close.Size = UDim2.new(0, 30, 0, 30)
@@ -113,8 +57,7 @@ function gui_framework:CreateWindow(title, author)
 	apply_rounding(close)
 	close.Parent = main
 	close.MouseButton1Click:Connect(function()
-		log("UI закрыт")
-		self.ScreenGui:Destroy()
+		gui:Destroy()
 	end)
 
 	local tabContainer = Instance.new("Frame")
@@ -124,6 +67,11 @@ function gui_framework:CreateWindow(title, author)
 	tabContainer.BackgroundTransparency = 1
 	tabContainer.Parent = main
 
+	local tabLayout = Instance.new("UIListLayout")
+	tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	tabLayout.Padding = UDim.new(0, 5)
+	tabLayout.Parent = tabContainer
+
 	local contentHolder = Instance.new("Frame")
 	contentHolder.Name = "Content"
 	contentHolder.Position = UDim2.new(0, 100, 0, 40)
@@ -131,18 +79,14 @@ function gui_framework:CreateWindow(title, author)
 	contentHolder.BackgroundTransparency = 1
 	contentHolder.Parent = main
 
+	self.ScreenGui = gui
 	self.MainFrame = main
 	self.Tabs = tabContainer
 	self.Content = contentHolder
-	log("Окно создано")
 	return self
 end
 
-local categoryIndex = 0
 function gui_framework:AddCategory(name)
-	log("Добавление категории: " .. tostring(name))
-	categoryIndex += 1
-
 	local button = Instance.new("TextButton")
 	button.Size = UDim2.new(1, 0, 0, 30)
 	button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
@@ -150,8 +94,8 @@ function gui_framework:AddCategory(name)
 	button.Font = self.Theme.Font
 	button.TextColor3 = self.Theme.TextColor
 	button.TextSize = 16
+	button.LayoutOrder = #self.Tabs:GetChildren()
 	apply_rounding(button)
-	button.LayoutOrder = categoryIndex -- ФИКС
 	button.Parent = self.Tabs
 
 	local content = Instance.new("Frame")
@@ -168,19 +112,15 @@ function gui_framework:AddCategory(name)
 
 	button.MouseButton1Click:Connect(function()
 		for _, tab in ipairs(self.Content:GetChildren()) do
-			if tab:IsA("Frame") then
-				tab.Visible = false
-			end
+			tab.Visible = false
 		end
 		content.Visible = true
 	end)
 
-	log("Категория " .. name .. " добавлена")
 	return content
 end
 
 function gui_framework:CreateButton(parent, text, callback)
-	log("Создание кнопки: " .. tostring(text))
 	local btn = Instance.new("TextButton")
 	btn.Size = UDim2.new(1, -10, 0, 30)
 	btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
@@ -192,14 +132,11 @@ function gui_framework:CreateButton(parent, text, callback)
 	btn.Parent = parent
 	btn.LayoutOrder = 0
 	btn.MouseButton1Click:Connect(function()
-		log("Нажата кнопка: " .. text)
-		local ok, err = pcall(callback or function() end)
-		if not ok then warn("Ошибка в кнопке: " .. tostring(err)) end
+		pcall(callback or function() end)
 	end)
 end
 
 function gui_framework:CreateToggle(parent, text, default, callback)
-	log("Создание переключателя: " .. tostring(text))
 	local toggle = Instance.new("TextButton")
 	toggle.Size = UDim2.new(1, -10, 0, 30)
 	toggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
@@ -215,39 +152,11 @@ function gui_framework:CreateToggle(parent, text, default, callback)
 	toggle.MouseButton1Click:Connect(function()
 		state = not state
 		toggle.Text = text .. (state and " [ON]" or " [OFF]")
-		log("Тоггл: " .. text .. " -> " .. tostring(state))
 		pcall(function() if callback then callback(state) end end)
 	end)
 end
 
-function gui_framework:CreateSlider(parent, min, max, callback)
-	log("Создание слайдера: " .. min .. "-" .. max)
-	local box = Instance.new("TextBox")
-	box.Size = UDim2.new(1, -10, 0, 30)
-	box.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-	box.Text = tostring(min)
-	box.ClearTextOnFocus = false
-	box.Font = self.Theme.Font
-	box.TextColor3 = self.Theme.TextColor
-	box.TextSize = 14
-	apply_rounding(box)
-	box.Parent = parent
-	box.LayoutOrder = 0
-
-	box.FocusLost:Connect(function()
-		local val = tonumber(box.Text)
-		if val and val >= min and val <= max then
-			log("Слайдер установлен: " .. val)
-			pcall(function() if callback then callback(val) end end)
-		else
-			warn("Слайдер вне диапазона, сброс к " .. min)
-			box.Text = tostring(min)
-		end
-	end)
-end
-
 function gui_framework:CreateDropdown(parent, list, callback)
-	log("Создание дропдауна (UI не реализован)")
 	local dropdown = Instance.new("TextButton")
 	dropdown.Size = UDim2.new(1, -10, 0, 30)
 	dropdown.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
@@ -259,36 +168,54 @@ function gui_framework:CreateDropdown(parent, list, callback)
 	dropdown.Parent = parent
 	dropdown.LayoutOrder = 0
 
+	local dropdownFrame = Instance.new("Frame")
+	dropdownFrame.Size = UDim2.new(1, -10, 0, math.clamp(#list,1,5) * 25)
+	dropdownFrame.Position = UDim2.new(0, 5, 0, 35)
+	dropdownFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	dropdownFrame.Visible = false
+	dropdownFrame.ClipsDescendants = true
+	apply_rounding(dropdownFrame)
+	dropdownFrame.Parent = parent
+
+	local layout = Instance.new("UIListLayout")
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Padding = UDim.new(0, 2)
+	layout.Parent = dropdownFrame
+
+	for _, item in ipairs(list) do
+		local option = Instance.new("TextButton")
+		option.Size = UDim2.new(1, 0, 0, 25)
+		option.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		option.Text = item
+		option.TextColor3 = Color3.new(1, 1, 1)
+		option.Font = self.Theme.Font
+		option.TextSize = 14
+		option.Parent = dropdownFrame
+
+		option.MouseButton1Click:Connect(function()
+			dropdown.Text = item
+			dropdownFrame.Visible = false
+			if callback then callback(item) end
+		end)
+	end
+
 	dropdown.MouseButton1Click:Connect(function()
-		log("Дропдаун нажат")
-		if callback then pcall(callback) end
+		dropdownFrame.Visible = not dropdownFrame.Visible
 	end)
 end
 
 function gui_framework:CreatePlayerDropdown(parent, callback)
-	log("Список игроков")
 	local players = {}
 	for _, p in ipairs(Players:GetPlayers()) do
-		if p ~= LocalPlayer then table.insert(players, p.Name) end
+		if p ~= LocalPlayer then
+			table.insert(players, p.Name)
+		end
 	end
 	self:CreateDropdown(parent, players, callback)
 end
 
-function gui_framework:CheckGameId(allowedId)
-	if type(allowedId) ~= "number" then
-		warn("[UI_LOG]: CheckGameId > Неверный тип gameId")
-		return false
-	end
-	if game.GameId ~= allowedId then
-		warn("[UI_LOG]: Игра не совпадает. Ожидался GameId " .. allowedId .. ", но получен " .. game.GameId)
-		if self.ScreenGui then
-			self.ScreenGui:Destroy()
-		end
-		return false
-	end
-	log("GameId совпадает: " .. allowedId)
-	return true
+function gui_framework:CheckGameId(expected)
+	return game.GameId == expected
 end
 
-log("UI Framework загружен")
 return gui_framework
