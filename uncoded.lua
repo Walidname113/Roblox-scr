@@ -1,8 +1,10 @@
+--!strict
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 local gui_framework = {}
 
+-- Theme
 gui_framework.Theme = {
 	BackgroundColor = Color3.fromRGB(20, 20, 20),
 	Transparency = 0.25,
@@ -10,11 +12,15 @@ gui_framework.Theme = {
 	Font = Enum.Font.GothamSemibold
 }
 
+-- Rounded corners
 local function apply_rounding(obj, radius)
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, radius or 6)
 	corner.Parent = obj
 end
+
+-- Icons
+local RESTART_ICON = "↻"
 
 function gui_framework:CreateWindow(title, author)
 	local gui = Instance.new("ScreenGui")
@@ -170,182 +176,130 @@ function gui_framework:CreateButton(parent, text, callback)
 end
 
 function gui_framework:CreateToggle(parent, text, default, callback)
-	local toggle = Instance.new("TextButton")
-	toggle.Size = UDim2.new(1, -10, 0, 30)
-	toggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-	toggle.Text = text .. (default and " [ON]" or " [OFF]")
-	toggle.Font = self.Theme.Font
-	toggle.TextColor3 = self.Theme.TextColor
-	toggle.TextSize = 14
-	apply_rounding(toggle)
-	toggle.Parent = parent
-	toggle.LayoutOrder = 0
+	local holder = Instance.new("Frame")
+	holder.Size = UDim2.new(1, -10, 0, 30)
+	holder.BackgroundTransparency = 1
+	holder.Parent = parent
+	holder.LayoutOrder = 0
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, -40, 1, 0)
+	label.Position = UDim2.new(0, 0, 0, 0)
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.Font = self.Theme.Font
+	label.TextColor3 = self.Theme.TextColor
+	label.TextSize = 14
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = holder
+
+	local box = Instance.new("TextButton")
+	box.Size = UDim2.new(0, 24, 0, 24)
+	box.Position = UDim2.new(1, -30, 0.5, -12)
+	box.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	box.Text = ""
+	apply_rounding(box)
+	box.Parent = holder
+
+	local check = Instance.new("TextLabel")
+	check.Size = UDim2.new(1, 0, 1, 0)
+	check.BackgroundTransparency = 1
+	check.Text = default and "✔" or ""
+	check.Font = self.Theme.Font
+	check.TextColor3 = Color3.new(1, 1, 1)
+	check.TextScaled = true
+	check.Parent = box
 
 	local state = default or false
-	toggle.MouseButton1Click:Connect(function()
+	box.MouseButton1Click:Connect(function()
 		state = not state
-		toggle.Text = text .. (state and " [ON]" or " [OFF]")
-		pcall(function() if callback then callback(state) end end)
+		check.Text = state and "✔" or ""
+		if callback then pcall(callback, state) end
 	end)
 end
 
-function gui_framework:CreateDropdown(parent, list, callback)
+function gui_framework:CreatePlayerDropdown(parent, callback)
+	local dropdownHolder = Instance.new("Frame")
+	dropdownHolder.Size = UDim2.new(1, -10, 0, 30)
+	dropdownHolder.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+	dropdownHolder.ClipsDescendants = true
+	apply_rounding(dropdownHolder)
+	dropdownHolder.Parent = parent
+
 	local dropdown = Instance.new("TextButton")
-	dropdown.Size = UDim2.new(1, -10, 0, 30)
-	dropdown.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-	dropdown.Text = "Select..."
-	dropdown.Font = self.Theme.Font
+	dropdown.Size = UDim2.new(1, -30, 1, 0)
+	dropdown.Position = UDim2.new(0, 0, 0, 0)
+	dropdown.Text = "Select Player"
 	dropdown.TextColor3 = self.Theme.TextColor
+	dropdown.Font = self.Theme.Font
 	dropdown.TextSize = 14
-	apply_rounding(dropdown)
-	dropdown.Parent = parent
-	dropdown.LayoutOrder = 0
+	dropdown.BackgroundTransparency = 1
+	dropdown.Parent = dropdownHolder
+
+	local restartBtn = Instance.new("TextButton")
+	restartBtn.Size = UDim2.new(0, 30, 1, 0)
+	restartBtn.Position = UDim2.new(1, -30, 0, 0)
+	restartBtn.Text = RESTART_ICON
+	restartBtn.TextColor3 = Color3.new(1, 1, 1)
+	restartBtn.Font = self.Theme.Font
+	restartBtn.TextSize = 18
+	restartBtn.BackgroundTransparency = 1
+	restartBtn.Parent = dropdownHolder
 
 	local container = Instance.new("ScrollingFrame")
-	container.Size = UDim2.new(1, -10, 0, 100)
-	container.Position = UDim2.new(0, 5, 0, 35)
-	container.CanvasSize = UDim2.new(0, 0, 0, #list * 25)
-	container.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-	container.ScrollBarThickness = 6
+	container.Size = UDim2.new(1, 0, 0, 100)
+	container.Position = UDim2.new(0, 0, 1, 0)
+	container.CanvasSize = UDim2.new(0, 0, 0, 0)
 	container.Visible = false
-	container.ClipsDescendants = true
-	container.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	container.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	container.ScrollBarThickness = 6
 	apply_rounding(container)
-	container.Parent = parent
+	container.Parent = dropdownHolder
 
 	local layout = Instance.new("UIListLayout")
-	layout.Padding = UDim.new(0, 2)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Padding = UDim.new(0, 2)
 	layout.Parent = container
 
-	for _, item in ipairs(list) do
-		local option = Instance.new("TextButton")
-		option.Size = UDim2.new(1, 0, 0, 25)
-		option.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-		option.Text = item
-		option.TextColor3 = Color3.new(1, 1, 1)
-		option.Font = self.Theme.Font
-		option.TextSize = 14
-		option.Parent = container
+	local function refresh()
+		container:ClearAllChildren()
+		layout.Parent = container
 
-		option.MouseButton1Click:Connect(function()
-			dropdown.Text = item
-			container.Visible = false
-			if callback then callback(item) end
-		end)
+		local found = false
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p ~= LocalPlayer then
+				local b = Instance.new("TextButton")
+				b.Size = UDim2.new(1, 0, 0, 25)
+				b.Text = p.Name
+				b.Font = self.Theme.Font
+				b.TextColor3 = self.Theme.TextColor
+				b.TextSize = 14
+				b.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+				b.Parent = container
+				b.MouseButton1Click:Connect(function()
+					dropdown.Text = p.Name
+					container.Visible = false
+					if callback then pcall(callback, p.Name) end
+				end)
+				if dropdown.Text == p.Name then
+					found = true
+				end
+			end
+		end
+		if not found then
+			dropdown.Text = "Select Player"
+		end
 	end
 
 	dropdown.MouseButton1Click:Connect(function()
 		container.Visible = not container.Visible
 	end)
-end
 
-function gui_framework:CreatePlayerDropdown(parent, callback)
-	local players = {}
-	for _, p in ipairs(Players:GetPlayers()) do
-		if p ~= LocalPlayer then
-			table.insert(players, p.Name)
-		end
-	end
-	self:CreateDropdown(parent, players, callback)
-end
-
-function gui_framework:CreateSlider(parent, minValue, maxValue, defaultValue, callback)
-	log("Создание слайдера")
-	minValue = math.floor(tonumber(minValue) or 1)
-	maxValue = math.floor(tonumber(maxValue) or 99999)
-	defaultValue = math.clamp(math.floor(tonumber(defaultValue) or minValue), minValue, maxValue)
-
-	local holder = Instance.new("Frame")
-	holder.Size = UDim2.new(1, -10, 0, 40)
-	holder.BackgroundTransparency = 1
-	holder.Parent = parent
-	holder.LayoutOrder = 0
-
-	local slider = Instance.new("TextButton")
-	slider.Size = UDim2.new(0.7, -5, 1, 0)
-	slider.Position = UDim2.new(0, 0, 0, 0)
-	slider.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-	slider.Text = ""
-	slider.AutoButtonColor = false
-	apply_rounding(slider)
-	slider.Parent = holder
-
-	local bar = Instance.new("Frame")
-	bar.Size = UDim2.new(1, 0, 0.3, 0)
-	bar.Position = UDim2.new(0, 0, 0.5, -5)
-	bar.AnchorPoint = Vector2.new(0, 0.5)
-	bar.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-	apply_rounding(bar)
-	bar.Parent = slider
-
-	local fill = Instance.new("Frame")
-	fill.Size = UDim2.new((defaultValue - minValue) / (maxValue - minValue), 0, 1, 0)
-	fill.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-	fill.BorderSizePixel = 0
-	apply_rounding(fill)
-	fill.Parent = bar
-
-	local input = Instance.new("TextBox")
-	input.Size = UDim2.new(0.3, 0, 1, 0)
-	input.Position = UDim2.new(0.7, 5, 0, 0)
-	input.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-	input.Text = tostring(defaultValue)
-	input.ClearTextOnFocus = false
-	input.Font = self.Theme.Font
-	input.TextColor3 = self.Theme.TextColor
-	input.TextSize = 14
-	input.TextXAlignment = Enum.TextXAlignment.Center
-	apply_rounding(input)
-	input.Parent = holder
-
-	local currentValue = defaultValue
-
-	local function updateSlider(val)
-		currentValue = math.clamp(math.floor(val), minValue, maxValue)
-		input.Text = tostring(currentValue)
-		local ratio = (currentValue - minValue) / (maxValue - minValue)
-		fill.Size = UDim2.new(ratio, 0, 1, 0)
-		log("Слайдер установлен: " .. currentValue)
-		if callback then
-			pcall(function() callback(currentValue) end)
-		end
-	end
-
-	slider.InputBegan:Connect(function(io)
-		if io.UserInputType == Enum.UserInputType.MouseButton1 then
-			log("Слайдер: начало ввода мышкой")
-			local conn
-			conn = game:GetService("UserInputService").InputChanged:Connect(function(input)
-				if input.UserInputType == Enum.UserInputType.MouseMovement then
-					local relX = input.Position.X - bar.AbsolutePosition.X
-					local percent = math.clamp(relX / bar.AbsoluteSize.X, 0, 1)
-					local val = math.floor(minValue + (maxValue - minValue) * percent + 0.5)
-					updateSlider(val)
-				end
-			end)
-			local endConn
-			endConn = game:GetService("UserInputService").InputEnded:Connect(function(endInput)
-				if endInput.UserInputType == Enum.UserInputType.MouseButton1 then
-					log("Слайдер: мышка отпущена")
-					if conn then conn:Disconnect() end
-					endConn:Disconnect()
-				end
-			end)
-		end
+	restartBtn.MouseButton1Click:Connect(function()
+		refresh()
 	end)
 
-	input.FocusLost:Connect(function()
-		local val = tonumber(input.Text)
-		if val then
-			updateSlider(val)
-		else
-			log("Неверный ввод в поле значения, откат")
-			input.Text = tostring(currentValue)
-		end
-	end)
-
-	updateSlider(defaultValue)
+	refresh()
 end
 
 function gui_framework:CheckGameId(expected)
