@@ -138,8 +138,11 @@ function gui_framework:CreateWindow(title, author)
 	return self
 end
 
+local categoryIndex = 0
 function gui_framework:AddCategory(name)
 	log("Добавление категории: " .. tostring(name))
+	categoryIndex += 1
+
 	local button = Instance.new("TextButton")
 	button.Size = UDim2.new(1, 0, 0, 30)
 	button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
@@ -148,6 +151,7 @@ function gui_framework:AddCategory(name)
 	button.TextColor3 = self.Theme.TextColor
 	button.TextSize = 16
 	apply_rounding(button)
+	button.LayoutOrder = categoryIndex -- ФИКС
 	button.Parent = self.Tabs
 
 	local content = Instance.new("Frame")
@@ -164,7 +168,9 @@ function gui_framework:AddCategory(name)
 
 	button.MouseButton1Click:Connect(function()
 		for _, tab in ipairs(self.Content:GetChildren()) do
-			tab.Visible = false
+			if tab:IsA("Frame") then
+				tab.Visible = false
+			end
 		end
 		content.Visible = true
 	end)
