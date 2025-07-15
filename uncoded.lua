@@ -1,4 +1,4 @@
--- Roblox UI Framework (ready for HttpGet & loadstring with minimize toggle)
+-- Roblox UI Framework (fixed stacking bug)
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
@@ -150,7 +150,13 @@ function gui_framework:AddCategory(name)
 	content.Visible = false
 	content.Size = UDim2.new(1, 0, 1, 0)
 	content.BackgroundTransparency = 1
+	content.Name = name .. "_Content"
 	content.Parent = self.Content
+
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 5)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = content
 
 	button.MouseButton1Click:Connect(function()
 		for _, tab in ipairs(self.Content:GetChildren()) do
@@ -167,7 +173,6 @@ function gui_framework:CreateButton(parent, text, callback)
 	log("Создание кнопки: " .. tostring(text))
 	local btn = Instance.new("TextButton")
 	btn.Size = UDim2.new(1, -10, 0, 30)
-	btn.Position = UDim2.new(0, 5, 0, 0)
 	btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 	btn.Text = text
 	btn.Font = self.Theme.Font
@@ -175,6 +180,7 @@ function gui_framework:CreateButton(parent, text, callback)
 	btn.TextSize = 14
 	apply_rounding(btn)
 	btn.Parent = parent
+	btn.LayoutOrder = 0
 	btn.MouseButton1Click:Connect(function()
 		log("Нажата кнопка: " .. text)
 		local ok, err = pcall(callback or function() end)
@@ -186,7 +192,6 @@ function gui_framework:CreateToggle(parent, text, default, callback)
 	log("Создание переключателя: " .. tostring(text))
 	local toggle = Instance.new("TextButton")
 	toggle.Size = UDim2.new(1, -10, 0, 30)
-	toggle.Position = UDim2.new(0, 5, 0, 0)
 	toggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 	toggle.Text = text .. (default and " [ON]" or " [OFF]")
 	toggle.Font = self.Theme.Font
@@ -194,6 +199,7 @@ function gui_framework:CreateToggle(parent, text, default, callback)
 	toggle.TextSize = 14
 	apply_rounding(toggle)
 	toggle.Parent = parent
+	toggle.LayoutOrder = 0
 
 	local state = default or false
 	toggle.MouseButton1Click:Connect(function()
@@ -208,7 +214,6 @@ function gui_framework:CreateSlider(parent, min, max, callback)
 	log("Создание слайдера: " .. min .. "-" .. max)
 	local box = Instance.new("TextBox")
 	box.Size = UDim2.new(1, -10, 0, 30)
-	box.Position = UDim2.new(0, 5, 0, 0)
 	box.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 	box.Text = tostring(min)
 	box.ClearTextOnFocus = false
@@ -217,6 +222,7 @@ function gui_framework:CreateSlider(parent, min, max, callback)
 	box.TextSize = 14
 	apply_rounding(box)
 	box.Parent = parent
+	box.LayoutOrder = 0
 
 	box.FocusLost:Connect(function()
 		local val = tonumber(box.Text)
@@ -234,7 +240,6 @@ function gui_framework:CreateDropdown(parent, list, callback)
 	log("Создание дропдауна (UI не реализован)")
 	local dropdown = Instance.new("TextButton")
 	dropdown.Size = UDim2.new(1, -10, 0, 30)
-	dropdown.Position = UDim2.new(0, 5, 0, 0)
 	dropdown.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 	dropdown.Text = "Select..."
 	dropdown.Font = self.Theme.Font
@@ -242,6 +247,7 @@ function gui_framework:CreateDropdown(parent, list, callback)
 	dropdown.TextSize = 14
 	apply_rounding(dropdown)
 	dropdown.Parent = parent
+	dropdown.LayoutOrder = 0
 
 	dropdown.MouseButton1Click:Connect(function()
 		log("Дропдаун нажат")
@@ -263,7 +269,6 @@ function gui_framework:CheckGameId(allowedId)
 		warn("[UI_LOG]: CheckGameId > Неверный тип gameId")
 		return false
 	end
-
 	if game.GameId ~= allowedId then
 		warn("[UI_LOG]: Игра не совпадает. Ожидался GameId " .. allowedId .. ", но получен " .. game.GameId)
 		if self.ScreenGui then
@@ -271,7 +276,6 @@ function gui_framework:CheckGameId(allowedId)
 		end
 		return false
 	end
-
 	log("GameId совпадает: " .. allowedId)
 	return true
 end
