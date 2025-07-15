@@ -258,5 +258,23 @@ function gui_framework:CreatePlayerDropdown(parent, callback)
 	self:CreateDropdown(parent, players, callback)
 end
 
+function gui_framework:CheckGameId(allowedId)
+	if type(allowedId) ~= "number" then
+		warn("[UI_LOG]: CheckGameId > Неверный тип gameId")
+		return false
+	end
+
+	if game.GameId ~= allowedId then
+		warn("[UI_LOG]: Игра не совпадает. Ожидался GameId " .. allowedId .. ", но получен " .. game.GameId)
+		if self.ScreenGui then
+			self.ScreenGui:Destroy()
+		end
+		return false
+	end
+
+	log("GameId совпадает: " .. allowedId)
+	return true
+end
+
 log("UI Framework загружен")
 return gui_framework
