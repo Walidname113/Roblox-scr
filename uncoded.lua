@@ -245,13 +245,86 @@ end)
 end
 
 function gui_framework:CreatePlayerDropdown(parent, callback)
-local players = {}
-for _, p in ipairs(Players:GetPlayers()) do
-if p ~= LocalPlayer then
-table.insert(players, p.Name)
-end
-end
-self:CreateDropdown(parent, players, callback)
+	local dropdown = Instance.new("TextButton")
+	dropdown.Size = UDim2.new(1, -40, 0, 30)
+	dropdown.Position = UDim2.new(0, 0, 0, 0)
+	dropdown.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+	dropdown.Text = "Select..."
+	dropdown.Font = self.Theme.Font
+	dropdown.TextColor3 = self.Theme.TextColor
+	dropdown.TextSize = 14
+	apply_rounding(dropdown)
+	dropdown.Parent = parent
+
+	local container = Instance.new("ScrollingFrame")
+	container.Size = UDim2.new(1, -10, 0, 100)
+	container.Position = UDim2.new(0, 5, 0, 35)
+	container.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	container.ScrollBarThickness = 6
+	container.Visible = false
+	container.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	container.ClipsDescendants = true
+	apply_rounding(container)
+	container.Parent = parent
+
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 2)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = container
+
+	local function refreshPlayers()
+		container:ClearAllChildren()
+		layout.Parent = container
+
+		local players = {}
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p ~= LocalPlayer then
+				table.insert(players, p.Name)
+			end
+		end
+
+		if not table.find(players, dropdown.Text) then
+			dropdown.Text = "Select..."
+		end
+
+		for _, name in ipairs(players) do
+			local btn = Instance.new("TextButton")
+			btn.Size = UDim2.new(1, 0, 0, 25)
+			btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+			btn.Text = name
+			btn.TextColor3 = Color3.new(1, 1, 1)
+			btn.Font = self.Theme.Font
+			btn.TextSize = 14
+			btn.Parent = container
+
+			btn.MouseButton1Click:Connect(function()
+				dropdown.Text = name
+				container.Visible = false
+				if callback then callback(name) end
+			end)
+		end
+	end
+
+	refreshPlayers()
+
+	dropdown.MouseButton1Click:Connect(function()
+		container.Visible = not container.Visible
+	end)
+
+	local refreshButton = Instance.new("TextButton")
+	refreshButton.Size = UDim2.new(0, 30, 0, 30)
+	refreshButton.Position = UDim2.new(1, -30, 0, 0)
+	refreshButton.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
+	refreshButton.Text = "↻"
+	refreshButton.Font = self.Theme.Font
+	refreshButton.TextColor3 = Color3.new(1, 1, 1)
+	refreshButton.TextSize = 16
+	apply_rounding(refreshButton)
+	refreshButton.Parent = parent
+
+	refreshButton.MouseButton1Click:Connect(function()
+		refreshPlayers()
+	end)
 end
 
 function gui_framework:CreateSlider(parent, minValue, maxValue, defaultValue, callback)
