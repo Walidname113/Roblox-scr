@@ -107,19 +107,15 @@ function gui_framework:CreateWindow(title, author)
     tabLayout.Padding = UDim.new(0, 5)
     tabLayout.Parent = tabContainer
 
-    local contentHolder = Instance.new("Frame")
-    contentHolder.Name = "Content"
-    contentHolder.Position = UDim2.new(0, 100, 0, 40)
-    contentHolder.Size = UDim2.new(1, -100, 1, -40)
-    contentHolder.BackgroundTransparency = 1
-    contentHolder.Parent = main
-
-    self.ScreenGui = gui
-    self.MainFrame = main
-    self.Tabs = tabContainer
-    self.Content = contentHolder
-    return self
-end
+local contentHolder = Instance.new("ScrollingFrame")
+contentHolder.Name = "Content"
+contentHolder.Position = UDim2.new(0, 100, 0, 40)
+contentHolder.Size = UDim2.new(1, -100, 1, -40)
+contentHolder.BackgroundTransparency = 1
+contentHolder.ScrollBarThickness = 6
+contentHolder.CanvasSize = UDim2.new(0, 0, 0, 0)
+contentHolder.AutomaticCanvasSize = Enum.AutomaticSize.Y
+contentHolder.Parent = main
 
 function gui_framework:AddCategory(name)
     local button = Instance.new("TextButton")
