@@ -1,9 +1,12 @@
+-- gui_framework.lua — fixed
+
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local UserInputService = game:GetService("UserInputService")
 
 local gui_framework = {}
 
+-- Theme
 gui_framework.Theme = {
     BackgroundColor = Color3.fromRGB(20, 20, 20),
     Transparency = 0.25,
@@ -101,21 +104,26 @@ function gui_framework:CreateWindow(title, author)
     tabContainer.Size = UDim2.new(0, 100, 1, -40)
     tabContainer.BackgroundTransparency = 1
     tabContainer.Parent = main
+    self.Tabs = tabContainer
 
     local tabLayout = Instance.new("UIListLayout")
     tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
     tabLayout.Padding = UDim.new(0, 5)
     tabLayout.Parent = tabContainer
 
-local contentHolder = Instance.new("ScrollingFrame")
-contentHolder.Name = "Content"
-contentHolder.Position = UDim2.new(0, 100, 0, 40)
-contentHolder.Size = UDim2.new(1, -100, 1, -40)
-contentHolder.BackgroundTransparency = 1
-contentHolder.ScrollBarThickness = 6
-contentHolder.CanvasSize = UDim2.new(0, 0, 0, 0)
-contentHolder.AutomaticCanvasSize = Enum.AutomaticSize.Y
-contentHolder.Parent = main
+    local contentHolder = Instance.new("ScrollingFrame")
+    contentHolder.Name = "Content"
+    contentHolder.Position = UDim2.new(0, 100, 0, 40)
+    contentHolder.Size = UDim2.new(1, -100, 1, -40)
+    contentHolder.BackgroundTransparency = 1
+    contentHolder.ScrollBarThickness = 6
+    contentHolder.CanvasSize = UDim2.new(0, 0, 0, 0)
+    contentHolder.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    contentHolder.Parent = main
+    self.Content = contentHolder
+
+    return self
+end
 
 function gui_framework:AddCategory(name)
     local button = Instance.new("TextButton")
