@@ -1,460 +1,260 @@
--- gui_framework.lua — fixed
+return function()
+    local CoreGui = game:GetService("CoreGui")
+    local UserInputService = game:GetService("UserInputService")
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
 
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local UserInputService = game:GetService("UserInputService")
+    local dragging, dragInput, dragStart, startPos
 
-local gui_framework = {}
+    local function makeDraggable(frame)
+        frame.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = true
+                dragStart = input.Position
+                startPos = frame.Position
 
--- Theme
-gui_framework.Theme = {
-    BackgroundColor = Color3.fromRGB(20, 20, 20),
-    Transparency = 0.25,
-    TextColor = Color3.fromRGB(255, 255, 255),
-    Font = Enum.Font.GothamSemibold
-}
+                input.Changed:Connect(function()
+                    if input.UserInputState == Enum.UserInputState.End then
+                        dragging = false
+                    end
+                end)
+            end
+        end)
 
-local function apply_rounding(obj, radius)
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, radius or 6)
-    corner.Parent = obj
-end
+        frame.InputChanged:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseMovement then
+                dragInput = input
+            end
+        end)
 
-function gui_framework:CreateWindow(title, author)
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "UniversalUI"
-    gui.ResetOnSpawn = false
-    gui.IgnoreGuiInset = true
-    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    gui.Parent = game:GetService("CoreGui")
+        UserInputService.InputChanged:Connect(function(input)
+            if input == dragInput and dragging then
+                local delta = input.Position - dragStart
+                frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            end
+        end)
+    end
 
-    local main = Instance.new("Frame")
-    main.Name = "MainUI"
-    main.Size = UDim2.new(0, 400, 0, 320)
-    main.Position = UDim2.new(0.5, -200, 0.5, -160)
-    main.AnchorPoint = Vector2.new(0.5, 0.5)
-    main.BackgroundColor3 = self.Theme.BackgroundColor
-    main.BackgroundTransparency = self.Theme.Transparency
-    main.Active = true
-    main.Draggable = true
-    apply_rounding(main)
-    main.Parent = gui
+    local gui = Instance.new("ScreenGui", CoreGui)
+    gui.Name = "DeltaUI"
 
-    local titleBar = Instance.new("TextLabel")
-    titleBar.Size = UDim2.new(1, 0, 0, 40)
-    titleBar.BackgroundTransparency = 1
-    titleBar.Text = string.format("%s | by %s", title or "UI", author or "unknown")
-    titleBar.Font = self.Theme.Font
-    titleBar.TextColor3 = self.Theme.TextColor
-    titleBar.TextSize = 20
-    titleBar.Parent = main
+    local main = Instance.new("Frame", gui)
+    main.Size = UDim2.new(0, 500, 0, 400)
+    main.Position = UDim2.new(0.5, -250, 0.5, -200)
+    main.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    main.BorderSizePixel = 0
 
-    local minimizedBtn = Instance.new("TextButton")
-    minimizedBtn.Size = UDim2.new(0, 30, 0, 30)
-    minimizedBtn.Position = UDim2.new(1, -70, 0, 5)
-    minimizedBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 0)
-    minimizedBtn.Text = "-"
-    minimizedBtn.TextColor3 = Color3.new(1, 1, 1)
-    minimizedBtn.Font = self.Theme.Font
-    minimizedBtn.TextSize = 18
-    apply_rounding(minimizedBtn)
-    minimizedBtn.Parent = main
+    local corner = Instance.new("UICorner", main)
+    corner.CornerRadius = UDim.new(0, 8)
 
-    local restoreBtn = Instance.new("TextButton")
-    restoreBtn.Size = UDim2.new(0, 50, 0, 50)
-    restoreBtn.Position = UDim2.new(0.5, -25, 0.5, -25)
-    restoreBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    restoreBtn.Text = "+"
-    restoreBtn.TextColor3 = Color3.new(1, 1, 1)
-    restoreBtn.Font = self.Theme.Font
-    restoreBtn.TextSize = 30
-    apply_rounding(restoreBtn)
-    restoreBtn.Parent = gui
-    restoreBtn.Visible = false
-    restoreBtn.Active = true
-    restoreBtn.Draggable = true
+    makeDraggable(main)
 
-    restoreBtn.MouseButton1Click:Connect(function()
-        main.Visible = true
-        restoreBtn.Visible = false
-    end)
+    -- header bar
+    local topBar = Instance.new("Frame", main)
+    topBar.Size = UDim2.new(1, 0, 0, 28)
+    topBar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    topBar.BorderSizePixel = 0
+    makeDraggable(topBar)
 
-    minimizedBtn.MouseButton1Click:Connect(function()
-        main.Visible = false
-        restoreBtn.Visible = true
-    end)
-
-    local close = Instance.new("TextButton")
-    close.Size = UDim2.new(0, 30, 0, 30)
-    close.Position = UDim2.new(1, -35, 0, 5)
-    close.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+    local close = Instance.new("TextButton", topBar)
+    close.Size = UDim2.new(0, 28, 1, 0)
+    close.Position = UDim2.new(1, -28, 0, 0)
     close.Text = "X"
+    close.BackgroundColor3 = Color3.fromRGB(170, 30, 30)
     close.TextColor3 = Color3.new(1, 1, 1)
-    close.Font = self.Theme.Font
-    close.TextSize = 18
-    apply_rounding(close)
-    close.Parent = main
+    close.Font = Enum.Font.SourceSansBold
+    close.TextSize = 16
+    Instance.new("UICorner", close).CornerRadius = UDim.new(0, 4)
+
+    local minimize = Instance.new("TextButton", topBar)
+    minimize.Size = UDim2.new(0, 28, 1, 0)
+    minimize.Position = UDim2.new(1, -56, 0, 0)
+    minimize.Text = "_"
+    minimize.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    minimize.TextColor3 = Color3.new(1, 1, 1)
+    minimize.Font = Enum.Font.SourceSansBold
+    minimize.TextSize = 16
+    Instance.new("UICorner", minimize).CornerRadius = UDim.new(0, 4)
+
+    local scroll = Instance.new("ScrollingFrame", main)
+    scroll.Size = UDim2.new(1, 0, 1, -28)
+    scroll.Position = UDim2.new(0, 0, 0, 28)
+    scroll.BackgroundTransparency = 1
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    scroll.ScrollBarThickness = 6
+
+    local list = Instance.new("UIListLayout", scroll)
+    list.SortOrder = Enum.SortOrder.LayoutOrder
+    list.Padding = UDim.new(0, 6)
+
+    -- mini icon
+    local mini = Instance.new("TextButton")
+    mini.Size = UDim2.new(0, 100, 0, 30)
+    mini.Position = UDim2.new(0.5, -50, 0.5, -15)
+    mini.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    mini.Text = "Delta UI"
+    mini.TextColor3 = Color3.new(1, 1, 1)
+    mini.Font = Enum.Font.SourceSansBold
+    mini.TextSize = 14
+    mini.Visible = false
+    mini.Parent = gui
+    Instance.new("UICorner", mini).CornerRadius = UDim.new(0, 6)
+
+    makeDraggable(mini)
+
+    minimize.MouseButton1Click:Connect(function()
+        main.Visible = false
+        mini.Visible = true
+    end)
+
+    mini.MouseButton1Click:Connect(function()
+        main.Visible = true
+        mini.Visible = false
+    end)
+
     close.MouseButton1Click:Connect(function()
         gui:Destroy()
     end)
 
-    local tabContainer = Instance.new("Frame")
-    tabContainer.Name = "Tabs"
-    tabContainer.Position = UDim2.new(0, 0, 0, 40)
-    tabContainer.Size = UDim2.new(0, 100, 1, -40)
-    tabContainer.BackgroundTransparency = 1
-    tabContainer.Parent = main
-    self.Tabs = tabContainer
+    local Modules = {}
 
-    local tabLayout = Instance.new("UIListLayout")
-    tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    tabLayout.Padding = UDim.new(0, 5)
-    tabLayout.Parent = tabContainer
+    function Modules.CreateCategory(Name)
+        local Category = Instance.new("Frame")
+        Category.Size = UDim2.new(1, -12, 0, 28)
+        Category.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        Category.Parent = scroll
 
-    local contentHolder = Instance.new("ScrollingFrame")
-    contentHolder.Name = "Content"
-    contentHolder.Position = UDim2.new(0, 100, 0, 40)
-    contentHolder.Size = UDim2.new(1, -100, 1, -40)
-    contentHolder.BackgroundTransparency = 1
-    contentHolder.ScrollBarThickness = 6
-    contentHolder.CanvasSize = UDim2.new(0, 0, 0, 0)
-    contentHolder.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    contentHolder.Parent = main
-    self.Content = contentHolder
+        local CategoryText = Instance.new("TextLabel", Category)
+        CategoryText.Text = Name
+        CategoryText.Font = Enum.Font.SourceSansBold
+        CategoryText.TextSize = 18
+        CategoryText.TextColor3 = Color3.fromRGB(255, 255, 255)
+        CategoryText.Size = UDim2.new(1, -10, 1, 0)
+        CategoryText.Position = UDim2.new(0, 5, 0, 0)
+        CategoryText.BackgroundTransparency = 1
+        CategoryText.TextXAlignment = Enum.TextXAlignment.Left
 
-    return self
-end
+        local Container = Instance.new("Frame", scroll)
+        Container.Size = UDim2.new(1, -12, 0, 0)
+        Container.BackgroundTransparency = 1
+        Container.AutomaticSize = Enum.AutomaticSize.Y
 
-function gui_framework:AddCategory(name)
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(1, 0, 0, 30)
-    button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    button.Text = name
-    button.Font = self.Theme.Font
-    button.TextColor3 = self.Theme.TextColor
-    button.TextSize = 16
-    apply_rounding(button)
-    button.Parent = self.Tabs
+        local Layout = Instance.new("UIListLayout", Container)
+        Layout.SortOrder = Enum.SortOrder.LayoutOrder
+        Layout.Padding = UDim.new(0, 4)
 
-    local content = Instance.new("Frame")
-    content.Visible = false
-    content.Size = UDim2.new(1, 0, 1, 0)
-    content.BackgroundTransparency = 1
-    content.Name = name .. "_Content"
-    content.Parent = self.Content
+        return Container
+    end
 
-    local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 5)
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Parent = content
+    function Modules.CreateButton(Parent, ButtonText, Callback)
+        local ButtonFrame = Instance.new("Frame", Parent)
+        ButtonFrame.Size = UDim2.new(1, 0, 0, 28)
+        ButtonFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 
-    button.MouseButton1Click:Connect(function()
-        for _, tab in ipairs(self.Content:GetChildren()) do
-            tab.Visible = false
-        end
-        content.Visible = true
-    end)
+        local Label = Instance.new("TextLabel", ButtonFrame)
+        Label.Text = ButtonText
+        Label.Font = Enum.Font.SourceSans
+        Label.TextSize = 16
+        Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Label.Size = UDim2.new(0.7, 0, 1, 0)
+        Label.BackgroundTransparency = 1
+        Label.TextXAlignment = Enum.TextXAlignment.Left
+        Label.Position = UDim2.new(0, 8, 0, 0)
 
-    return content
-end
+        local Button = Instance.new("TextButton", ButtonFrame)
+        Button.Size = UDim2.new(0.25, -8, 0.8, 0)
+        Button.Position = UDim2.new(0.75, 0, 0.1, 0)
+        Button.Text = "Кнопка"
+        Button.Font = Enum.Font.SourceSansBold
+        Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Button.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
+        Button.TextSize = 14
 
-function gui_framework:CreateButton(parent, text, callback)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -10, 0, 30)
-    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    btn.Text = text
-    btn.Font = self.Theme.Font
-    btn.TextColor3 = self.Theme.TextColor
-    btn.TextSize = 14
-    apply_rounding(btn)
-    btn.Parent = parent
-    btn.LayoutOrder = 0
-    btn.MouseButton1Click:Connect(function()
-        pcall(callback or function() end)
-    end)
-    return btn
-end
+        local Corner = Instance.new("UICorner", Button)
+        Corner.CornerRadius = UDim.new(0, 4)
 
-function gui_framework:CreateToggle(parent, text, default, callback)
-    local toggle = Instance.new("TextButton")
-    toggle.Size = UDim2.new(1, -10, 0, 30)
-    toggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    toggle.Text = text .. (default and " [ON]" or " [OFF]")
-    toggle.Font = self.Theme.Font
-    toggle.TextColor3 = self.Theme.TextColor
-    toggle.TextSize = 14
-    apply_rounding(toggle)
-    toggle.Parent = parent
-    toggle.LayoutOrder = 0
-
-    local state = default or false
-
-    toggle.MouseButton1Click:Connect(function()
-        state = not state
-        toggle.Text = text .. (state and " [ON]" or " [OFF]")
-        pcall(function()
-            if callback then callback(state) end
-        end)
-    end)
-
-    return toggle, function() return state end
-end
-
-function gui_framework:CreateDropdown(parent, list, callback)
-    local dropdown = Instance.new("TextButton")
-    dropdown.Size = UDim2.new(1, -10, 0, 30)
-    dropdown.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-    dropdown.Text = "Select..."
-    dropdown.Font = self.Theme.Font
-    dropdown.TextColor3 = self.Theme.TextColor
-    dropdown.TextSize = 14
-    apply_rounding(dropdown)
-    dropdown.Parent = parent
-    dropdown.LayoutOrder = 0
-
-    local container = Instance.new("ScrollingFrame")
-    container.Size = UDim2.new(1, -10, 0, 100)
-    container.Position = UDim2.new(0, 5, 0, 35)
-    container.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    container.ScrollBarThickness = 6
-    container.Visible = false
-    container.ClipsDescendants = true
-    container.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    apply_rounding(container)
-    container.Parent = parent
-
-    local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 2)
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Parent = container
-
-    for _, item in ipairs(list) do
-        local option = Instance.new("TextButton")
-        option.Size = UDim2.new(1, 0, 0, 25)
-        option.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-        option.Text = item
-        option.TextColor3 = Color3.new(1, 1, 1)
-        option.Font = self.Theme.Font
-        option.TextSize = 14
-        option.Parent = container
-
-        option.MouseButton1Click:Connect(function()
-            dropdown.Text = item
-            container.Visible = false
-            if callback then callback(item) end
+        Button.MouseButton1Click:Connect(function()
+            if type(Callback) == "function" then
+                Callback()
+            end
         end)
     end
 
-    dropdown.MouseButton1Click:Connect(function()
-        container.Visible = not container.Visible
-    end)
+    function Modules.CreateToggle(Parent, ToggleText, StateChanged)
+        local Toggle = Instance.new("Frame", Parent)
+        Toggle.Size = UDim2.new(1, 0, 0, 28)
+        Toggle.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 
-    return dropdown, container
-end
+        local Label = Instance.new("TextLabel", Toggle)
+        Label.Text = ToggleText
+        Label.Font = Enum.Font.SourceSans
+        Label.TextSize = 16
+        Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Label.Size = UDim2.new(0.7, 0, 1, 0)
+        Label.BackgroundTransparency = 1
+        Label.TextXAlignment = Enum.TextXAlignment.Left
+        Label.Position = UDim2.new(0, 8, 0, 0)
 
-function gui_framework:CreatePlayerDropdown(parent, callback)
-    local dropdown = Instance.new("TextButton")
-    dropdown.Size = UDim2.new(1, -40, 0, 30)
-    dropdown.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-    dropdown.Text = "Select..."
-    dropdown.Font = self.Theme.Font
-    dropdown.TextColor3 = self.Theme.TextColor
-    dropdown.TextSize = 14
-    apply_rounding(dropdown)
-    dropdown.Parent = parent
-    dropdown.LayoutOrder = 0
+        local Btn = Instance.new("TextButton", Toggle)
+        Btn.Size = UDim2.new(0.25, -8, 0.8, 0)
+        Btn.Position = UDim2.new(0.75, 0, 0.1, 0)
+        Btn.Text = "OFF"
+        Btn.Font = Enum.Font.SourceSansBold
+        Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Btn.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+        Btn.TextSize = 14
 
-    local container = Instance.new("ScrollingFrame")
-    container.Size = UDim2.new(1, -10, 0, 100)
-    container.Position = UDim2.new(0, 5, 0, 35)
-    container.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    container.ScrollBarThickness = 6
-    container.Visible = false
-    container.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    container.ClipsDescendants = true
-    apply_rounding(container)
-    container.Parent = parent
+        local Corner = Instance.new("UICorner", Btn)
+        Corner.CornerRadius = UDim.new(0, 4)
 
-    local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 2)
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Parent = container
-
-    local function refreshPlayers()
-        for _, child in ipairs(container:GetChildren()) do
-            if child ~= layout then
-                child:Destroy()
+        local state = false
+        Btn.MouseButton1Click:Connect(function()
+            state = not state
+            Btn.Text = state and "ON" or "OFF"
+            Btn.BackgroundColor3 = state and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(150, 50, 50)
+            if type(StateChanged) == "function" then
+                StateChanged(state)
             end
-        end
+        end)
+    end
 
-        local players = {}
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer then
-                table.insert(players, p.Name)
+    function Modules.CreateInputInt(Parent, LabelText, OnChange)
+        local InputFrame = Instance.new("Frame", Parent)
+        InputFrame.Size = UDim2.new(1, 0, 0, 28)
+        InputFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+
+        local Label = Instance.new("TextLabel", InputFrame)
+        Label.Text = LabelText
+        Label.Font = Enum.Font.SourceSans
+        Label.TextSize = 16
+        Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Label.Size = UDim2.new(0.7, 0, 1, 0)
+        Label.BackgroundTransparency = 1
+        Label.TextXAlignment = Enum.TextXAlignment.Left
+        Label.Position = UDim2.new(0, 8, 0, 0)
+
+        local TextBox = Instance.new("TextBox", InputFrame)
+        TextBox.Size = UDim2.new(0.25, -8, 0.8, 0)
+        TextBox.Position = UDim2.new(0.75, 0, 0.1, 0)
+        TextBox.Font = Enum.Font.SourceSansBold
+        TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+        TextBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        TextBox.TextSize = 14
+        TextBox.Text = "0"
+
+        local Corner = Instance.new("UICorner", TextBox)
+        Corner.CornerRadius = UDim.new(0, 4)
+
+        TextBox.FocusLost:Connect(function()
+            local val = tonumber(TextBox.Text)
+            if val and OnChange then
+                OnChange(val)
+            else
+                TextBox.Text = "0"
             end
-        end
-
-        if not table.find(players, dropdown.Text) then
-            dropdown.Text = "Select..."
-        end
-
-        for _, name in ipairs(players) do
-            local btn = Instance.new("TextButton")
-            btn.Size = UDim2.new(1, 0, 0, 25)
-            btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-            btn.Text = name
-            btn.TextColor3 = Color3.new(1, 1, 1)
-            btn.Font = self.Theme.Font
-            btn.TextSize = 14
-            btn.Parent = container
-
-            btn.MouseButton1Click:Connect(function()
-                dropdown.Text = name
-                container.Visible = false
-                if callback then callback(name) end
-            end)
-        end
+        end)
     end
 
-    refreshPlayers()
-
-    dropdown.MouseButton1Click:Connect(function()
-        container.Visible = not container.Visible
-    end)
-
-    local refreshButton = Instance.new("TextButton")
-    refreshButton.Size = UDim2.new(0, 30, 0, 30)
-    refreshButton.Position = UDim2.new(1, -30, 0, 0)
-    refreshButton.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
-    refreshButton.Text = "R"
-    refreshButton.Font = self.Theme.Font
-    refreshButton.TextColor3 = Color3.new(1, 1, 1)
-    refreshButton.TextSize = 16
-    apply_rounding(refreshButton)
-    refreshButton.Parent = parent
-    refreshButton.LayoutOrder = 1
-
-    refreshButton.MouseButton1Click:Connect(function()
-        refreshPlayers()
-    end)
-
-    return dropdown, refreshButton
-    end
-    
-function gui_framework:CreateSlider(parent, minValue, maxValue, defaultValue, callback)
-    -- safe log wrapper to prevent errors if log not defined
-    local function safe_log(msg)
-        if type(log) == "function" then
-            pcall(log, msg)
-        end
-    end
-
-    minValue = math.floor(tonumber(minValue) or 1)
-    maxValue = math.floor(tonumber(maxValue) or 99999)
-    defaultValue = math.clamp(math.floor(tonumber(defaultValue) or minValue), minValue, maxValue)
-
-    local holder = Instance.new("Frame")
-    holder.Size = UDim2.new(1, -10, 0, 40)
-    holder.BackgroundTransparency = 1
-    holder.Parent = parent
-    holder.LayoutOrder = 0
-
-    local slider = Instance.new("TextButton")
-    slider.Size = UDim2.new(0.7, -5, 1, 0)
-    slider.Position = UDim2.new(0, 0, 0, 0)
-    slider.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-    slider.Text = ""
-    slider.AutoButtonColor = false
-    apply_rounding(slider)
-    slider.Parent = holder
-
-    local bar = Instance.new("Frame")
-    bar.Size = UDim2.new(1, 0, 0.3, 0)
-    bar.Position = UDim2.new(0, 0, 0.5, -5)
-    bar.AnchorPoint = Vector2.new(0, 0.5)
-    bar.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-    apply_rounding(bar)
-    bar.Parent = slider
-
-    local fill = Instance.new("Frame")
-    fill.Size = UDim2.new((defaultValue - minValue) / (maxValue - minValue), 0, 1, 0)
-    fill.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-    fill.BorderSizePixel = 0
-    apply_rounding(fill)
-    fill.Parent = bar
-
-    local input = Instance.new("TextBox")
-    input.Size = UDim2.new(0.3, 0, 1, 0)
-    input.Position = UDim2.new(0.7, 5, 0, 0)
-    input.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    input.Text = tostring(defaultValue)
-    input.ClearTextOnFocus = false
-    input.Font = self.Theme.Font
-    input.TextColor3 = self.Theme.TextColor
-    input.TextSize = 14
-    input.TextXAlignment = Enum.TextXAlignment.Center
-    apply_rounding(input)
-    input.Parent = holder
-
-    local currentValue = defaultValue
-
-    local function updateSlider(val)
-        currentValue = math.clamp(math.floor(val), minValue, maxValue)
-        input.Text = tostring(currentValue)
-        local ratio = 0
-        if maxValue - minValue > 0 then
-            ratio = (currentValue - minValue) / (maxValue - minValue)
-        end
-        fill.Size = UDim2.new(ratio, 0, 1, 0)
-        safe_log("Slider set to: " .. currentValue)
-        if callback then
-            pcall(function() callback(currentValue) end)
-        end
-    end
-
-    slider.InputBegan:Connect(function(io)
-        if io.UserInputType == Enum.UserInputType.MouseButton1 then
-            safe_log("Slider input started")
-            local conn
-            conn = UserInputService.InputChanged:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseMovement then
-                    local relX = input.Position.X - bar.AbsolutePosition.X
-                    local barWidth = bar.AbsoluteSize.X
-                    if barWidth > 0 then
-                        local percent = math.clamp(relX / barWidth, 0, 1)
-                        local val = math.floor(minValue + (maxValue - minValue) * percent + 0.5)
-                        updateSlider(val)
-                    end
-                end
-            end)
-            local endConn
-            endConn = UserInputService.InputEnded:Connect(function(endInput)
-                if endInput.UserInputType == Enum.UserInputType.MouseButton1 then
-                    safe_log("Slider input ended")
-                    if conn then conn:Disconnect() end
-                    if endConn then endConn:Disconnect() end
-                end
-            end)
-        end
-    end)
-
-    input.FocusLost:Connect(function()
-        local val = tonumber(input.Text)
-        if val then
-            updateSlider(val)
-        else
-            safe_log("Invalid input in slider text box, reverting")
-            input.Text = tostring(currentValue)
-        end
-    end)
-
-    updateSlider(defaultValue)
-
-    return holder
+    return Modules
 end
-
-function gui_framework:CheckGameId(expected)
-    return game.GameId == expected
-end
-
-return gui_framework
