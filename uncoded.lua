@@ -344,7 +344,27 @@ function module.CreateUI(title)
             end
         }
     end
+    
+    function module.CreateButton(text, parentFrame, callback)
+        local button = Instance.new("TextButton")
+        button.Size = UDim2.new(1, -10, 0, 35)
+        button.Text = text
+        button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        button.TextColor3 = Color3.new(1, 1, 1)
+        button.Font = Enum.Font.SourceSansBold
+        button.TextSize = 16
+        Instance.new("UICorner", button)
+        button.Parent = parentFrame
 
+        button.MouseButton1Click:Connect(function()
+            if callback then
+                callback()
+            end
+        end)
+
+        return button
+    end
+    
     return {
         ScreenGui = screenGui,
         MainFrame = mainFrame,
@@ -354,6 +374,7 @@ function module.CreateUI(title)
         CreateToggle = module.CreateToggle,
         CreateCategory = module.CreateCategory,
         CreatePlayerList = module.CreatePlayerList,
+        CreateButton = module.CreateButton,
         Close = function() screenGui:Destroy() end,
         Hide = function()
             mainFrame.Visible = false
