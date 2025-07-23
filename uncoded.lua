@@ -49,7 +49,7 @@ function module.CreateUI(title)
     screenGui.ResetOnSpawn = false
 
     local mainFrame = Instance.new("Frame")
-    mainFrame.Size = UDim2.new(0, 500, 0, 400)
+    mainFrame.Size = UDim2.new(0, 600, 0, 400)
     mainFrame.Position = UDim2.new(0.3, 0, 0.3, 0)
     mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     mainFrame.BorderSizePixel = 0
@@ -87,46 +87,39 @@ function module.CreateUI(title)
     minimizeButton.TextColor3 = Color3.new(1, 1, 1)
     Instance.new("UICorner", minimizeButton)
 
-    local scrollFrame = Instance.new("ScrollingFrame", mainFrame)
-    scrollFrame.Position = UDim2.new(0, 10, 0, 45)
-    scrollFrame.Size = UDim2.new(1, -20, 1, -55)
-    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 600)
-    scrollFrame.ScrollBarThickness = 6
-    scrollFrame.BackgroundTransparency = 1
-    scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    local layout = Instance.new("UIListLayout", scrollFrame)
-    layout.Padding = UDim.new(0, 5)
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    local categoryFrame = Instance.new("ScrollingFrame", mainFrame)
+    categoryFrame.Name = "CategoryFrame"
+    categoryFrame.Size = UDim2.new(0, 150, 1, -55)
+    categoryFrame.Position = UDim2.new(0, 10, 0, 45)
+    categoryFrame.CanvasSize = UDim2.new(0, 0, 0, 600)
+    categoryFrame.ScrollBarThickness = 4
+    categoryFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    categoryFrame.BorderSizePixel = 0
+    categoryFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    Instance.new("UICorner", categoryFrame)
+    local categoryLayout = Instance.new("UIListLayout", categoryFrame)
+    categoryLayout.Padding = UDim.new(0, 6)
+    categoryLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
-    local confirmFrame = Instance.new("Frame", screenGui)
-    confirmFrame.Size = UDim2.new(0, 250, 0, 120)
-    confirmFrame.Position = UDim2.new(0.5, -125, 0.5, -60)
-    confirmFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    confirmFrame.Visible = false
-    Instance.new("UICorner", confirmFrame)
+    local contentFrame = Instance.new("Frame", mainFrame)
+    contentFrame.Name = "ContentFrame"
+    contentFrame.Size = UDim2.new(1, -180, 1, -55)
+    contentFrame.Position = UDim2.new(0, 170, 0, 45)
+    contentFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    contentFrame.BorderSizePixel = 0
+    Instance.new("UICorner", contentFrame)
 
-    local confirmLabel = Instance.new("TextLabel", confirmFrame)
-    confirmLabel.Size = UDim2.new(1, 0, 0, 50)
-    confirmLabel.Text = "Are you sure you want to close this script??"
-    confirmLabel.TextColor3 = Color3.new(1, 1, 1)
-    confirmLabel.BackgroundTransparency = 1
-    confirmLabel.Font = Enum.Font.SourceSans
-    confirmLabel.TextWrapped = true
-    confirmLabel.TextSize = 16
-
-    local confirmBtn = Instance.new("TextButton", confirmFrame)
-    confirmBtn.Text = "Confirm"
-    confirmBtn.Size = UDim2.new(0.4, 0, 0, 30)
-    confirmBtn.Position = UDim2.new(0.05, 0, 1, -40)
-    confirmBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    Instance.new("UICorner", confirmBtn)
-
-    local cancelBtn = Instance.new("TextButton", confirmFrame)
-    cancelBtn.Text = "Cancel"
-    cancelBtn.Size = UDim2.new(0.4, 0, 0, 30)
-    cancelBtn.Position = UDim2.new(0.55, 0, 1, -40)
-    cancelBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    Instance.new("UICorner", cancelBtn)
+    local contentScroll = Instance.new("ScrollingFrame", contentFrame)
+    contentScroll.Size = UDim2.new(1, -10, 1, -10)
+    contentScroll.Position = UDim2.new(0, 5, 0, 5)
+    contentScroll.BackgroundTransparency = 1
+    contentScroll.BorderSizePixel = 0
+    contentScroll.ScrollBarThickness = 6
+    contentScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    contentScroll.CanvasSize = UDim2.new(0, 0, 0, 600)
+    local contentLayout = Instance.new("UIListLayout", contentScroll)
+    contentLayout.Padding = UDim.new(0, 6)
+    contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
     local minimizedFrame = Instance.new("TextButton", screenGui)
     minimizedFrame.Size = UDim2.new(0, 40, 0, 40)
@@ -140,15 +133,7 @@ function module.CreateUI(title)
     makeDraggable(minimizedFrame)
 
     closeButton.MouseButton1Click:Connect(function()
-        confirmFrame.Visible = true
-    end)
-
-    confirmBtn.MouseButton1Click:Connect(function()
         screenGui:Destroy()
-    end)
-
-    cancelBtn.MouseButton1Click:Connect(function()
-        confirmFrame.Visible = false
     end)
 
     minimizeButton.MouseButton1Click:Connect(function()
@@ -161,11 +146,34 @@ function module.CreateUI(title)
         minimizedFrame.Visible = false
     end)
 
+    function module.CreateToggle(text, parent, callback)
+        local button = Instance.new("TextButton")
+        button.Size = UDim2.new(1, -10, 0, 35)
+        button.Text = text
+        button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        button.TextColor3 = Color3.new(1, 1, 1)
+        button.Font = Enum.Font.SourceSans
+        button.TextSize = 16
+        Instance.new("UICorner", button)
+        button.Parent = parent
+
+        local enabled = false
+        button.MouseButton1Click:Connect(function()
+            enabled = not enabled
+            button.BackgroundColor3 = enabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(60, 60, 60)
+            if callback then callback(enabled) end
+        end)
+
+        return button
+    end
+
     return {
         ScreenGui = screenGui,
         MainFrame = mainFrame,
         MinimizedFrame = minimizedFrame,
-        ConfirmFrame = confirmFrame,
+        CategoryFrame = categoryFrame,
+        ContentFrame = contentScroll,
+        CreateToggle = module.CreateToggle,
         Close = function() screenGui:Destroy() end,
         Hide = function()
             mainFrame.Visible = false
