@@ -257,7 +257,7 @@ function module.CreateUI(title)
         local dropdownButton = Instance.new("TextButton", container)
         dropdownButton.Size = UDim2.new(1, -35, 1, 0)
         dropdownButton.Position = UDim2.new(0, 5, 0, 0)
-        dropdownButton.Text = "Players: " .. selectedPlayer
+        dropdownButton.Text = "Player: " .. selectedPlayer
         dropdownButton.TextColor3 = Color3.new(1, 1, 1)
         dropdownButton.Font = Enum.Font.Gotham
         dropdownButton.TextSize = 14
@@ -268,7 +268,7 @@ function module.CreateUI(title)
         local reloadButton = Instance.new("TextButton", container)
         reloadButton.Size = UDim2.new(0, 25, 0, 25)
         reloadButton.Position = UDim2.new(1, -30, 0, 5)
-        reloadButton.Text = "⍰"
+        reloadButton.Text = "@"
         reloadButton.TextColor3 = Color3.new(1, 1, 1)
         reloadButton.Font = Enum.Font.Gotham
         reloadButton.TextSize = 16
@@ -299,7 +299,7 @@ function module.CreateUI(title)
             end
 
             selectedPlayer = "---"
-            dropdownButton.Text = "Players: " .. selectedPlayer
+            dropdownButton.Text = "Player: " .. selectedPlayer
 
             for _, p in ipairs(Players:GetPlayers()) do
                 if p ~= player then
@@ -314,7 +314,7 @@ function module.CreateUI(title)
 
                     nameBtn.MouseButton1Click:Connect(function()
                         selectedPlayer = p.Name
-                        dropdownButton.Text = "Players: " .. selectedPlayer
+                        dropdownButton.Text = "Player: " .. selectedPlayer
                         listFrame.Visible = false
                     end)
                 end
