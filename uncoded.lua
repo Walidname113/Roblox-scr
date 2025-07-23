@@ -248,24 +248,26 @@ function module.CreateUI(title)
         local selectedPlayer = "---"
 
         local container = Instance.new("Frame", parentFrame)
-        container.Size = UDim2.new(1, -10, 0, 150)
+        container.Size = UDim2.new(1, -10, 0, 35)
         container.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
         container.BorderSizePixel = 0
+        container.ClipsDescendants = false
         Instance.new("UICorner", container)
 
         local dropdownButton = Instance.new("TextButton", container)
-        dropdownButton.Size = UDim2.new(1, -30, 0, 30)
-        dropdownButton.Position = UDim2.new(0, 5, 0, 5)
-        dropdownButton.Text = "Players list: " .. selectedPlayer
+        dropdownButton.Size = UDim2.new(1, -35, 1, 0)
+        dropdownButton.Position = UDim2.new(0, 5, 0, 0)
+        dropdownButton.Text = "Players: " .. selectedPlayer
         dropdownButton.TextColor3 = Color3.new(1, 1, 1)
         dropdownButton.Font = Enum.Font.Gotham
         dropdownButton.TextSize = 14
         dropdownButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        dropdownButton.TextXAlignment = Enum.TextXAlignment.Left
         Instance.new("UICorner", dropdownButton)
 
         local reloadButton = Instance.new("TextButton", container)
         reloadButton.Size = UDim2.new(0, 25, 0, 25)
-        reloadButton.Position = UDim2.new(1, -30, 0, 7)
+        reloadButton.Position = UDim2.new(1, -30, 0, 5)
         reloadButton.Text = "⍰"
         reloadButton.TextColor3 = Color3.new(1, 1, 1)
         reloadButton.Font = Enum.Font.Gotham
@@ -274,39 +276,48 @@ function module.CreateUI(title)
         Instance.new("UICorner", reloadButton)
 
         local listFrame = Instance.new("ScrollingFrame", container)
-        listFrame.Position = UDim2.new(0, 5, 0, 40)
-        listFrame.Size = UDim2.new(1, -10, 1, -45)
+        listFrame.Position = UDim2.new(0, 5, 1, 5)
+        listFrame.Size = UDim2.new(1, -10, 0, 120)
         listFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
         listFrame.BorderSizePixel = 0
         listFrame.ScrollBarThickness = 6
         listFrame.Visible = false
         listFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
         listFrame.CanvasSize = UDim2.new(0, 0, 0, 600)
+        listFrame.ZIndex = 2
         Instance.new("UICorner", listFrame)
+
         local layout = Instance.new("UIListLayout", listFrame)
         layout.SortOrder = Enum.SortOrder.LayoutOrder
         layout.Padding = UDim.new(0, 4)
 
         local function refreshList()
-            listFrame:ClearAllChildren()
+            for _, child in ipairs(listFrame:GetChildren()) do
+                if child:IsA("TextButton") then
+                    child:Destroy()
+                end
+            end
+
             selectedPlayer = "---"
-            dropdownButton.Text = "Players list: " .. selectedPlayer
+            dropdownButton.Text = "Players: " .. selectedPlayer
 
             for _, p in ipairs(Players:GetPlayers()) do
-                local nameBtn = Instance.new("TextButton", listFrame)
-                nameBtn.Size = UDim2.new(1, 0, 0, 30)
-                nameBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
-                nameBtn.Text = p.Name
-                nameBtn.TextColor3 = Color3.new(1, 1, 1)
-                nameBtn.Font = Enum.Font.Gotham
-                nameBtn.TextSize = 14
-                Instance.new("UICorner", nameBtn)
+                if p ~= player then
+                    local nameBtn = Instance.new("TextButton", listFrame)
+                    nameBtn.Size = UDim2.new(1, 0, 0, 30)
+                    nameBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+                    nameBtn.Text = p.Name
+                    nameBtn.TextColor3 = Color3.new(1, 1, 1)
+                    nameBtn.Font = Enum.Font.Gotham
+                    nameBtn.TextSize = 14
+                    Instance.new("UICorner", nameBtn)
 
-                nameBtn.MouseButton1Click:Connect(function()
-                    selectedPlayer = p.Name
-                    dropdownButton.Text = "Players list: " .. selectedPlayer
-                    listFrame.Visible = false
-                end)
+                    nameBtn.MouseButton1Click:Connect(function()
+                        selectedPlayer = p.Name
+                        dropdownButton.Text = "Players: " .. selectedPlayer
+                        listFrame.Visible = false
+                    end)
+                end
             end
         end
 
