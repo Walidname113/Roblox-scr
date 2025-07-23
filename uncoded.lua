@@ -201,7 +201,7 @@ function module.CreateUI(title)
         local selectionBar = Instance.new("Frame")
         selectionBar.Size = UDim2.new(0, 4, 1, 0)
         selectionBar.Position = UDim2.new(0, 0, 0, 0)
-        selectionBar.BackgroundColor3 = Color3.fromRGB(255, 0, 255) -- розовая
+        selectionBar.BackgroundColor3 = Color3.fromRGB(255, 0, 255)
         selectionBar.Visible = false
         selectionBar.Parent = button
 
@@ -244,6 +244,83 @@ function module.CreateUI(title)
         end
     end
 
+    function module.CreatePlayerList(parentFrame)
+        local selectedPlayer = "---"
+
+        local container = Instance.new("Frame", parentFrame)
+        container.Size = UDim2.new(1, -10, 0, 150)
+        container.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+        container.BorderSizePixel = 0
+        Instance.new("UICorner", container)
+
+        local dropdownButton = Instance.new("TextButton", container)
+        dropdownButton.Size = UDim2.new(1, -30, 0, 30)
+        dropdownButton.Position = UDim2.new(0, 5, 0, 5)
+        dropdownButton.Text = "Players list: " .. selectedPlayer
+        dropdownButton.TextColor3 = Color3.new(1, 1, 1)
+        dropdownButton.Font = Enum.Font.Gotham
+        dropdownButton.TextSize = 14
+        dropdownButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        Instance.new("UICorner", dropdownButton)
+
+        local reloadButton = Instance.new("TextButton", container)
+        reloadButton.Size = UDim2.new(0, 25, 0, 25)
+        reloadButton.Position = UDim2.new(1, -30, 0, 7)
+        reloadButton.Text = "⍰"
+        reloadButton.TextColor3 = Color3.new(1, 1, 1)
+        reloadButton.Font = Enum.Font.Gotham
+        reloadButton.TextSize = 16
+        reloadButton.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
+        Instance.new("UICorner", reloadButton)
+
+        local listFrame = Instance.new("ScrollingFrame", container)
+        listFrame.Position = UDim2.new(0, 5, 0, 40)
+        listFrame.Size = UDim2.new(1, -10, 1, -45)
+        listFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+        listFrame.BorderSizePixel = 0
+        listFrame.ScrollBarThickness = 6
+        listFrame.Visible = false
+        listFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        listFrame.CanvasSize = UDim2.new(0, 0, 0, 600)
+        Instance.new("UICorner", listFrame)
+        local layout = Instance.new("UIListLayout", listFrame)
+        layout.SortOrder = Enum.SortOrder.LayoutOrder
+        layout.Padding = UDim.new(0, 4)
+
+        local function refreshList()
+            listFrame:ClearAllChildren()
+            selectedPlayer = "---"
+            dropdownButton.Text = "Players list: " .. selectedPlayer
+
+            for _, p in ipairs(Players:GetPlayers()) do
+                local nameBtn = Instance.new("TextButton", listFrame)
+                nameBtn.Size = UDim2.new(1, 0, 0, 30)
+                nameBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+                nameBtn.Text = p.Name
+                nameBtn.TextColor3 = Color3.new(1, 1, 1)
+                nameBtn.Font = Enum.Font.Gotham
+                nameBtn.TextSize = 14
+                Instance.new("UICorner", nameBtn)
+
+                nameBtn.MouseButton1Click:Connect(function()
+                    selectedPlayer = p.Name
+                    dropdownButton.Text = "Players list: " .. selectedPlayer
+                    listFrame.Visible = false
+                end)
+            end
+        end
+
+        dropdownButton.MouseButton1Click:Connect(function()
+            listFrame.Visible = not listFrame.Visible
+        end)
+
+        reloadButton.MouseButton1Click:Connect(refreshList)
+
+        refreshList()
+
+        return container
+    end
+
     return {
         ScreenGui = screenGui,
         MainFrame = mainFrame,
@@ -252,6 +329,7 @@ function module.CreateUI(title)
         ContentFrame = contentScroll,
         CreateToggle = module.CreateToggle,
         CreateCategory = module.CreateCategory,
+        CreatePlayerList = module.CreatePlayerList,
         Close = function() screenGui:Destroy() end,
         Hide = function()
             mainFrame.Visible = false
