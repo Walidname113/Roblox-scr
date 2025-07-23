@@ -329,7 +329,12 @@ function module.CreateUI(title)
 
         refreshList()
 
-        return container
+        return {
+            Container = container,
+            GetSelected = function()
+                return Players:FindFirstChild(selectedPlayer)
+            end
+        }
     end
 
     return {
