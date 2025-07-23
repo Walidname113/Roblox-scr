@@ -47,12 +47,14 @@ function module.CreateUI(title)
     local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
     screenGui.Name = "CustomScriptUI"
     screenGui.ResetOnSpawn = false
-
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
     local mainFrame = Instance.new("Frame")
     mainFrame.Size = UDim2.new(0, 600, 0, 400)
     mainFrame.Position = UDim2.new(0.3, 0, 0.3, 0)
     mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     mainFrame.BorderSizePixel = 0
+    mainFrame.ZIndex = 1000
     mainFrame.Active = true
     mainFrame.Draggable = false
     mainFrame.Parent = screenGui
@@ -162,7 +164,7 @@ function module.CreateUI(title)
         minimizedFrame.Visible = false
     end)
 
-    local categories = {} -- храним категории и кнопки для управления
+    local categories = {}
 
     function module.CreateToggle(text, parent, callback)
         local button = Instance.new("TextButton")
@@ -196,7 +198,6 @@ function module.CreateUI(title)
         Instance.new("UICorner", button)
         button.Parent = categoryFrame
 
-        -- вертикальная розовая полоса слева
         local selectionBar = Instance.new("Frame")
         selectionBar.Size = UDim2.new(0, 4, 1, 0)
         selectionBar.Position = UDim2.new(0, 0, 0, 0)
@@ -213,7 +214,6 @@ function module.CreateUI(title)
         layout.Padding = UDim.new(0, 6)
 
         button.MouseButton1Click:Connect(function()
-            -- скрыть все категории
             for _, frame in ipairs(contentScroll:GetChildren()) do
                 if frame:IsA("Frame") then
                     frame.Visible = false
@@ -221,7 +221,6 @@ function module.CreateUI(title)
             end
             holder.Visible = true
 
-            -- убрать полосы у всех кнопок
             for _, btn in ipairs(categoryFrame:GetChildren()) do
                 if btn:IsA("TextButton") then
                     local bar = btn:FindFirstChildWhichIsA("Frame")
@@ -230,7 +229,6 @@ function module.CreateUI(title)
                     end
                 end
             end
-            -- показать полосу у выбранной
             selectionBar.Visible = true
         end)
 
@@ -239,7 +237,6 @@ function module.CreateUI(title)
         return holder
     end
 
-    -- Открыть первую категорию автоматически, если есть
     local function openFirstCategory()
         if #categories > 0 then
             categories[1].holder.Visible = true
