@@ -132,8 +132,42 @@ function module.CreateUI(title)
     Instance.new("UICorner", minimizedFrame)
     makeDraggable(minimizedFrame)
 
+    -- Подтверждение при закрытии
     closeButton.MouseButton1Click:Connect(function()
-        screenGui:Destroy()
+        local confirm = Instance.new("TextLabel", screenGui)
+        confirm.Text = "Закрыть UI?"
+        confirm.Size = UDim2.new(0, 200, 0, 100)
+        confirm.Position = UDim2.new(0.5, -100, 0.5, -50)
+        confirm.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        confirm.TextColor3 = Color3.new(1, 1, 1)
+        confirm.Font = Enum.Font.SourceSansBold
+        confirm.TextSize = 20
+        confirm.BorderSizePixel = 0
+        Instance.new("UICorner", confirm)
+
+        local yes = Instance.new("TextButton", confirm)
+        yes.Text = "Да"
+        yes.Size = UDim2.new(0, 80, 0, 30)
+        yes.Position = UDim2.new(0, 10, 1, -40)
+        yes.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+        yes.TextColor3 = Color3.new(1, 1, 1)
+        Instance.new("UICorner", yes)
+
+        local no = Instance.new("TextButton", confirm)
+        no.Text = "Нет"
+        no.Size = UDim2.new(0, 80, 0, 30)
+        no.Position = UDim2.new(1, -90, 1, -40)
+        no.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+        no.TextColor3 = Color3.new(1, 1, 1)
+        Instance.new("UICorner", no)
+
+        yes.MouseButton1Click:Connect(function()
+            screenGui:Destroy()
+        end)
+
+        no.MouseButton1Click:Connect(function()
+            confirm:Destroy()
+        end)
     end)
 
     minimizeButton.MouseButton1Click:Connect(function()
@@ -146,6 +180,7 @@ function module.CreateUI(title)
         minimizedFrame.Visible = false
     end)
 
+    -- 🧩 CreateToggle
     function module.CreateToggle(text, parent, callback)
         local button = Instance.new("TextButton")
         button.Size = UDim2.new(1, -10, 0, 35)
@@ -167,6 +202,38 @@ function module.CreateUI(title)
         return button
     end
 
+    -- 🧩 CreateCategory
+    function module.CreateCategory(name)
+        local button = Instance.new("TextButton")
+        button.Size = UDim2.new(1, -10, 0, 35)
+        button.Text = name
+        button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        button.TextColor3 = Color3.new(1, 1, 1)
+        button.Font = Enum.Font.SourceSans
+        button.TextSize = 16
+        Instance.new("UICorner", button)
+        button.Parent = categoryFrame
+
+        local holder = Instance.new("Frame", contentScroll)
+        holder.Size = UDim2.new(1, 0, 0, 0)
+        holder.BackgroundTransparency = 1
+        holder.Visible = false
+        local layout = Instance.new("UIListLayout", holder)
+        layout.SortOrder = Enum.SortOrder.LayoutOrder
+        layout.Padding = UDim.new(0, 6)
+
+        button.MouseButton1Click:Connect(function()
+            for _, frame in ipairs(contentScroll:GetChildren()) do
+                if frame:IsA("Frame") then
+                    frame.Visible = false
+                end
+            end
+            holder.Visible = true
+        end)
+
+        return holder
+    end
+
     return {
         ScreenGui = screenGui,
         MainFrame = mainFrame,
@@ -174,6 +241,7 @@ function module.CreateUI(title)
         CategoryFrame = categoryFrame,
         ContentFrame = contentScroll,
         CreateToggle = module.CreateToggle,
+        CreateCategory = module.CreateCategory,
         Close = function() screenGui:Destroy() end,
         Hide = function()
             mainFrame.Visible = false
