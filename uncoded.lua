@@ -275,21 +275,26 @@ function module.CreateUI(title)
         reloadButton.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
         Instance.new("UICorner", reloadButton)
 
-        local listFrame = Instance.new("ScrollingFrame", container)
-        listFrame.Position = UDim2.new(0, 5, 1, 5)
-        listFrame.Size = UDim2.new(1, -10, 0, 120)
+        local listFrame = Instance.new("ScrollingFrame")
+        listFrame.Parent = parentFrame
+        listFrame.Size = UDim2.new(1, -20, 0, 120)
         listFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
         listFrame.BorderSizePixel = 0
         listFrame.ScrollBarThickness = 6
         listFrame.Visible = false
         listFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
         listFrame.CanvasSize = UDim2.new(0, 0, 0, 600)
-        listFrame.ZIndex = 2
+        listFrame.ZIndex = 10
         Instance.new("UICorner", listFrame)
 
         local layout = Instance.new("UIListLayout", listFrame)
         layout.SortOrder = Enum.SortOrder.LayoutOrder
         layout.Padding = UDim.new(0, 4)
+
+        local function updateListPosition()
+            local absPos = container.AbsolutePosition
+            listFrame.Position = UDim2.new(0, absPos.X, 0, absPos.Y + container.AbsoluteSize.Y)
+        end
 
         local function refreshList()
             for _, child in ipairs(listFrame:GetChildren()) do
@@ -323,6 +328,9 @@ function module.CreateUI(title)
 
         dropdownButton.MouseButton1Click:Connect(function()
             listFrame.Visible = not listFrame.Visible
+            if listFrame.Visible then
+                updateListPosition()
+            end
         end)
 
         reloadButton.MouseButton1Click:Connect(refreshList)
