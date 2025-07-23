@@ -70,7 +70,7 @@ function module.CreateUI(title)
     header.TextXAlignment = Enum.TextXAlignment.Left
 
     local closeButton = Instance.new("TextButton", mainFrame)
-    closeButton.Text = "✕"
+    closeButton.Text = "X"
     closeButton.Font = Enum.Font.GothamBold
     closeButton.Size = UDim2.new(0, 25, 0, 25)
     closeButton.Position = UDim2.new(1, -35, 0, 5)
