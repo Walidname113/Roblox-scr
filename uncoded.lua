@@ -121,53 +121,35 @@ function module.CreateUI(title)
     contentLayout.Padding = UDim.new(0, 6)
     contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
-    local minimizedFrame = Instance.new("TextButton", screenGui)
+    local minimizedFrame = Instance.new("ImageButton", screenGui)
     minimizedFrame.Size = UDim2.new(0, 40, 0, 40)
     minimizedFrame.Position = UDim2.new(0.5, -20, 0.5, -20)
-    minimizedFrame.Text = "+"
-    minimizedFrame.Font = Enum.Font.GothamBold
-    minimizedFrame.TextColor3 = Color3.new(1, 1, 1)
+    minimizedFrame.Image = ""
     minimizedFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
     minimizedFrame.Visible = false
     Instance.new("UICorner", minimizedFrame)
     makeDraggable(minimizedFrame)
 
-    -- Подтверждение при закрытии
+    local plusIcon = Instance.new("TextLabel", minimizedFrame)
+    plusIcon.Text = "+"
+    plusIcon.Size = UDim2.new(1, 0, 1, 0)
+    plusIcon.TextColor3 = Color3.new(1, 1, 1)
+    plusIcon.BackgroundTransparency = 1
+    plusIcon.Font = Enum.Font.GothamBold
+    plusIcon.TextSize = 24
+
+    function module.SetMinimizedImage(assetId)
+        if assetId and typeof(assetId) == "string" and assetId ~= "" then
+            minimizedFrame.Image = "rbxassetid://" .. assetId
+            plusIcon.Visible = false
+        else
+            minimizedFrame.Image = ""
+            plusIcon.Visible = true
+        end
+    end
+
     closeButton.MouseButton1Click:Connect(function()
-        local confirm = Instance.new("TextLabel", screenGui)
-        confirm.Text = "Закрыть UI?"
-        confirm.Size = UDim2.new(0, 200, 0, 100)
-        confirm.Position = UDim2.new(0.5, -100, 0.5, -50)
-        confirm.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-        confirm.TextColor3 = Color3.new(1, 1, 1)
-        confirm.Font = Enum.Font.SourceSansBold
-        confirm.TextSize = 20
-        confirm.BorderSizePixel = 0
-        Instance.new("UICorner", confirm)
-
-        local yes = Instance.new("TextButton", confirm)
-        yes.Text = "Да"
-        yes.Size = UDim2.new(0, 80, 0, 30)
-        yes.Position = UDim2.new(0, 10, 1, -40)
-        yes.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
-        yes.TextColor3 = Color3.new(1, 1, 1)
-        Instance.new("UICorner", yes)
-
-        local no = Instance.new("TextButton", confirm)
-        no.Text = "Нет"
-        no.Size = UDim2.new(0, 80, 0, 30)
-        no.Position = UDim2.new(1, -90, 1, -40)
-        no.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-        no.TextColor3 = Color3.new(1, 1, 1)
-        Instance.new("UICorner", no)
-
-        yes.MouseButton1Click:Connect(function()
-            screenGui:Destroy()
-        end)
-
-        no.MouseButton1Click:Connect(function()
-            confirm:Destroy()
-        end)
+        screenGui:Destroy()
     end)
 
     minimizeButton.MouseButton1Click:Connect(function()
@@ -180,7 +162,6 @@ function module.CreateUI(title)
         minimizedFrame.Visible = false
     end)
 
-    -- 🧩 CreateToggle
     function module.CreateToggle(text, parent, callback)
         local button = Instance.new("TextButton")
         button.Size = UDim2.new(1, -10, 0, 35)
@@ -202,7 +183,6 @@ function module.CreateUI(title)
         return button
     end
 
-    -- 🧩 CreateCategory
     function module.CreateCategory(name)
         local button = Instance.new("TextButton")
         button.Size = UDim2.new(1, -10, 0, 35)
@@ -251,6 +231,7 @@ function module.CreateUI(title)
             mainFrame.Visible = true
             minimizedFrame.Visible = false
         end,
+        SetMinimizedImage = module.SetMinimizedImage
     }
 end
 
