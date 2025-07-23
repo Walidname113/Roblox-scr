@@ -183,6 +183,8 @@ function module.CreateUI(title)
         return button
     end
 
+    local selectedCategoryButton = nil
+
     function module.CreateCategory(name)
         local button = Instance.new("TextButton")
         button.Size = UDim2.new(1, -10, 0, 35)
@@ -191,13 +193,26 @@ function module.CreateUI(title)
         button.TextColor3 = Color3.new(1, 1, 1)
         button.Font = Enum.Font.SourceSans
         button.TextSize = 16
-        Instance.new("UICorner", button)
+        button.AutoButtonColor = false
         button.Parent = categoryFrame
+
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 6)
+        corner.Parent = button
+
+        local indicator = Instance.new("Frame")
+        indicator.Size = UDim2.new(0, 4, 1, 0)
+        indicator.Position = UDim2.new(0, 0, 0, 0)
+        indicator.BackgroundColor3 = Color3.fromRGB(255, 0, 180)
+        indicator.Visible = false
+        indicator.BorderSizePixel = 0
+        indicator.Parent = button
 
         local holder = Instance.new("Frame", contentScroll)
         holder.Size = UDim2.new(1, 0, 0, 0)
         holder.BackgroundTransparency = 1
         holder.Visible = false
+
         local layout = Instance.new("UIListLayout", holder)
         layout.SortOrder = Enum.SortOrder.LayoutOrder
         layout.Padding = UDim.new(0, 6)
@@ -208,8 +223,24 @@ function module.CreateUI(title)
                     frame.Visible = false
                 end
             end
+
+            if selectedCategoryButton then
+                for _, child in ipairs(selectedCategoryButton:GetChildren()) do
+                    if child:IsA("Frame") and child.Name == "Indicator" then
+                        child.Visible = false
+                    end
+                end
+            end
+
+            selectedCategoryButton = button
+            indicator.Name = "Indicator"
+            indicator.Visible = true
             holder.Visible = true
         end)
+
+        if not selectedCategoryButton then
+            button:MouseButton1Click()
+        end
 
         return holder
     end
