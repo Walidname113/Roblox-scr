@@ -162,6 +162,8 @@ function module.CreateUI(title)
         minimizedFrame.Visible = false
     end)
 
+    local selectedCategoryButton = nil
+
     function module.CreateToggle(text, parent, callback)
         local button = Instance.new("TextButton")
         button.Size = UDim2.new(1, -10, 0, 35)
@@ -183,8 +185,6 @@ function module.CreateUI(title)
         return button
     end
 
-    local selectedCategoryButton = nil
-
     function module.CreateCategory(name)
         local button = Instance.new("TextButton")
         button.Size = UDim2.new(1, -10, 0, 35)
@@ -193,12 +193,8 @@ function module.CreateUI(title)
         button.TextColor3 = Color3.new(1, 1, 1)
         button.Font = Enum.Font.SourceSans
         button.TextSize = 16
-        button.AutoButtonColor = false
+        Instance.new("UICorner", button)
         button.Parent = categoryFrame
-
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 6)
-        corner.Parent = button
 
         local indicator = Instance.new("Frame")
         indicator.Size = UDim2.new(0, 4, 1, 0)
@@ -212,7 +208,6 @@ function module.CreateUI(title)
         holder.Size = UDim2.new(1, 0, 0, 0)
         holder.BackgroundTransparency = 1
         holder.Visible = false
-
         local layout = Instance.new("UIListLayout", holder)
         layout.SortOrder = Enum.SortOrder.LayoutOrder
         layout.Padding = UDim.new(0, 6)
@@ -225,21 +220,21 @@ function module.CreateUI(title)
             end
 
             if selectedCategoryButton then
-                for _, child in ipairs(selectedCategoryButton:GetChildren()) do
-                    if child:IsA("Frame") and child.Name == "Indicator" then
-                        child.Visible = false
-                    end
+                local oldIndicator = selectedCategoryButton:FindFirstChildWhichIsA("Frame")
+                if oldIndicator then
+                    oldIndicator.Visible = false
                 end
             end
 
             selectedCategoryButton = button
-            indicator.Name = "Indicator"
             indicator.Visible = true
             holder.Visible = true
         end)
 
         if not selectedCategoryButton then
-            button:MouseButton1Click()
+            selectedCategoryButton = button
+            indicator.Visible = true
+            holder.Visible = true
         end
 
         return holder
