@@ -5,260 +5,237 @@ local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 
 local function makeDraggable(frame)
-    local dragging = false
-    local dragInput, dragStart, startPos
+local dragging = false
+local dragInput, dragStart, startPos
 
-    frame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
+frame.InputBegan:Connect(function(input)    
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then    
+        dragging = true    
+        dragStart = input.Position    
+        startPos = frame.Position    
 
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
+        input.Changed:Connect(function()    
+            if input.UserInputState == Enum.UserInputState.End then    
+                dragging = false    
+            end    
+        end)    
+    end    
+end)    
 
-    frame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
-            dragInput = input
-        end
-    end)
+frame.InputChanged:Connect(function(input)    
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then    
+        dragInput = input    
+    end    
+end)    
 
-    UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            local delta = input.Position - dragStart
-            frame.Position = UDim2.new(
-                startPos.X.Scale,
-                startPos.X.Offset + delta.X,
-                startPos.Y.Scale,
-                startPos.Y.Offset + delta.Y
-            )
-        end
-    end)
+UserInputService.InputChanged:Connect(function(input)    
+    if input == dragInput and dragging then    
+        local delta = input.Position - dragStart    
+        frame.Position = UDim2.new(    
+            startPos.X.Scale,    
+            startPos.X.Offset + delta.X,    
+            startPos.Y.Scale,    
+            startPos.Y.Offset + delta.Y    
+        )    
+    end    
+end)
+
 end
 
 function module.CreateUI(title)
-    local headerText = title or "Unnamed UI"
+local headerText = title or "Unnamed UI"
 
-    local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-    screenGui.Name = "CustomScriptUI"
-    screenGui.ResetOnSpawn = false
+local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))    
+screenGui.Name = "CustomScriptUI"    
+screenGui.ResetOnSpawn = false    
 
-    local mainFrame = Instance.new("Frame")
-    mainFrame.Size = UDim2.new(0, 600, 0, 400)
-    mainFrame.Position = UDim2.new(0.3, 0, 0.3, 0)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    mainFrame.BorderSizePixel = 0
-    mainFrame.Active = true
-    mainFrame.Draggable = false
-    mainFrame.Parent = screenGui
-    Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
-    makeDraggable(mainFrame)
+local mainFrame = Instance.new("Frame")    
+mainFrame.Size = UDim2.new(0, 600, 0, 400)    
+mainFrame.Position = UDim2.new(0.3, 0, 0.3, 0)    
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)    
+mainFrame.BorderSizePixel = 0    
+mainFrame.Active = true    
+mainFrame.Draggable = false    
+mainFrame.Parent = screenGui    
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)    
+makeDraggable(mainFrame)    
 
-    local header = Instance.new("TextLabel", mainFrame)
-    header.Size = UDim2.new(1, -70, 0, 30)
-    header.Position = UDim2.new(0, 10, 0, 5)
-    header.Text = headerText
-    header.TextColor3 = Color3.new(1, 1, 1)
-    header.BackgroundTransparency = 1
-    header.Font = Enum.Font.SourceSansBold
-    header.TextSize = 18
-    header.TextXAlignment = Enum.TextXAlignment.Left
+local header = Instance.new("TextLabel", mainFrame)    
+header.Size = UDim2.new(1, -70, 0, 30)    
+header.Position = UDim2.new(0, 10, 0, 5)    
+header.Text = headerText    
+header.TextColor3 = Color3.new(1, 1, 1)    
+header.BackgroundTransparency = 1    
+header.Font = Enum.Font.SourceSansBold    
+header.TextSize = 18    
+header.TextXAlignment = Enum.TextXAlignment.Left    
 
-    local closeButton = Instance.new("TextButton", mainFrame)
-    closeButton.Text = "X"
-    closeButton.Font = Enum.Font.GothamBold
-    closeButton.Size = UDim2.new(0, 25, 0, 25)
-    closeButton.Position = UDim2.new(1, -35, 0, 5)
-    closeButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    closeButton.TextColor3 = Color3.new(1, 1, 1)
-    Instance.new("UICorner", closeButton).CornerRadius = UDim.new(0, 6)
+local closeButton = Instance.new("TextButton", mainFrame)    
+closeButton.Text = "X"    
+closeButton.Font = Enum.Font.GothamBold    
+closeButton.Size = UDim2.new(0, 25, 0, 25)    
+closeButton.Position = UDim2.new(1, -35, 0, 5)    
+closeButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)    
+closeButton.TextColor3 = Color3.new(1, 1, 1)    
+Instance.new("UICorner", closeButton).CornerRadius = UDim.new(0, 6)    
 
-    local minimizeButton = Instance.new("TextButton", mainFrame)
-    minimizeButton.Text = "—"
-    minimizeButton.Font = Enum.Font.GothamBold
-    minimizeButton.Size = UDim2.new(0, 25, 0, 25)
-    minimizeButton.Position = UDim2.new(1, -65, 0, 5)
-    minimizeButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    minimizeButton.TextColor3 = Color3.new(1, 1, 1)
-    Instance.new("UICorner", minimizeButton)
+local minimizeButton = Instance.new("TextButton", mainFrame)    
+minimizeButton.Text = "—"    
+minimizeButton.Font = Enum.Font.GothamBold    
+minimizeButton.Size = UDim2.new(0, 25, 0, 25)    
+minimizeButton.Position = UDim2.new(1, -65, 0, 5)    
+minimizeButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)    
+minimizeButton.TextColor3 = Color3.new(1, 1, 1)    
+Instance.new("UICorner", minimizeButton)    
 
-    local categoryFrame = Instance.new("ScrollingFrame", mainFrame)
-    categoryFrame.Name = "CategoryFrame"
-    categoryFrame.Size = UDim2.new(0, 150, 1, -55)
-    categoryFrame.Position = UDim2.new(0, 10, 0, 45)
-    categoryFrame.CanvasSize = UDim2.new(0, 0, 0, 600)
-    categoryFrame.ScrollBarThickness = 4
-    categoryFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    categoryFrame.BorderSizePixel = 0
-    categoryFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    Instance.new("UICorner", categoryFrame)
-    local categoryLayout = Instance.new("UIListLayout", categoryFrame)
-    categoryLayout.Padding = UDim.new(0, 6)
-    categoryLayout.SortOrder = Enum.SortOrder.LayoutOrder
+local categoryFrame = Instance.new("ScrollingFrame", mainFrame)    
+categoryFrame.Name = "CategoryFrame"    
+categoryFrame.Size = UDim2.new(0, 150, 1, -55)    
+categoryFrame.Position = UDim2.new(0, 10, 0, 45)    
+categoryFrame.CanvasSize = UDim2.new(0, 0, 0, 600)    
+categoryFrame.ScrollBarThickness = 4    
+categoryFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)    
+categoryFrame.BorderSizePixel = 0    
+categoryFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y    
+Instance.new("UICorner", categoryFrame)    
+local categoryLayout = Instance.new("UIListLayout", categoryFrame)    
+categoryLayout.Padding = UDim.new(0, 6)    
+categoryLayout.SortOrder = Enum.SortOrder.LayoutOrder    
 
-    local contentFrame = Instance.new("Frame", mainFrame)
-    contentFrame.Name = "ContentFrame"
-    contentFrame.Size = UDim2.new(1, -180, 1, -55)
-    contentFrame.Position = UDim2.new(0, 170, 0, 45)
-    contentFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    contentFrame.BorderSizePixel = 0
-    Instance.new("UICorner", contentFrame)
+local contentFrame = Instance.new("Frame", mainFrame)    
+contentFrame.Name = "ContentFrame"    
+contentFrame.Size = UDim2.new(1, -180, 1, -55)    
+contentFrame.Position = UDim2.new(0, 170, 0, 45)    
+contentFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)    
+contentFrame.BorderSizePixel = 0    
+Instance.new("UICorner", contentFrame)    
 
-    local contentScroll = Instance.new("ScrollingFrame", contentFrame)
-    contentScroll.Size = UDim2.new(1, -10, 1, -10)
-    contentScroll.Position = UDim2.new(0, 5, 0, 5)
-    contentScroll.BackgroundTransparency = 1
-    contentScroll.BorderSizePixel = 0
-    contentScroll.ScrollBarThickness = 6
-    contentScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    contentScroll.CanvasSize = UDim2.new(0, 0, 0, 600)
-    local contentLayout = Instance.new("UIListLayout", contentScroll)
-    contentLayout.Padding = UDim.new(0, 6)
-    contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+local contentScroll = Instance.new("ScrollingFrame", contentFrame)    
+contentScroll.Size = UDim2.new(1, -10, 1, -10)    
+contentScroll.Position = UDim2.new(0, 5, 0, 5)    
+contentScroll.BackgroundTransparency = 1    
+contentScroll.BorderSizePixel = 0    
+contentScroll.ScrollBarThickness = 6    
+contentScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y    
+contentScroll.CanvasSize = UDim2.new(0, 0, 0, 600)    
+local contentLayout = Instance.new("UIListLayout", contentScroll)    
+contentLayout.Padding = UDim.new(0, 6)    
+contentLayout.SortOrder = Enum.SortOrder.LayoutOrder    
 
-    local minimizedFrame = Instance.new("ImageButton", screenGui)
-    minimizedFrame.Size = UDim2.new(0, 40, 0, 40)
-    minimizedFrame.Position = UDim2.new(0.5, -20, 0.5, -20)
-    minimizedFrame.Image = ""
-    minimizedFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-    minimizedFrame.Visible = false
-    Instance.new("UICorner", minimizedFrame)
-    makeDraggable(minimizedFrame)
+local minimizedFrame = Instance.new("ImageButton", screenGui)    
+minimizedFrame.Size = UDim2.new(0, 40, 0, 40)    
+minimizedFrame.Position = UDim2.new(0.5, -20, 0.5, -20)    
+minimizedFrame.Image = ""    
+minimizedFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)    
+minimizedFrame.Visible = false    
+Instance.new("UICorner", minimizedFrame)    
+makeDraggable(minimizedFrame)    
 
-    local plusIcon = Instance.new("TextLabel", minimizedFrame)
-    plusIcon.Text = "+"
-    plusIcon.Size = UDim2.new(1, 0, 1, 0)
-    plusIcon.TextColor3 = Color3.new(1, 1, 1)
-    plusIcon.BackgroundTransparency = 1
-    plusIcon.Font = Enum.Font.GothamBold
-    plusIcon.TextSize = 24
+local plusIcon = Instance.new("TextLabel", minimizedFrame)    
+plusIcon.Text = "+"    
+plusIcon.Size = UDim2.new(1, 0, 1, 0)    
+plusIcon.TextColor3 = Color3.new(1, 1, 1)    
+plusIcon.BackgroundTransparency = 1    
+plusIcon.Font = Enum.Font.GothamBold    
+plusIcon.TextSize = 24    
 
-    function module.SetMinimizedImage(assetId)
-        if assetId and typeof(assetId) == "string" and assetId ~= "" then
-            minimizedFrame.Image = "rbxassetid://" .. assetId
-            plusIcon.Visible = false
-        else
-            minimizedFrame.Image = ""
-            plusIcon.Visible = true
-        end
-    end
+function module.SetMinimizedImage(assetId)    
+    if assetId and typeof(assetId) == "string" and assetId ~= "" then    
+        minimizedFrame.Image = "rbxassetid://" .. assetId    
+        plusIcon.Visible = false    
+    else    
+        minimizedFrame.Image = ""    
+        plusIcon.Visible = true    
+    end    
+end    
 
-    closeButton.MouseButton1Click:Connect(function()
-        screenGui:Destroy()
-    end)
+closeButton.MouseButton1Click:Connect(function()    
+    screenGui:Destroy()    
+end)    
 
-    minimizeButton.MouseButton1Click:Connect(function()
-        mainFrame.Visible = false
-        minimizedFrame.Visible = true
-    end)
+minimizeButton.MouseButton1Click:Connect(function()    
+    mainFrame.Visible = false    
+    minimizedFrame.Visible = true    
+end)    
 
-    minimizedFrame.MouseButton1Click:Connect(function()
-        mainFrame.Visible = true
-        minimizedFrame.Visible = false
-    end)
+minimizedFrame.MouseButton1Click:Connect(function()    
+    mainFrame.Visible = true    
+    minimizedFrame.Visible = false    
+end)    
 
-    local selectedCategoryButton = nil
+function module.CreateToggle(text, parent, callback)    
+    local button = Instance.new("TextButton")    
+    button.Size = UDim2.new(1, -10, 0, 35)    
+    button.Text = text    
+    button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)    
+    button.TextColor3 = Color3.new(1, 1, 1)    
+    button.Font = Enum.Font.SourceSans    
+    button.TextSize = 16    
+    Instance.new("UICorner", button)    
+    button.Parent = parent    
 
-    function module.CreateToggle(text, parent, callback)
-        local button = Instance.new("TextButton")
-        button.Size = UDim2.new(1, -10, 0, 35)
-        button.Text = text
-        button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-        button.TextColor3 = Color3.new(1, 1, 1)
-        button.Font = Enum.Font.SourceSans
-        button.TextSize = 16
-        Instance.new("UICorner", button)
-        button.Parent = parent
+    local enabled = false    
+    button.MouseButton1Click:Connect(function()    
+        enabled = not enabled    
+        button.BackgroundColor3 = enabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(60, 60, 60)    
+        if callback then callback(enabled) end    
+    end)    
 
-        local enabled = false
-        button.MouseButton1Click:Connect(function()
-            enabled = not enabled
-            button.BackgroundColor3 = enabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(60, 60, 60)
-            if callback then callback(enabled) end
-        end)
+    return button    
+end    
 
-        return button
-    end
+function module.CreateCategory(name)    
+    local button = Instance.new("TextButton")    
+    button.Size = UDim2.new(1, -10, 0, 35)    
+    button.Text = name    
+    button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)    
+    button.TextColor3 = Color3.new(1, 1, 1)    
+    button.Font = Enum.Font.SourceSans    
+    button.TextSize = 16    
+    Instance.new("UICorner", button)    
+    button.Parent = categoryFrame    
 
-    function module.CreateCategory(name)
-        local button = Instance.new("TextButton")
-        button.Size = UDim2.new(1, -10, 0, 35)
-        button.Text = name
-        button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-        button.TextColor3 = Color3.new(1, 1, 1)
-        button.Font = Enum.Font.SourceSans
-        button.TextSize = 16
-        Instance.new("UICorner", button)
-        button.Parent = categoryFrame
+    local holder = Instance.new("Frame", contentScroll)    
+    holder.Size = UDim2.new(1, 0, 0, 0)    
+    holder.BackgroundTransparency = 1    
+    holder.Visible = false    
+    local layout = Instance.new("UIListLayout", holder)    
+    layout.SortOrder = Enum.SortOrder.LayoutOrder    
+    layout.Padding = UDim.new(0, 6)    
 
-        local indicator = Instance.new("Frame")
-        indicator.Size = UDim2.new(0, 4, 1, 0)
-        indicator.Position = UDim2.new(0, 0, 0, 0)
-        indicator.BackgroundColor3 = Color3.fromRGB(255, 0, 180)
-        indicator.Visible = false
-        indicator.BorderSizePixel = 0
-        indicator.Parent = button
+    button.MouseButton1Click:Connect(function()    
+        for _, frame in ipairs(contentScroll:GetChildren()) do    
+            if frame:IsA("Frame") then    
+                frame.Visible = false    
+            end    
+        end    
+        holder.Visible = true    
+    end)    
 
-        local holder = Instance.new("Frame", contentScroll)
-        holder.Size = UDim2.new(1, 0, 0, 0)
-        holder.BackgroundTransparency = 1
-        holder.Visible = false
-        local layout = Instance.new("UIListLayout", holder)
-        layout.SortOrder = Enum.SortOrder.LayoutOrder
-        layout.Padding = UDim.new(0, 6)
+    return holder    
+end    
 
-        button.MouseButton1Click:Connect(function()
-            for _, frame in ipairs(contentScroll:GetChildren()) do
-                if frame:IsA("Frame") then
-                    frame.Visible = false
-                end
-            end
+return {    
+    ScreenGui = screenGui,    
+    MainFrame = mainFrame,    
+    MinimizedFrame = minimizedFrame,    
+    CategoryFrame = categoryFrame,    
+    ContentFrame = contentScroll,    
+    CreateToggle = module.CreateToggle,    
+    CreateCategory = module.CreateCategory,    
+    Close = function() screenGui:Destroy() end,    
+    Hide = function()    
+        mainFrame.Visible = false    
+        minimizedFrame.Visible = true    
+    end,    
+    Show = function()    
+        mainFrame.Visible = true    
+        minimizedFrame.Visible = false    
+    end,    
+    SetMinimizedImage = module.SetMinimizedImage    
+}
 
-            if selectedCategoryButton then
-                local oldIndicator = selectedCategoryButton:FindFirstChildWhichIsA("Frame")
-                if oldIndicator then
-                    oldIndicator.Visible = false
-                end
-            end
-
-            selectedCategoryButton = button
-            indicator.Visible = true
-            holder.Visible = true
-        end)
-
-        if not selectedCategoryButton then
-            selectedCategoryButton = button
-            indicator.Visible = true
-            holder.Visible = true
-        end
-
-        return holder
-    end
-
-    return {
-        ScreenGui = screenGui,
-        MainFrame = mainFrame,
-        MinimizedFrame = minimizedFrame,
-        CategoryFrame = categoryFrame,
-        ContentFrame = contentScroll,
-        CreateToggle = module.CreateToggle,
-        CreateCategory = module.CreateCategory,
-        Close = function() screenGui:Destroy() end,
-        Hide = function()
-            mainFrame.Visible = false
-            minimizedFrame.Visible = true
-        end,
-        Show = function()
-            mainFrame.Visible = true
-            minimizedFrame.Visible = false
-        end,
-        SetMinimizedImage = module.SetMinimizedImage
-    }
 end
 
 return module
+
