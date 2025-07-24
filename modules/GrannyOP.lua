@@ -306,16 +306,45 @@ ui.CreateToggle("Tools ESP", contentContainer, function(enabled)
         local toolsFolder = currentMap:FindFirstChild("Tools")
         if not toolsFolder then return end
 
-        for _, toolModel in ipairs(toolsFolder:GetChildren()) do
-            if toolModel:IsA("Model") then
-                table.insert(toolESP, createHighlight(toolModel, Color3.fromRGB(255, 105, 180)))
+        local function addESP(toolModel)
+            if not toolModel:IsA("Model") then return end
+
+            local highlight = Instance.new("Highlight")
+            highlight.FillColor = Color3.fromRGB(255, 105, 180)
+            highlight.OutlineTransparency = 1
+            highlight.Adornee = toolModel
+            highlight.Parent = toolModel
+
+            local primary = toolModel.PrimaryPart or toolModel:FindFirstChildWhichIsA("BasePart")
+            if primary then
+                local billboard = Instance.new("BillboardGui")
+                billboard.Size = UDim2.new(0, 100, 0, 20)
+                billboard.StudsOffset = Vector3.new(0, 2, 0)
+                billboard.Adornee = primary
+                billboard.AlwaysOnTop = true
+                billboard.Parent = toolModel
+
+                local textLabel = Instance.new("TextLabel")
+                textLabel.Size = UDim2.new(1, 0, 1, 0)
+                textLabel.BackgroundTransparency = 1
+                textLabel.Text = toolModel.Name
+                textLabel.TextColor3 = Color3.fromRGB(255, 105, 180)
+                textLabel.TextScaled = true
+                textLabel.Font = Enum.Font.SourceSans
+                textLabel.TextStrokeTransparency = 0.5
+                textLabel.Parent = billboard
             end
+
+            table.insert(toolESP, highlight)
         end
+
+        for _, toolModel in ipairs(toolsFolder:GetChildren()) do
+            addESP(toolModel)
+        end
+
         toolsFolder.ChildAdded:Connect(function(toolModel)
             task.wait(1)
-            if toolModel:IsA("Model") then
-                table.insert(toolESP, createHighlight(toolModel, Color3.fromRGB(255, 105, 180)))
-            end
+            addESP(toolModel)
         end)
     end
 end)
