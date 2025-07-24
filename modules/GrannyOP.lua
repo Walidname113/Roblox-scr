@@ -1,7 +1,7 @@
 local requiredGameId = 2165551367
 if game.GameId ~= requiredGameId then return end
 
-local url = "https://raw.githubusercontent.com/Walidname113/Roblox-scr/refs/heads/main/uncoded.lua"
+local url = "https://raw.githubusercontent.com/Walidname113/Roblox-scr/main/uncoded.lua"
 
 local success, source = pcall(function()
     return game:HttpGet(url)
