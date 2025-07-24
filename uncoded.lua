@@ -47,9 +47,9 @@ local headerText = title or "Unnamed UI"
 
 local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))  
 screenGui.Name = "CustomScriptUI"  
-screenGui.ResetOnSpawn = false
-scrennGui.ZIndex = 1001
-screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+screenGui.ResetOnSpawn = false  
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling  
+screenGui.ZIndex = 1000
 
 local mainFrame = Instance.new("Frame")  
 mainFrame.Size = UDim2.new(0, 600, 0, 400)  
@@ -394,3 +394,4 @@ return {
 end
 
 return module
+
