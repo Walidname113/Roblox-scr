@@ -10,7 +10,7 @@ local moduleFunc, err = loadstring(source)
 if not moduleFunc then warn("Error module func:", err) return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("Granny by Kiyatsuka | Version: 1.0.4 Public")
+local ui = uiModule.CreateUI("Granny by Kiyatsuka | Version: 1.0.5 Public")
 
 function ui.CreateToggleWithInput(title, parent, data)  
     local container = Instance.new("Frame")  
@@ -258,6 +258,35 @@ local toolsESPManuallyEnabled = false
 local playerESPEnabled = false
 local enemyESPEnabled = false
 local trapESPEnabled = false
+local playerESPConnection = nil
+local enemyESPConnection = nil
+
+local function connectPlayerESPHandlers(playersFolder)
+    if playerESPConnection then
+        playerESPConnection:Disconnect()
+        playerESPConnection = nil
+    end
+    if enemyESPConnection then
+        enemyESPConnection:Disconnect()
+        enemyESPConnection = nil
+    end
+
+    if playerESPEnabled then
+        playerESPConnection = playersFolder.ChildAdded:Connect(function(obj)
+            if obj:IsA("Model") and obj.Name ~= "Enemy" then
+                addHighlight(obj, "player", Color3.fromRGB(0,255,0))
+            end
+        end)
+    end
+
+    if enemyESPEnabled then
+        enemyESPConnection = playersFolder.ChildAdded:Connect(function(obj)
+            if obj:IsA("Model") and obj.Name == "Enemy" then
+                addHighlight(obj, "enemy", Color3.fromRGB(255,0,0))
+            end
+        end)
+    end
+end
 
 local function setupToolESP()
     clearESPByType("tool")
@@ -368,6 +397,7 @@ ui.CreateToggle("Players ESP", contentContainer, function(state)
     if not players then return end
 
     if state then
+        connectPlayerESPHandlers(players)
         for _, obj in ipairs(players:GetChildren()) do
             if obj.Name ~= "Enemy" then
                 addHighlight(obj, "player", Color3.fromRGB(0,255,0))
@@ -387,6 +417,7 @@ ui.CreateToggle("Enemy ESP", contentContainer, function(state)
     if not players then return end
 
     if state then
+        connectPlayerESPHandlers(players)
         for _, obj in ipairs(players:GetChildren()) do
             if obj.Name == "Enemy" then
                 addHighlight(obj, "enemy", Color3.fromRGB(255,0,0))
@@ -429,6 +460,10 @@ end)
 workspace.ChildAdded:Connect(function(child)
     if child.Name ~= "Map" then return end
     task.wait(1)
+    local playersFolder = child:FindFirstChild("Players")
+    if playersFolder then
+        connectPlayerESPHandlers(playersFolder)
+    end
 
     if trapESPConnection then
         trapESPConnection:Disconnect()
