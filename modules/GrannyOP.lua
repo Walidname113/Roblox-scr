@@ -309,29 +309,7 @@ end)
   
 playersFolder.ChildRemoved:Connect(function(child)  
     removeHighlight(child)  
-end)  
-  
-ui.CreateToggle("Players ESP", contentContainer, function(enabled)  
-    playerESPEnabled = enabled  
-    clearESPByType("player")  
-    if enabled then  
-        for _, plr in ipairs(playersFolder:GetChildren()) do  
-            if plr.Name ~= "Enemy" then  
-                addHighlight(plr, "player", Color3.fromRGB(0, 255, 0))  
-            end  
-        end  
-    end  
-end)  
-  
-playersFolder.ChildAdded:Connect(function(child)  
-    if playerESPEnabled and child.Name ~= "Enemy" then  
-        addHighlight(child, "player", Color3.fromRGB(0, 255, 0))  
-    end  
-end)  
-  
-playersFolder.ChildRemoved:Connect(function(child)  
-    removeHighlight(child)  
-end)  
+end)
   
 ui.CreateToggle("Traps ESP", contentContainer, function(enabled)  
     trapESPEnabled = enabled  
