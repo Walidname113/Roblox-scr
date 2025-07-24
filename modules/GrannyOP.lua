@@ -78,6 +78,42 @@ function ui.CreateToggleWithInput(title, parent, data)
     return container
 end
 
+local highlightsMap = {} -- [object] = {highlight=HighlightInstance, type="player"/"tool"/"enemy"/"trap"}
+
+local function addHighlight(obj, espType, color, extra)
+    if not obj or not obj.Parent then return end
+    local data = highlightsMap[obj]
+    if data then
+        if data.type == espType then return end
+        data.highlight:Destroy()
+        highlightsMap[obj] = nil
+    end
+    local highlight = Instance.new("Highlight")
+    highlight.Adornee = obj
+    highlight.FillColor = color
+    highlight.FillTransparency = extra and extra.FillTransparency or 1
+    highlight.OutlineColor = color
+    highlight.OutlineTransparency = extra and extra.OutlineTransparency or 0
+    highlight.Parent = obj
+    highlightsMap[obj] = {highlight = highlight, type = espType}
+end
+
+local function removeHighlight(obj)
+    if highlightsMap[obj] then
+        highlightsMap[obj].highlight:Destroy()
+        highlightsMap[obj] = nil
+    end
+end
+
+local function clearESPByType(espType)
+    for obj, data in pairs(highlightsMap) do
+        if data.type == espType then
+            data.highlight:Destroy()
+            highlightsMap[obj] = nil
+        end
+    end
+end
+
 local mainContainer = ui.CreateCategory("Main")
 
 local Players = game:GetService("Players")
@@ -245,64 +281,83 @@ local function clearESP(list)
     table.clear(list)
 end
 
-ui.CreateToggle("Enemy ESP", contentContainer, function(enabled)
-    clearESP(grannyESP)
-    if enabled then
-        local playersFolder = workspace:WaitForChild("Map"):FindFirstChild("Players")
-        if not playersFolder then return end
+local playersFolder = workspace:WaitForChild("Map"):WaitForChild("Players")
+local trapsFolder = workspace:WaitForChild("Map"):WaitForChild("Traps")
 
+local toolESPEnabled = false
+local playerESPEnabled = false
+local enemyESPEnabled = false
+local trapESPEnabled = false
+
+ui.CreateToggle("Enemy ESP", contentContainer, function(enabled)
+    enemyESPEnabled = enabled
+    clearESPByType("enemy")
+    if enabled then
         for _, enemy in ipairs(playersFolder:GetChildren()) do
             if enemy.Name == "Enemy" then
-                table.insert(grannyESP, createHighlight(enemy, Color3.fromRGB(255, 0, 0)))
+                addHighlight(enemy, "enemy", Color3.fromRGB(255, 0, 0))
             end
         end
     end
+end)
+
+playersFolder.ChildAdded:Connect(function(child)
+    if enemyESPEnabled and child.Name == "Enemy" then
+        addHighlight(child, "enemy", Color3.fromRGB(255, 0, 0))
+    end
+end)
+
+playersFolder.ChildRemoved:Connect(function(child)
+    removeHighlight(child)
 end)
 
 ui.CreateToggle("Players ESP", contentContainer, function(enabled)
-    clearESP(playerESP)
+    playerESPEnabled = enabled
+    clearESPByType("player")
     if enabled then
-        local playersFolder = workspace:WaitForChild("Map"):FindFirstChild("Players")
-        if not playersFolder then return end
-
         for _, plr in ipairs(playersFolder:GetChildren()) do
             if plr.Name ~= "Enemy" then
-                table.insert(playerESP, createHighlight(plr, Color3.fromRGB(0, 255, 0)))
+                addHighlight(plr, "player", Color3.fromRGB(0, 255, 0))
             end
         end
-
-        playersFolder.ChildAdded:Connect(function(plr)
-            task.wait(1)
-            if plr.Name ~= "Enemy" then
-                table.insert(playerESP, createHighlight(plr, Color3.fromRGB(0, 255, 0)))
-            end
-        end)
     end
+end)
+
+playersFolder.ChildAdded:Connect(function(child)
+    if playerESPEnabled and child.Name ~= "Enemy" then
+        addHighlight(child, "player", Color3.fromRGB(0, 255, 0))
+    end
+end)
+
+playersFolder.ChildRemoved:Connect(function(child)
+    removeHighlight(child)
 end)
 
 ui.CreateToggle("Traps ESP", contentContainer, function(enabled)
-    clearESP(trapESP)
+    trapESPEnabled = enabled
+    clearESPByType("trap")
     if enabled then
-        local trapsFolder = workspace:WaitForChild("Map"):FindFirstChild("Traps")
-        if not trapsFolder then return end
-
         for _, trapModel in ipairs(trapsFolder:GetChildren()) do
             if trapModel:IsA("Model") then
-                table.insert(trapESP, createHighlight(trapModel, Color3.fromRGB(255, 0, 0)))
+                addHighlight(trapModel, "trap", Color3.fromRGB(255, 0, 0))
             end
         end
-
-        trapsFolder.ChildAdded:Connect(function(trapModel)
-            task.wait(1)
-            if trapModel:IsA("Model") then
-                table.insert(trapESP, createHighlight(trapModel, Color3.fromRGB(255, 0, 0)))
-            end
-        end)
     end
 end)
 
+trapsFolder.ChildAdded:Connect(function(trapModel)
+    if trapESPEnabled and trapModel:IsA("Model") then
+        addHighlight(trapModel, "trap", Color3.fromRGB(255, 0, 0))
+    end
+end)
+
+trapsFolder.ChildRemoved:Connect(function(trapModel)
+    removeHighlight(trapModel)
+end)
+
 ui.CreateToggle("Tools ESP", contentContainer, function(enabled)
-    clearESP(toolESP)
+    toolESPEnabled = enabled
+    clearESPByType("tool")
     if enabled then
         local mapFolder = workspace:WaitForChild("Map")
         local currentMap = nil
@@ -317,15 +372,9 @@ ui.CreateToggle("Tools ESP", contentContainer, function(enabled)
         local toolsFolder = currentMap:FindFirstChild("Tools")
         if not toolsFolder then return end
 
-        local function addESP(toolModel)
+        local function addToolESP(toolModel)
             if not toolModel:IsA("Model") then return end
-
-            local highlight = Instance.new("Highlight")
-            highlight.FillColor = Color3.fromRGB(255, 105, 180)
-            highlight.OutlineTransparency = 1
-            highlight.Adornee = toolModel
-            highlight.Parent = toolModel
-            table.insert(toolESP, highlight)
+            addHighlight(toolModel, "tool", Color3.fromRGB(255, 105, 180), {FillTransparency=0.8, OutlineTransparency=1})
 
             local primary = toolModel.PrimaryPart or toolModel:FindFirstChildWhichIsA("BasePart")
             if primary then
@@ -334,6 +383,7 @@ ui.CreateToggle("Tools ESP", contentContainer, function(enabled)
                 billboard.StudsOffset = Vector3.new(0, 2, 0)
                 billboard.Adornee = primary
                 billboard.AlwaysOnTop = true
+                billboard.Name = "ToolESP_Billboard"
                 billboard.Parent = toolModel
 
                 local textLabel = Instance.new("TextLabel")
@@ -345,19 +395,98 @@ ui.CreateToggle("Tools ESP", contentContainer, function(enabled)
                 textLabel.Font = Enum.Font.SourceSans
                 textLabel.TextStrokeTransparency = 0.5
                 textLabel.Parent = billboard
-
-                table.insert(toolESP, billboard)
             end
         end
 
         for _, toolModel in ipairs(toolsFolder:GetChildren()) do
-            addESP(toolModel)
+            addToolESP(toolModel)
         end
 
         toolsFolder.ChildAdded:Connect(function(toolModel)
-            task.wait(1)
-            addESP(toolModel)
+            if toolESPEnabled then
+                task.wait(1)
+                addToolESP(toolModel)
+            end
         end)
+
+        toolsFolder.ChildRemoved:Connect(function(toolModel)
+            removeHighlight(toolModel)
+            local billboard = toolModel:FindFirstChild("ToolESP_Billboard")
+            if billboard then billboard:Destroy() end
+        end)
+    end
+end)
+
+local function refreshToolESPVisibility()
+    if not playerESPEnabled then return end
+    for obj, data in pairs(highlightsMap) do
+        if data.type == "tool" then
+            if obj.Parent and obj.Parent.Name ~= "Tools" then
+                removeHighlight(obj)
+                local billboard = obj:FindFirstChild("ToolESP_Billboard")
+                if billboard then billboard:Destroy() end
+            end
+        end
+    end
+end
+
+local function addToolESPSafe(toolModel)
+    if playerESPEnabled then return end
+    if not highlightsMap[toolModel] then
+        local color = Color3.fromRGB(255, 105, 180)
+        addHighlight(toolModel, "tool", color, {FillTransparency=0.8, OutlineTransparency=1})
+
+        local primary = toolModel.PrimaryPart or toolModel:FindFirstChildWhichIsA("BasePart")
+        if primary then
+            local billboard = Instance.new("BillboardGui")
+            billboard.Size = UDim2.new(0, 100, 0, 20)
+            billboard.StudsOffset = Vector3.new(0, 2, 0)
+            billboard.Adornee = primary
+            billboard.AlwaysOnTop = true
+            billboard.Name = "ToolESP_Billboard"
+            billboard.Parent = toolModel
+
+            local textLabel = Instance.new("TextLabel")
+            textLabel.Size = UDim2.new(1, 0, 1, 0)
+            textLabel.BackgroundTransparency = 1
+            textLabel.Text = toolModel.Name
+            textLabel.TextColor3 = color
+            textLabel.TextScaled = true
+            textLabel.Font = Enum.Font.SourceSans
+            textLabel.TextStrokeTransparency = 0.5
+            textLabel.Parent = billboard
+        end
+    end
+end
+
+ui.CreateToggle("Players ESP", contentContainer, function(enabled)
+    playerESPEnabled = enabled
+    clearESPByType("player")
+
+    if enabled then
+        for _, plr in ipairs(playersFolder:GetChildren()) do
+            if plr.Name ~= "Enemy" then
+                addHighlight(plr, "player", Color3.fromRGB(0, 255, 0))
+            end
+        end
+        refreshToolESPVisibility()
+    else
+        local mapFolder = workspace:WaitForChild("Map")
+        local currentMap = nil
+        for _, child in ipairs(mapFolder:GetChildren()) do
+            if child:IsA("Folder") and child.Name ~= "Players" and child.Name ~= "Traps" then
+                currentMap = child
+                break
+            end
+        end
+        if currentMap then
+            local toolsFolder = currentMap:FindFirstChild("Tools")
+            if toolsFolder then
+                for _, toolModel in ipairs(toolsFolder:GetChildren()) do
+                    addToolESPSafe(toolModel)
+                end
+            end
+        end
     end
 end)
 
