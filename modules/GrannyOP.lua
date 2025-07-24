@@ -20,7 +20,7 @@ end
 
 local uiModule = moduleFunc()
 
-local ui = uiModule.CreateUI("Granny by Kiyatsuka | Version: 1.0.1 Public")
+local ui = uiModule.CreateUI("Granny by Kiyatsuka | Version: 1.0.2 Public")
 
 function ui.CreateToggleWithInput(title, parent, data)
     local container = Instance.new("Frame")
