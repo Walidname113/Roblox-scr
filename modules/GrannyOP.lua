@@ -395,49 +395,60 @@ ui.CreateToggle("Enemy ESP", contentContainer, function(state)
     end
 end)
 
+local trapESPConnection = nil
+
 ui.CreateToggle("Traps ESP", contentContainer, function(state)
     trapESPEnabled = state
+
+    if trapESPConnection then
+        trapESPConnection:Disconnect()
+        trapESPConnection = nil
+    end
+
     clearESPByType("trap")
 
-    local folder = workspace:FindFirstChild("Map")
-    local traps = folder and folder:FindFirstChild("Traps")
+    if not state then return end
+
+    local map = workspace:FindFirstChild("Map")
+    local traps = map and map:FindFirstChild("Traps")
     if not traps then return end
 
-    if state then
-        for _, obj in ipairs(traps:GetChildren()) do
-            if obj:IsA("Model") then
-                addHighlight(obj, "trap", Color3.fromRGB(255,0,0))
-            end
+    for _, obj in ipairs(traps:GetChildren()) do
+        if obj:IsA("Model") then
+            addHighlight(obj, "trap", Color3.fromRGB(255, 0, 0))
         end
     end
+
+    trapESPConnection = traps.ChildAdded:Connect(function(obj)
+        if trapESPEnabled and obj:IsA("Model") then
+            addHighlight(obj, "trap", Color3.fromRGB(255, 0, 0))
+        end
+    end)
 end)
 
 workspace.ChildAdded:Connect(function(child)
-    if child.Name == "Map" then
-        task.wait(1)
-        if enemyESPEnabled then
-            for _, p in ipairs(child.Players:GetChildren()) do
-                if p.Name == "Enemy" then
-                    addHighlight(p, "enemy", Color3.fromRGB(255,0,0))
-                end
-            end
-        end
-        if playerESPEnabled then
-            for _, p in ipairs(child.Players:GetChildren()) do
-                if p.Name ~= "Enemy" then
-                    addHighlight(p, "player", Color3.fromRGB(0,255,0))
-                end
-            end
-        end
-        if trapESPEnabled then
-            for _, trap in ipairs(child.Traps:GetChildren()) do
+    if child.Name ~= "Map" then return end
+    task.wait(1)
+
+    if trapESPConnection then
+        trapESPConnection:Disconnect()
+        trapESPConnection = nil
+    end
+
+    if trapESPEnabled then
+        local traps = child:FindFirstChild("Traps")
+        if traps then
+            for _, trap in ipairs(traps:GetChildren()) do
                 if trap:IsA("Model") then
-                    addHighlight(trap, "trap", Color3.fromRGB(255,0,0))
+                    addHighlight(trap, "trap", Color3.fromRGB(255, 0, 0))
                 end
             end
-        end
-        if toolESPEnabled then
-            setupToolESP()
+
+            trapESPConnection = traps.ChildAdded:Connect(function(obj)
+                if trapESPEnabled and obj:IsA("Model") then
+                    addHighlight(obj, "trap", Color3.fromRGB(255, 0, 0))
+                end
+            end)
         end
     end
 end)
