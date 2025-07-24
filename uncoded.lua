@@ -49,7 +49,6 @@ local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
 screenGui.Name = "CustomScriptUI"  
 screenGui.ResetOnSpawn = false  
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling  
-screenGui.ZIndex = 1000
 
 local mainFrame = Instance.new("Frame")  
 mainFrame.Size = UDim2.new(0, 600, 0, 400)  
