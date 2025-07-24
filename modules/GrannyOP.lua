@@ -314,6 +314,7 @@ ui.CreateToggle("Tools ESP", contentContainer, function(enabled)
             highlight.OutlineTransparency = 1
             highlight.Adornee = toolModel
             highlight.Parent = toolModel
+            table.insert(toolESP, highlight)
 
             local primary = toolModel.PrimaryPart or toolModel:FindFirstChildWhichIsA("BasePart")
             if primary then
@@ -333,9 +334,9 @@ ui.CreateToggle("Tools ESP", contentContainer, function(enabled)
                 textLabel.Font = Enum.Font.SourceSans
                 textLabel.TextStrokeTransparency = 0.5
                 textLabel.Parent = billboard
-            end
 
-            table.insert(toolESP, highlight)
+                table.insert(toolESP, billboard)
+            end
         end
 
         for _, toolModel in ipairs(toolsFolder:GetChildren()) do
