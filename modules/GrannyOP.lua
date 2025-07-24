@@ -10,7 +10,7 @@ local moduleFunc, err = loadstring(source)
 if not moduleFunc then warn("Error module func:", err) return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("Granny by Kiyatsuka | Version: 1.0.3 Public")
+local ui = uiModule.CreateUI("Granny by Kiyatsuka | Version: 1.0.4 Public")
 
 function ui.CreateToggleWithInput(title, parent, data)  
     local container = Instance.new("Frame")  
