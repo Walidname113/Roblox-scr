@@ -110,7 +110,6 @@ Instance.new("UICorner", categoryFrame)
 local categoryLayout = Instance.new("UIListLayout", categoryFrame)
 categoryLayout.Padding = UDim.new(0, 6)
 categoryLayout.SortOrder = Enum.SortOrder.LayoutOrder
-categoryLayout.ZIndex = 1002
 
 local contentFrame = Instance.new("Frame", mainFrame)
 contentFrame.Name = "ContentFrame"
@@ -133,7 +132,6 @@ contentScroll.ZIndex = 1002
 local contentLayout = Instance.new("UIListLayout", contentScroll)
 contentLayout.Padding = UDim.new(0, 6)
 contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
-contentLayout.ZIndex = 1003
 
 local minimizedFrame = Instance.new("ImageButton", screenGui)
 minimizedFrame.Size = UDim2.new(0, 40, 0, 40)
