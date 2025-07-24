@@ -49,6 +49,18 @@ local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
 screenGui.Name = "CustomScriptUI"  
 screenGui.ResetOnSpawn = false  
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling  
+    local function makeUIAboveAll(screenGui)
+    screenGui.DisplayOrder = 9999
+    local function setZIndexRecursive(obj, z)
+        if obj:IsA("GuiObject") then
+            obj.ZIndex = z
+        end
+        for _, child in ipairs(obj:GetChildren()) do
+            setZIndexRecursive(child, z)
+        end
+    end
+    setZIndexRecursive(screenGui, 1000)
+    end
 
 local mainFrame = Instance.new("Frame")  
 mainFrame.Size = UDim2.new(0, 600, 0, 400)  
@@ -364,8 +376,9 @@ function module.CreateButton(text, parentFrame, callback)
     end)  
 
     return button  
-end  
-  
+end
+    makeUIAboveAll(screenGui)
+    
 return {  
     ScreenGui = screenGui,  
     MainFrame = mainFrame,  
