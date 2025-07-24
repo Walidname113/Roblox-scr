@@ -360,3 +360,5 @@ ui.CreateToggle("Tools ESP", contentContainer, function(enabled)
         end)
     end
 end)
+
+ui.OpenFirstCategory()
