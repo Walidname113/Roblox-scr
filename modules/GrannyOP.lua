@@ -1,10 +1,10 @@
 local requiredGameId = 2165551367
 if game.GameId ~= requiredGameId then return end
 
-local url = "https://raw.githubusercontent.com/Walidname113/Roblox-scr/main/uncoded.lua"
+local uiurl = "https://raw.githubusercontent.com/Walidname113/Roblox-scr/main/uncoded.lua"
 
 local success, source = pcall(function()
-    return game:HttpGet(url)
+    return game:HttpGet(uiurl)
 end)
 
 if not success then
