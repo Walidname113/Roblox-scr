@@ -248,6 +248,9 @@ end
 ui.CreateToggle("Enemy ESP", contentContainer, function(enabled)
     clearESP(grannyESP)
     if enabled then
+        local playersFolder = workspace:WaitForChild("Map"):FindFirstChild("Players")
+        if not playersFolder then return end
+
         for _, enemy in ipairs(playersFolder:GetChildren()) do
             if enemy.Name == "Enemy" then
                 table.insert(grannyESP, createHighlight(enemy, Color3.fromRGB(255, 0, 0)))
@@ -259,11 +262,15 @@ end)
 ui.CreateToggle("Players ESP", contentContainer, function(enabled)
     clearESP(playerESP)
     if enabled then
+        local playersFolder = workspace:WaitForChild("Map"):FindFirstChild("Players")
+        if not playersFolder then return end
+
         for _, plr in ipairs(playersFolder:GetChildren()) do
             if plr.Name ~= "Enemy" then
                 table.insert(playerESP, createHighlight(plr, Color3.fromRGB(0, 255, 0)))
             end
         end
+
         playersFolder.ChildAdded:Connect(function(plr)
             task.wait(1)
             if plr.Name ~= "Enemy" then
@@ -276,11 +283,15 @@ end)
 ui.CreateToggle("Traps ESP", contentContainer, function(enabled)
     clearESP(trapESP)
     if enabled then
+        local trapsFolder = workspace:WaitForChild("Map"):FindFirstChild("Traps")
+        if not trapsFolder then return end
+
         for _, trapModel in ipairs(trapsFolder:GetChildren()) do
             if trapModel:IsA("Model") then
                 table.insert(trapESP, createHighlight(trapModel, Color3.fromRGB(255, 0, 0)))
             end
         end
+
         trapsFolder.ChildAdded:Connect(function(trapModel)
             task.wait(1)
             if trapModel:IsA("Model") then
