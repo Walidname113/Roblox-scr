@@ -8,21 +8,20 @@ local success, source = pcall(function()
 end)
 
 if not success then
-    warn("Не удалось загрузить UI:", source)
+    warn("Error load UI:", source)
     return
 end
 
 local moduleFunc, err = loadstring(source)
 if not moduleFunc then
-    warn("Ошибка выполнения модуля:", err)
+    warn("Error module func:", err)
     return
 end
 
 local uiModule = moduleFunc()
 
-local ui = uiModule.CreateUI("Granny by Kiyatsuka | Version: 1.0.0 Public")
+local ui = uiModule.CreateUI("Granny by Kiyatsuka | Version: 1.0.1 Public")
 
--- ✅ Вспомогательная функция CreateToggleWithInput
 function ui.CreateToggleWithInput(title, parent, data)
     local container = Instance.new("Frame")
     container.Size = UDim2.new(1, 0, 0, 30)
@@ -79,7 +78,6 @@ function ui.CreateToggleWithInput(title, parent, data)
     return container
 end
 
--- ✅ Категория "Main" с функциями
 local mainContainer = ui.CreateCategory("Main")
 
 local Players = game:GetService("Players")
@@ -94,7 +92,6 @@ local originalWalkSpeed
 local originalJumpPower
 local infinityJumpEnabled = false
 
--- Показывает кнопку прыжка на экране (мобильным игрокам)
 local function showJumpButton()
 	local touchGui = player:WaitForChild("PlayerGui"):FindFirstChild("TouchGui")
 	if touchGui then
@@ -105,7 +102,6 @@ local function showJumpButton()
 	end
 end
 
--- Кеширование параметров после появления персонажа
 local function cacheOriginalValues()
 	task.wait(1)
 	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
@@ -130,7 +126,6 @@ player.CharacterAdded:Connect(function()
 	cacheOriginalValues()
 end)
 
--- ✅ Noclip
 local function enableNoclip()
 	if noclipConnection then return end
 	noclipConnection = RunService.Stepped:Connect(function()
@@ -160,7 +155,6 @@ ui.CreateToggle("Noclip", mainContainer, function(state)
 	end
 end)
 
--- ✅ Freecam
 ui.CreateToggle("Freecam", mainContainer, function(state)
 	if state then
 		player.CameraMode = Enum.CameraMode.Classic
@@ -171,7 +165,19 @@ ui.CreateToggle("Freecam", mainContainer, function(state)
 	end
 end)
 
--- ✅ SpeedHack
+ui.CreateToggle("InfinityJump", mainContainer, function(state)
+	infinityJumpEnabled = state
+	if state then
+		showJumpButton()
+	end
+end)
+
+UserInputService.JumpRequest:Connect(function()
+	if infinityJumpEnabled and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+		player.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
+	end
+end)
+
 ui.CreateToggleWithInput("SpeedHack", mainContainer, {
 	default = function()
 		return tostring(originalWalkSpeed or 16)
@@ -191,7 +197,6 @@ ui.CreateToggleWithInput("SpeedHack", mainContainer, {
 	end
 })
 
--- ✅ JumpHack
 ui.CreateToggleWithInput("JumpHack", mainContainer, {
 	default = function()
 		return tostring(originalJumpPower or 50)
@@ -214,21 +219,6 @@ ui.CreateToggleWithInput("JumpHack", mainContainer, {
 	end
 })
 
--- ✅ InfinityJump
-ui.CreateToggle("InfinityJump", mainContainer, function(state)
-	infinityJumpEnabled = state
-	if state then
-		showJumpButton()
-	end
-end)
-
-UserInputService.JumpRequest:Connect(function()
-	if infinityJumpEnabled and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
-		player.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
-	end
-end)
-
--- Создаём категорию и получаем контейнер для тогглов
 local contentContainer = ui.CreateCategory("ESP")
 
 local playersFolder = workspace:WaitForChild("Map"):WaitForChild("Players")
@@ -255,7 +245,6 @@ local function clearESP(list)
     table.clear(list)
 end
 
--- Granny ESP toggle
 ui.CreateToggle("Enemy ESP", contentContainer, function(enabled)
     clearESP(grannyESP)
     if enabled then
@@ -267,7 +256,6 @@ ui.CreateToggle("Enemy ESP", contentContainer, function(enabled)
     end
 end)
 
--- Players ESP toggle
 ui.CreateToggle("Players ESP", contentContainer, function(enabled)
     clearESP(playerESP)
     if enabled then
@@ -285,7 +273,6 @@ ui.CreateToggle("Players ESP", contentContainer, function(enabled)
     end
 end)
 
--- Traps ESP toggle
 ui.CreateToggle("Traps ESP", contentContainer, function(enabled)
     clearESP(trapESP)
     if enabled then
@@ -303,7 +290,6 @@ ui.CreateToggle("Traps ESP", contentContainer, function(enabled)
     end
 end)
 
--- Tools ESP toggle
 ui.CreateToggle("Tools ESP", contentContainer, function(enabled)
     clearESP(toolESP)
     if enabled then
