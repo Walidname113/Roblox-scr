@@ -1,4 +1,4 @@
--- Names ESP fix6
+-- Names ESP fix7
 local requiredGameId = 2165551367
 if game.GameId ~= requiredGameId then return end
 
@@ -509,10 +509,9 @@ local function setupToolESP()
 	if not toolsFolder then return end
 
 	local function addToolESP(toolModel)
-		if not toolModel:IsA("Model") then return end
-		addHighlight(toolModel, "tool", Color3.fromRGB(255,105,180), {FillTransparency=0.8, OutlineTransparency=1})
-
-		addNameTag(toolModel, toolModel.Name, Color3.fromRGB(255, 105, 180))
+	 if not toolModel:IsA("Model") then return end
+	 addHighlight(toolModel, "tool", Color3.fromRGB(255, 105, 180), {FillTransparency = 0.8, OutlineTransparency = 1})
+	 addNameTag(toolModel, toolModel.Name, Color3.fromRGB(255, 105, 180))
 	end
 
 	for _, tool in ipairs(toolsFolder:GetChildren()) do
