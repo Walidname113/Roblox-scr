@@ -259,18 +259,9 @@ tpContainer.Parent = mainContainer
 local dropdownOpen = false
 local selectedPlayer = nil
 local playersList = {}
-local dropdownFrame = Instance.new("Frame")
-dropdownFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-dropdownFrame.BorderSizePixel = 0
-dropdownFrame.Size = UDim2.new(0, 150, 0, 100)
-dropdownFrame.Position = UDim2.new(0, 0, 1, 0)
-dropdownFrame.Visible = false
-dropdownFrame.ZIndex = 10
-dropdownFrame.ClipsDescendants = true
-dropdownFrame.Parent = tpContainer
 
 local dropdownButton = Instance.new("TextButton")
-dropdownButton.Text = "Select Player ▼"
+dropdownButton.Text = "▲ Select Player"
 dropdownButton.Size = UDim2.new(0, 150, 1, 0)
 dropdownButton.Position = UDim2.new(0, 0, 0, 0)
 dropdownButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
@@ -284,6 +275,18 @@ tpButton.Position = UDim2.new(0, 155, 0, 0)
 tpButton.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
 tpButton.TextColor3 = Color3.new(1, 1, 1)
 tpButton.Parent = tpContainer
+
+local dropdownFrame = Instance.new("ScrollingFrame")
+dropdownFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+dropdownFrame.BorderSizePixel = 0
+dropdownFrame.Size = UDim2.new(0, 150, 0, 100)
+dropdownFrame.Position = UDim2.new(0, 0, 1, 0)
+dropdownFrame.Visible = false
+dropdownFrame.ZIndex = 10
+dropdownFrame.ClipsDescendants = true
+dropdownFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+dropdownFrame.ScrollBarThickness = 5
+dropdownFrame.Parent = tpContainer
 
 local function clearList()
 	for _, child in ipairs(dropdownFrame:GetChildren()) do
@@ -311,7 +314,7 @@ local function refreshPlayerList()
 
 			option.MouseButton1Click:Connect(function()
 				selectedPlayer = plr
-				dropdownButton.Text = plr.Name
+				dropdownButton.Text = "▲ " .. plr.Name
 				dropdownFrame.Visible = false
 				dropdownOpen = false
 			end)
@@ -325,6 +328,7 @@ end
 dropdownButton.MouseButton1Click:Connect(function()
 	dropdownOpen = not dropdownOpen
 	dropdownFrame.Visible = dropdownOpen
+	dropdownButton.Text = (dropdownOpen and "▼ " or "▲ ") .. (selectedPlayer and selectedPlayer.Name or "Select Player")
 	if dropdownOpen then
 		refreshPlayerList()
 	end
@@ -332,7 +336,7 @@ end)
 
 tpButton.MouseButton1Click:Connect(function()
 	if selectedPlayer and selectedPlayer.Character and selectedPlayer.Character:FindFirstChild("HumanoidRootPart") then
-		local root = selectedPlayer.Character:FindFirstChild("HumanoidRootPart")
+		local root = selectedPlayer.Character.HumanoidRootPart
 		if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
 			player.Character.HumanoidRootPart.CFrame = root.CFrame + Vector3.new(0, 3, 0)
 		end
