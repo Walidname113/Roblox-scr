@@ -10,7 +10,7 @@ local moduleFunc, err = loadstring(source)
 if not moduleFunc then warn("Error module func:", err) return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("Granny by Kiyatsuka | Version: 1.0.5 Public")
+local ui = uiModule.CreateUI("Granny by Kiyatsuka | Version: 1.0.6 Public")
 
 function ui.CreateToggleWithInput(title, parent, data)  
     local container = Instance.new("Frame")  
@@ -250,6 +250,103 @@ ui.CreateToggleWithInput("JumpHack", mainContainer, {
         end
     end
 })
+
+local tpContainer = Instance.new("Frame")
+tpContainer.Size = UDim2.new(1, 0, 0, 30)
+tpContainer.BackgroundTransparency = 1
+tpContainer.Parent = mainContainer
+
+local dropdownOpen = false
+local selectedPlayer = nil
+local playersList = {}
+local dropdownFrame = Instance.new("Frame")
+dropdownFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+dropdownFrame.BorderSizePixel = 0
+dropdownFrame.Size = UDim2.new(0, 150, 0, 100)
+dropdownFrame.Position = UDim2.new(0, 0, 1, 0)
+dropdownFrame.Visible = false
+dropdownFrame.ZIndex = 10
+dropdownFrame.ClipsDescendants = true
+dropdownFrame.Parent = tpContainer
+
+local dropdownButton = Instance.new("TextButton")
+dropdownButton.Text = "Select Player ▼"
+dropdownButton.Size = UDim2.new(0, 150, 1, 0)
+dropdownButton.Position = UDim2.new(0, 0, 0, 0)
+dropdownButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+dropdownButton.TextColor3 = Color3.new(1, 1, 1)
+dropdownButton.Parent = tpContainer
+
+local tpButton = Instance.new("TextButton")
+tpButton.Text = "TP"
+tpButton.Size = UDim2.new(0, 40, 1, 0)
+tpButton.Position = UDim2.new(0, 155, 0, 0)
+tpButton.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+tpButton.TextColor3 = Color3.new(1, 1, 1)
+tpButton.Parent = tpContainer
+
+local function clearList()
+	for _, child in ipairs(dropdownFrame:GetChildren()) do
+		if child:IsA("TextButton") then
+			child:Destroy()
+		end
+	end
+end
+
+local function refreshPlayerList()
+	clearList()
+	playersList = {}
+	local y = 0
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+			table.insert(playersList, plr)
+			local option = Instance.new("TextButton")
+			option.Size = UDim2.new(1, 0, 0, 20)
+			option.Position = UDim2.new(0, 0, 0, y)
+			option.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+			option.TextColor3 = Color3.new(1, 1, 1)
+			option.Text = plr.Name
+			option.ZIndex = 11
+			option.Parent = dropdownFrame
+
+			option.MouseButton1Click:Connect(function()
+				selectedPlayer = plr
+				dropdownButton.Text = plr.Name
+				dropdownFrame.Visible = false
+				dropdownOpen = false
+			end)
+
+			y = y + 20
+		end
+	end
+	dropdownFrame.CanvasSize = UDim2.new(0, 0, 0, y)
+end
+
+dropdownButton.MouseButton1Click:Connect(function()
+	dropdownOpen = not dropdownOpen
+	dropdownFrame.Visible = dropdownOpen
+	if dropdownOpen then
+		refreshPlayerList()
+	end
+end)
+
+tpButton.MouseButton1Click:Connect(function()
+	if selectedPlayer and selectedPlayer.Character and selectedPlayer.Character:FindFirstChild("HumanoidRootPart") then
+		local root = selectedPlayer.Character:FindFirstChild("HumanoidRootPart")
+		if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+			player.Character.HumanoidRootPart.CFrame = root.CFrame + Vector3.new(0, 3, 0)
+		end
+	end
+end)
+
+task.spawn(function()
+	while true do
+		if dropdownOpen then
+			refreshPlayerList()
+		end
+		task.wait(10)
+	end
+end)
 
 local contentContainer = ui.CreateCategory("ESP")
 
