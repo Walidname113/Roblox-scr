@@ -1,4 +1,4 @@
--- Names ESP fix1
+-- Names ESP fix2
 local requiredGameId = 2165551367
 if game.GameId ~= requiredGameId then return end
 
@@ -638,8 +638,6 @@ end)
 
 ui.CreateToggle("Names ESP", contentContainer, function(state)
 	namesESPEnabled = state
-	clearESPByType("player")
-	clearESPByType("enemy")
 	local folder = workspace:FindFirstChild("Map")
 	local players = folder and folder:FindFirstChild("Players")
 	if not players then return end
@@ -654,6 +652,11 @@ ui.CreateToggle("Names ESP", contentContainer, function(state)
 				end
 			end
 		end
+	else
+		for _, tag in pairs(nameTagsMap) do
+			if tag then tag:Destroy() end
+		end
+		table.clear(nameTagsMap)
 	end
 end)
 
