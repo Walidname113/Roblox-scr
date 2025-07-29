@@ -427,7 +427,7 @@ local function addNameTag(model, text, color)
 	bb.Size = UDim2.new(0, 100, 0, 20)
 	bb.Adornee = model.HumanoidRootPart
 	bb.AlwaysOnTop = true
-	bb.StudsOffset = Vector3.new(0, 2.5, 0)
+	bb.StudsOffset = Vector3.new(0, 3, 0)
 	bb.Parent = model
 	local lbl = Instance.new("TextLabel")
 	lbl.Size = UDim2.new(1, 0, 1, 0)
