@@ -589,4 +589,92 @@ workspace.ChildAdded:Connect(function(child)
     end
 end)
 
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+
+local settingsContainer = ui.CreateCategory("Settings")
+local localPlayer = Players.LocalPlayer
+
+local banner = Instance.new("Frame")
+banner.Size = UDim2.new(1, 0, 0, 70)
+banner.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+banner.BackgroundTransparency = 0
+banner.Parent = settingsContainer
+
+local pfp = Instance.new("ImageLabel")
+pfp.Size = UDim2.new(0, 50, 0, 50)
+pfp.Position = UDim2.new(0, 10, 0.5, -25)
+pfp.BackgroundTransparency = 1
+pfp.Image = string.format("https://www.roblox.com/headshot-thumbnail/image?userId=%d&width=420&height=420&format=png", localPlayer.UserId)
+pfp.Parent = banner
+
+local uicorner = Instance.new("UICorner", pfp)
+uicorner.CornerRadius = UDim.new(1, 0)
+
+local nameLabel = Instance.new("TextLabel")
+nameLabel.Position = UDim2.new(0, 70, 0, 10)
+nameLabel.Size = UDim2.new(1, -80, 0, 20)
+nameLabel.Text = localPlayer.DisplayName ~= localPlayer.Name and localPlayer.DisplayName or localPlayer.Name
+nameLabel.TextColor3 = Color3.new(1, 1, 1)
+nameLabel.BackgroundTransparency = 1
+nameLabel.Font = Enum.Font.SourceSansBold
+nameLabel.TextSize = 20
+nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+nameLabel.Parent = banner
+
+if localPlayer.DisplayName ~= localPlayer.Name then
+	local userLabel = Instance.new("TextLabel")
+	userLabel.Position = UDim2.new(0, 70, 0, 35)
+	userLabel.Size = UDim2.new(1, -80, 0, 15)
+	userLabel.Text = "@" .. localPlayer.Name
+	userLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+	userLabel.BackgroundTransparency = 1
+	userLabel.Font = Enum.Font.SourceSans
+	userLabel.TextSize = 14
+	userLabel.TextXAlignment = Enum.TextXAlignment.Left
+	userLabel.Parent = banner
+end
+
+local function createSettingButton(text, callback)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1, 0, 0, 30)
+	btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	btn.TextColor3 = Color3.new(1, 1, 1)
+	btn.Text = text
+	btn.Font = Enum.Font.SourceSansBold
+	btn.TextSize = 16
+	btn.Parent = settingsContainer
+
+	btn.MouseButton1Click:Connect(callback)
+end
+
+createSettingButton("Rejoin Server", function()
+	TeleportService:Teleport(game.PlaceId, localPlayer)
+end)
+
+createSettingButton("Server Hop", function()
+	local servers = {}
+	local pages
+	local success, err = pcall(function()
+		pages = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))
+	end)
+	if not success or not pages or not pages.data then return end
+
+	for _, server in ipairs(pages.data) do
+		if server.playing < server.maxPlayers and server.id ~= game.JobId then
+			table.insert(servers, server.id)
+		end
+	end
+
+	if #servers > 0 then
+		local random = servers[math.random(1, #servers)]
+		TeleportService:TeleportToPlaceInstance(game.PlaceId, random, localPlayer)
+	end
+end)
+
+createSettingButton("Leave Server", function()
+	localPlayer:Kick("You left the game.")
+end)
+
 ui.OpenFirstCategory()
