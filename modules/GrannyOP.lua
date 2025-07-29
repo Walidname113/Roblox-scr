@@ -411,7 +411,7 @@ local function clearESPByType(t)
 			highlightsMap[obj] = nil
 		end
 	end
-	if t == "player" or t == "enemy" then
+	if t == "player" or t == "enemy" or t == "tool" then
 		for obj, bb in pairs(nameTagsMap) do
 			if bb then
 				bb:Destroy()
@@ -511,6 +511,8 @@ local function setupToolESP()
 	local function addToolESP(toolModel)
 		if not toolModel:IsA("Model") then return end
 		addHighlight(toolModel, "tool", Color3.fromRGB(255,105,180), {FillTransparency=0.8, OutlineTransparency=1})
+
+		addNameTag(toolModel, toolModel.Name, Color3.fromRGB(255, 105, 180))
 	end
 
 	for _, tool in ipairs(toolsFolder:GetChildren()) do
