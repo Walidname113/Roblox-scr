@@ -1,4 +1,4 @@
--- Names ESP fix
+-- Names ESP fix1
 local requiredGameId = 2165551367
 if game.GameId ~= requiredGameId then return end
 
@@ -369,6 +369,11 @@ local playerESPConnection = nil
 local enemyESPConnection = nil
 local trapESPConnection = nil
 
+local function getDisplayName(model)
+	local plr = Players:GetPlayerFromCharacter(model)
+	return (plr and plr.DisplayName) or model.Name
+end
+
 local function addHighlight(obj, espType, color, extra)
 	if not obj or not obj.Parent then return end
 	local old = highlightsMap[obj]
@@ -449,7 +454,8 @@ local function connectPlayerESPHandlers(playersFolder)
 			if obj:IsA("Model") and obj.Name ~= "Enemy" then
 				addHighlight(obj, "player", Color3.fromRGB(0,255,0))
 				if namesESPEnabled then
-					addNameTag(obj, obj.DisplayName or obj.Name, Color3.fromRGB(0, 255, 0))
+					local plr = Players:GetPlayerFromCharacter(obj)
+					addNameTag(obj, plr and plr.DisplayName or obj.Name, Color3.fromRGB(0, 255, 0))
 				end
 			end
 		end)
@@ -460,7 +466,8 @@ local function connectPlayerESPHandlers(playersFolder)
 			if obj:IsA("Model") and obj.Name == "Enemy" then
 				addHighlight(obj, "enemy", Color3.fromRGB(255,0,0))
 				if namesESPEnabled then
-					addNameTag(obj, obj.DisplayName or obj.Name, Color3.fromRGB(255, 0, 0))
+					local plr = Players:GetPlayerFromCharacter(obj)
+					addNameTag(obj, plr and plr.DisplayName or obj.Name, Color3.fromRGB(255, 0, 0))
 				end
 			end
 		end)
@@ -469,10 +476,11 @@ local function connectPlayerESPHandlers(playersFolder)
 	if namesESPEnabled then
 		for _, model in ipairs(playersFolder:GetChildren()) do
 			if model:IsA("Model") and model:FindFirstChild("HumanoidRootPart") then
+				local plr = Players:GetPlayerFromCharacter(model)
 				if model.Name == "Enemy" and enemyESPEnabled then
-					addNameTag(model, model.DisplayName or model.Name, Color3.fromRGB(255, 0, 0))
+					addNameTag(model, plr and plr.DisplayName or model.Name, Color3.fromRGB(255, 0, 0))
 				elseif model.Name ~= "Enemy" and playerESPEnabled then
-					addNameTag(model, model.DisplayName or model.Name, Color3.fromRGB(0, 255, 0))
+					addNameTag(model, plr and plr.DisplayName or model.Name, Color3.fromRGB(0, 255, 0))
 				end
 			end
 		end
@@ -516,18 +524,17 @@ workspace.ChildAdded:Connect(function(child)
 	if child.Name ~= "Map" then return end
 	task.wait(1)
 
-	if toolESPEnabled then
-		clearESPByType("tool")
-		setupToolESP()
-	end
+	local playersFolder = child:FindFirstChild("Players")
+	if not playersFolder then return end
 
 	if enemyESPEnabled then
 		clearESPByType("enemy")
-		for _, p in ipairs(child.Players:GetChildren()) do
+		for _, p in ipairs(playersFolder:GetChildren()) do
 			if p.Name == "Enemy" then
 				addHighlight(p, "enemy", Color3.fromRGB(255,0,0))
 				if namesESPEnabled then
-					addNameTag(p, p.DisplayName or p.Name, Color3.fromRGB(255, 0, 0))
+					local plr = Players:GetPlayerFromCharacter(p)
+					addNameTag(p, plr and plr.DisplayName or p.Name, Color3.fromRGB(255, 0, 0))
 				end
 			end
 		end
@@ -535,36 +542,26 @@ workspace.ChildAdded:Connect(function(child)
 
 	if playerESPEnabled then
 		clearESPByType("player")
-		for _, p in ipairs(child.Players:GetChildren()) do
+		for _, p in ipairs(playersFolder:GetChildren()) do
 			if p.Name ~= "Enemy" then
 				addHighlight(p, "player", Color3.fromRGB(0,255,0))
 				if namesESPEnabled then
-					addNameTag(p, p.DisplayName or p.Name, Color3.fromRGB(0, 255, 0))
+					local plr = Players:GetPlayerFromCharacter(p)
+					addNameTag(p, plr and plr.DisplayName or p.Name, Color3.fromRGB(0, 255, 0))
 				end
 			end
 		end
 	end
 
 	if namesESPEnabled then
-		local playersFolder = child:FindFirstChild("Players")
-		if playersFolder then
-			for _, model in ipairs(playersFolder:GetChildren()) do
-				if model:IsA("Model") and model:FindFirstChild("HumanoidRootPart") then
-					if model.Name == "Enemy" and enemyESPEnabled then
-						addNameTag(model, model.DisplayName or model.Name, Color3.fromRGB(255, 0, 0))
-					elseif model.Name ~= "Enemy" and playerESPEnabled then
-						addNameTag(model, model.DisplayName or model.Name, Color3.fromRGB(0, 255, 0))
-					end
+		for _, model in ipairs(playersFolder:GetChildren()) do
+			if model:IsA("Model") and model:FindFirstChild("HumanoidRootPart") then
+				local plr = Players:GetPlayerFromCharacter(model)
+				if model.Name == "Enemy" and enemyESPEnabled then
+					addNameTag(model, plr and plr.DisplayName or model.Name, Color3.fromRGB(255, 0, 0))
+				elseif model.Name ~= "Enemy" and playerESPEnabled then
+					addNameTag(model, plr and plr.DisplayName or model.Name, Color3.fromRGB(0, 255, 0))
 				end
-			end
-		end
-	end
-
-	if trapESPEnabled then
-		clearESPByType("trap")
-		for _, trap in ipairs(child.Traps:GetChildren()) do
-			if trap:IsA("Model") then
-				addHighlight(trap, "trap", Color3.fromRGB(255,0,0))
 			end
 		end
 	end
@@ -641,26 +638,19 @@ end)
 
 ui.CreateToggle("Names ESP", contentContainer, function(state)
 	namesESPEnabled = state
-
+	clearESPByType("player")
+	clearESPByType("enemy")
 	local folder = workspace:FindFirstChild("Map")
 	local players = folder and folder:FindFirstChild("Players")
 	if not players then return end
-
-	for _, model in ipairs(players:GetChildren()) do
-		if model:IsA("Model") and model:FindFirstChild("HumanoidRootPart") then
-			if model.Name == "Enemy" and enemyESPEnabled then
-				if state then
-					addNameTag(model, model.DisplayName or model.Name, Color3.fromRGB(255, 0, 0))
-				else
-					removeHighlight(model)
-					addHighlight(model, "enemy", Color3.fromRGB(255, 0, 0))
-				end
-			elseif model.Name ~= "Enemy" and playerESPEnabled then
-				if state then
-					addNameTag(model, model.DisplayName or model.Name, Color3.fromRGB(0, 255, 0))
-				else
-					removeHighlight(model)
-					addHighlight(model, "player", Color3.fromRGB(0, 255, 0))
+	if state then
+		for _, model in ipairs(players:GetChildren()) do
+			if model:IsA("Model") and model:FindFirstChild("HumanoidRootPart") then
+				local plr = Players:GetPlayerFromCharacter(model)
+				if model.Name == "Enemy" and enemyESPEnabled then
+					addNameTag(model, plr and plr.DisplayName or model.Name, Color3.fromRGB(255, 0, 0))
+				elseif model.Name ~= "Enemy" and playerESPEnabled then
+					addNameTag(model, plr and plr.DisplayName or model.Name, Color3.fromRGB(0, 255, 0))
 				end
 			end
 		end
