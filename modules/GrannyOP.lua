@@ -1,4 +1,4 @@
--- Names ESP fix2
+-- Names ESP fix3
 local requiredGameId = 2165551367
 if game.GameId ~= requiredGameId then return end
 
@@ -411,7 +411,7 @@ local function clearESPByType(t)
 	end
 	if t == "player" or t == "enemy" then
 		for obj, bb in pairs(nameTagsMap) do
-			if obj and bb then
+			if bb then
 				bb:Destroy()
 			end
 		end
@@ -577,14 +577,16 @@ end)
 ui.CreateToggle("Players ESP", contentContainer, function(state)
 	playerESPEnabled = state
 	clearESPByType("player")
+
 	local folder = workspace:FindFirstChild("Map")
 	local players = folder and folder:FindFirstChild("Players")
 	if not players then return end
+
 	if state then
 		connectPlayerESPHandlers(players)
 		for _, obj in ipairs(players:GetChildren()) do
 			if obj.Name ~= "Enemy" then
-				addHighlight(obj, "player", Color3.fromRGB(0,255,0))
+				addHighlight(obj, "player", Color3.fromRGB(0, 255, 0))
 				if namesESPEnabled then
 					addNameTag(obj, obj.DisplayName or obj.Name, Color3.fromRGB(0, 255, 0))
 				end
@@ -638,25 +640,26 @@ end)
 
 ui.CreateToggle("Names ESP", contentContainer, function(state)
 	namesESPEnabled = state
+	clearESPByType("player")
+	clearESPByType("enemy")
+
 	local folder = workspace:FindFirstChild("Map")
 	local players = folder and folder:FindFirstChild("Players")
 	if not players then return end
+
 	if state then
 		for _, model in ipairs(players:GetChildren()) do
 			if model:IsA("Model") and model:FindFirstChild("HumanoidRootPart") then
 				local plr = Players:GetPlayerFromCharacter(model)
 				if model.Name == "Enemy" and enemyESPEnabled then
+					addHighlight(model, "enemy", Color3.fromRGB(255, 0, 0))
 					addNameTag(model, plr and plr.DisplayName or model.Name, Color3.fromRGB(255, 0, 0))
 				elseif model.Name ~= "Enemy" and playerESPEnabled then
+					addHighlight(model, "player", Color3.fromRGB(0, 255, 0))
 					addNameTag(model, plr and plr.DisplayName or model.Name, Color3.fromRGB(0, 255, 0))
 				end
 			end
 		end
-	else
-		for _, tag in pairs(nameTagsMap) do
-			if tag then tag:Destroy() end
-		end
-		table.clear(nameTagsMap)
 	end
 end)
 
