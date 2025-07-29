@@ -1,4 +1,4 @@
--- Names ESP fix4
+-- Names ESP fix5
 local requiredGameId = 2165551367
 if game.GameId ~= requiredGameId then return end
 
@@ -376,11 +376,12 @@ end
 
 local function addHighlight(obj, espType, color, extra)
 	if not obj or not obj.Parent then return end
+
 	local old = highlightsMap[obj]
-	if old then
+	if old and old.highlight and old.highlight.Parent then
 		old.highlight:Destroy()
-		highlightsMap[obj] = nil
 	end
+
 	local hl = Instance.new("Highlight")
 	hl.Adornee = obj
 	hl.FillColor = color
@@ -388,6 +389,7 @@ local function addHighlight(obj, espType, color, extra)
 	hl.OutlineColor = color
 	hl.OutlineTransparency = extra and extra.OutlineTransparency or 0
 	hl.Parent = obj
+
 	highlightsMap[obj] = {highlight = hl, type = espType}
 end
 
