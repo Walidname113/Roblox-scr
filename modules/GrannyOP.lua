@@ -1,3 +1,4 @@
+-- Names ESP fix
 local requiredGameId = 2165551367
 if game.GameId ~= requiredGameId then return end
 
@@ -640,18 +641,26 @@ end)
 
 ui.CreateToggle("Names ESP", contentContainer, function(state)
 	namesESPEnabled = state
-	clearESPByType("player")
-	clearESPByType("enemy")
+
 	local folder = workspace:FindFirstChild("Map")
 	local players = folder and folder:FindFirstChild("Players")
 	if not players then return end
-	if state then
-		for _, model in ipairs(players:GetChildren()) do
-			if model:IsA("Model") and model:FindFirstChild("HumanoidRootPart") then
-				if model.Name == "Enemy" and enemyESPEnabled then
+
+	for _, model in ipairs(players:GetChildren()) do
+		if model:IsA("Model") and model:FindFirstChild("HumanoidRootPart") then
+			if model.Name == "Enemy" and enemyESPEnabled then
+				if state then
 					addNameTag(model, model.DisplayName or model.Name, Color3.fromRGB(255, 0, 0))
-				elseif model.Name ~= "Enemy" and playerESPEnabled then
+				else
+					removeHighlight(model)
+					addHighlight(model, "enemy", Color3.fromRGB(255, 0, 0))
+				end
+			elseif model.Name ~= "Enemy" and playerESPEnabled then
+				if state then
 					addNameTag(model, model.DisplayName or model.Name, Color3.fromRGB(0, 255, 0))
+				else
+					removeHighlight(model)
+					addHighlight(model, "player", Color3.fromRGB(0, 255, 0))
 				end
 			end
 		end
