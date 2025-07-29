@@ -1,4 +1,3 @@
--- Names ESP fix7
 local requiredGameId = 2165551367
 if game.GameId ~= requiredGameId then return end
 
@@ -11,7 +10,7 @@ local moduleFunc, err = loadstring(source)
 if not moduleFunc then warn("Error module func:", err) return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("Granny by Kiyatsuka | Version: 1.0.8 Public")
+local ui = uiModule.CreateUI("Granny by Kiyatsuka | Version: 1.0.5 Public")
 
 function ui.CreateToggleWithInput(title, parent, data)  
     local container = Instance.new("Frame")  
@@ -360,307 +359,234 @@ local toolsESPManuallyEnabled = false
 local playerESPEnabled = false
 local enemyESPEnabled = false
 local trapESPEnabled = false
-local namesESPEnabled = false
-
-local highlightsMap = {}
-local nameTagsMap = {}
-
 local playerESPConnection = nil
 local enemyESPConnection = nil
-local trapESPConnection = nil
-
-local function getDisplayName(model)
-	local plr = Players:GetPlayerFromCharacter(model)
-	return (plr and plr.DisplayName) or model.Name
-end
-
-local function addHighlight(obj, espType, color, extra)
-	if not obj or not obj.Parent then return end
-
-	local old = highlightsMap[obj]
-	if old and old.highlight and old.highlight.Parent then
-		old.highlight:Destroy()
-	end
-
-	local hl = Instance.new("Highlight")
-	hl.Adornee = obj
-	hl.FillColor = color
-	hl.FillTransparency = extra and extra.FillTransparency or 1
-	hl.OutlineColor = color
-	hl.OutlineTransparency = extra and extra.OutlineTransparency or 0
-	hl.Parent = obj
-
-	highlightsMap[obj] = {highlight = hl, type = espType}
-end
-
-local function removeHighlight(obj)
-	if highlightsMap[obj] then
-		highlightsMap[obj].highlight:Destroy()
-		highlightsMap[obj] = nil
-	end
-	if nameTagsMap[obj] then
-		nameTagsMap[obj]:Destroy()
-		nameTagsMap[obj] = nil
-	end
-end
-
-local function clearESPByType(t)
-	for obj, data in pairs(highlightsMap) do
-		if data.type == t then
-			data.highlight:Destroy()
-			highlightsMap[obj] = nil
-		end
-	end
-	if t == "player" or t == "enemy" or t == "tool" then
-		for obj, bb in pairs(nameTagsMap) do
-			if bb then
-				bb:Destroy()
-			end
-		end
-		table.clear(nameTagsMap)
-	end
-end
-
-local function addNameTag(model, text, color)
-	if not model:FindFirstChild("HumanoidRootPart") then return end
-	if nameTagsMap[model] then nameTagsMap[model]:Destroy() end
-	local bb = Instance.new("BillboardGui")
-	bb.Name = "NameTag"
-	bb.Size = UDim2.new(0, 100, 0, 20)
-	bb.Adornee = model.HumanoidRootPart
-	bb.AlwaysOnTop = true
-	bb.StudsOffset = Vector3.new(0, 3, 0)
-	bb.Parent = model
-	local lbl = Instance.new("TextLabel")
-	lbl.Size = UDim2.new(1, 0, 1, 0)
-	lbl.BackgroundTransparency = 1
-	lbl.Text = text
-	lbl.TextColor3 = color
-	lbl.TextScaled = true
-	lbl.Font = Enum.Font.SourceSans
-	lbl.TextStrokeTransparency = 0.5
-	lbl.Parent = bb
-	nameTagsMap[model] = bb
-end
 
 local function connectPlayerESPHandlers(playersFolder)
-	if playerESPConnection then
-		playerESPConnection:Disconnect()
-	end
-	if enemyESPConnection then
-		enemyESPConnection:Disconnect()
-	end
+    if playerESPConnection then
+        playerESPConnection:Disconnect()
+        playerESPConnection = nil
+    end
+    if enemyESPConnection then
+        enemyESPConnection:Disconnect()
+        enemyESPConnection = nil
+    end
 
-	if playerESPEnabled then
-		playerESPConnection = playersFolder.ChildAdded:Connect(function(obj)
-			if obj:IsA("Model") and obj.Name ~= "Enemy" then
-				addHighlight(obj, "player", Color3.fromRGB(0, 255, 0))
-				if namesESPEnabled then
-					local plr = Players:GetPlayerFromCharacter(obj)
-					addNameTag(obj, plr and plr.DisplayName or obj.Name, Color3.fromRGB(0, 255, 0))
-				end
-			end
-		end)
-	end
+    if playerESPEnabled then
+        playerESPConnection = playersFolder.ChildAdded:Connect(function(obj)
+            if obj:IsA("Model") and obj.Name ~= "Enemy" then
+                addHighlight(obj, "player", Color3.fromRGB(0,255,0))
+            end
+        end)
+    end
 
-	if enemyESPEnabled then
-		enemyESPConnection = playersFolder.ChildAdded:Connect(function(obj)
-			if obj:IsA("Model") and obj.Name == "Enemy" then
-				addHighlight(obj, "enemy", Color3.fromRGB(255, 0, 0))
-				if namesESPEnabled then
-					local plr = Players:GetPlayerFromCharacter(obj)
-					addNameTag(obj, plr and plr.DisplayName or obj.Name, Color3.fromRGB(255, 0, 0))
-				end
-			end
-		end)
-	end
-
-	for _, model in ipairs(playersFolder:GetChildren()) do
-		if model:IsA("Model") and model:FindFirstChild("HumanoidRootPart") then
-			local plr = Players:GetPlayerFromCharacter(model)
-			if model.Name == "Enemy" and enemyESPEnabled then
-				addHighlight(model, "enemy", Color3.fromRGB(255, 0, 0))
-				if namesESPEnabled then
-					addNameTag(model, plr and plr.DisplayName or model.Name, Color3.fromRGB(255, 0, 0))
-				end
-			elseif model.Name ~= "Enemy" and playerESPEnabled then
-				addHighlight(model, "player", Color3.fromRGB(0, 255, 0))
-				if namesESPEnabled then
-					addNameTag(model, plr and plr.DisplayName or model.Name, Color3.fromRGB(0, 255, 0))
-				end
-			end
-		end
-	end
+    if enemyESPEnabled then
+        enemyESPConnection = playersFolder.ChildAdded:Connect(function(obj)
+            if obj:IsA("Model") and obj.Name == "Enemy" then
+                addHighlight(obj, "enemy", Color3.fromRGB(255,0,0))
+            end
+        end)
+    end
 end
 
 local function setupToolESP()
-	clearESPByType("tool")
-	local map = workspace:FindFirstChild("Map")
-	if not map then return end
-	local currentMap
-	for _, folder in ipairs(map:GetChildren()) do
-		if folder:IsA("Folder") and folder.Name ~= "Players" and folder.Name ~= "Traps" then
-			currentMap = folder
-			break
-		end
-	end
-	if not currentMap then return end
-	local toolsFolder = currentMap:FindFirstChild("Tools")
-	if not toolsFolder then return end
+    clearESPByType("tool")
 
-	local function addToolESP(toolModel)
-	 if not toolModel:IsA("Model") then return end
-	 addHighlight(toolModel, "tool", Color3.fromRGB(255, 105, 180), {FillTransparency = 0.8, OutlineTransparency = 1})
-	 addNameTag(toolModel, toolModel.Name, Color3.fromRGB(255, 105, 180))
-	end
+    local map = workspace:FindFirstChild("Map")
+    if not map then return end
+    local currentMap
+    for _, folder in ipairs(map:GetChildren()) do
+        if folder:IsA("Folder") and folder.Name ~= "Players" and folder.Name ~= "Traps" then
+            currentMap = folder
+            break
+        end
+    end
+    if not currentMap then return end
+    local toolsFolder = currentMap:FindFirstChild("Tools")
+    if not toolsFolder then return end
 
-	for _, tool in ipairs(toolsFolder:GetChildren()) do
-		addToolESP(tool)
-	end
+    local function addToolESP(toolModel)
+        if not toolModel:IsA("Model") then return end
 
-	toolsFolder.ChildAdded:Connect(function(child)
-		if toolESPEnabled then
-			addToolESP(child)
-		end
-	end)
+        addHighlight(toolModel, "tool", Color3.fromRGB(255,105,180), {FillTransparency=0.8, OutlineTransparency=1})
 
-	toolsFolder.ChildRemoved:Connect(removeHighlight)
+        local primary = toolModel.PrimaryPart or toolModel:FindFirstChildWhichIsA("BasePart")
+        if primary then
+            local bb = toolModel:FindFirstChild("ToolESP_Billboard")
+            if bb then bb:Destroy() end  -- удаляем старый, если есть
+
+            bb = Instance.new("BillboardGui")
+            bb.Name = "ToolESP_Billboard"
+            bb.Size = UDim2.new(0, 100, 0, 20)
+            bb.Adornee = primary
+            bb.AlwaysOnTop = true
+            bb.StudsOffset = Vector3.new(0, 2, 0)
+            bb.Parent = toolModel
+
+            local lbl = Instance.new("TextLabel")
+            lbl.Size = UDim2.new(1, 0, 1, 0)
+            lbl.BackgroundTransparency = 1
+            lbl.Text = toolModel.Name
+            lbl.TextColor3 = Color3.fromRGB(255,105,180)
+            lbl.TextScaled = true
+            lbl.Font = Enum.Font.SourceSans
+            lbl.TextStrokeTransparency = 0.5
+            lbl.Parent = bb
+        end
+    end
+
+    for _, tool in ipairs(toolsFolder:GetChildren()) do
+        addToolESP(tool)
+    end
+
+    toolsFolder.ChildAdded:Connect(function(child)
+        if toolESPEnabled then
+            addToolESP(child)
+        end
+    end)
+
+    toolsFolder.ChildRemoved:Connect(removeHighlight)
 end
 
 workspace.ChildAdded:Connect(function(child)
-	if child.Name ~= "Map" then return end
-	task.wait(1)
-
-	local playersFolder = child:FindFirstChild("Players")
-	if not playersFolder then return end
-
-	if enemyESPEnabled then
-		clearESPByType("enemy")
-		for _, p in ipairs(playersFolder:GetChildren()) do
-			if p.Name == "Enemy" then
-				addHighlight(p, "enemy", Color3.fromRGB(255,0,0))
-				if namesESPEnabled then
-					local plr = Players:GetPlayerFromCharacter(p)
-					addNameTag(p, plr and plr.DisplayName or p.Name, Color3.fromRGB(255, 0, 0))
-				end
-			end
-		end
-	end
-
-	if playerESPEnabled then
-		clearESPByType("player")
-		for _, p in ipairs(playersFolder:GetChildren()) do
-			if p.Name ~= "Enemy" then
-				addHighlight(p, "player", Color3.fromRGB(0,255,0))
-				if namesESPEnabled then
-					local plr = Players:GetPlayerFromCharacter(p)
-					addNameTag(p, plr and plr.DisplayName or p.Name, Color3.fromRGB(0, 255, 0))
-				end
-			end
-		end
-	end
-
-	if namesESPEnabled then
-		for _, model in ipairs(playersFolder:GetChildren()) do
-			if model:IsA("Model") and model:FindFirstChild("HumanoidRootPart") then
-				local plr = Players:GetPlayerFromCharacter(model)
-				if model.Name == "Enemy" and enemyESPEnabled then
-					addNameTag(model, plr and plr.DisplayName or model.Name, Color3.fromRGB(255, 0, 0))
-				elseif model.Name ~= "Enemy" and playerESPEnabled then
-					addNameTag(model, plr and plr.DisplayName or model.Name, Color3.fromRGB(0, 255, 0))
-				end
-			end
-		end
-	end
+    if child.Name == "Map" then
+        task.wait(1)
+        if toolESPEnabled then
+            clearESPByType("tool")
+            setupToolESP()
+        end
+        if enemyESPEnabled then
+            clearESPByType("enemy")
+            for _, p in ipairs(child.Players:GetChildren()) do
+                if p.Name == "Enemy" then
+                    addHighlight(p, "enemy", Color3.fromRGB(255,0,0))
+                end
+            end
+        end
+        if playerESPEnabled then
+            clearESPByType("player")
+            for _, p in ipairs(child.Players:GetChildren()) do
+                if p.Name ~= "Enemy" then
+                    addHighlight(p, "player", Color3.fromRGB(0,255,0))
+                end
+            end
+        end
+        if trapESPEnabled then
+            clearESPByType("trap")
+            for _, trap in ipairs(child.Traps:GetChildren()) do
+                if trap:IsA("Model") then
+                    addHighlight(trap, "trap", Color3.fromRGB(255,0,0))
+                end
+            end
+        end
+    end
 end)
 
 ui.CreateToggle("Tools ESP", contentContainer, function(state)
-	toolESPEnabled = state
-	toolsESPManuallyEnabled = state
-	clearESPByType("tool")
-	if state then setupToolESP() end
+    toolESPEnabled = state
+    toolsESPManuallyEnabled = state
+    clearESPByType("tool")
+    if state then setupToolESP() end
 end)
 
 ui.CreateToggle("Players ESP", contentContainer, function(state)
-	playerESPEnabled = state
-	clearESPByType("player")
+    playerESPEnabled = state
+    clearESPByType("player")
 
-	local folder = workspace:FindFirstChild("Map")
-	local players = folder and folder:FindFirstChild("Players")
-	if not players then return end
+    local folder = workspace:FindFirstChild("Map")
+    local players = folder and folder:FindFirstChild("Players")
+    if not players then return end
 
-	if state then
-		connectPlayerESPHandlers(players)
-	elseif toolsESPManuallyEnabled then
-		setupToolESP()
-	end
+    if state then
+        connectPlayerESPHandlers(players)
+        for _, obj in ipairs(players:GetChildren()) do
+            if obj.Name ~= "Enemy" then
+                addHighlight(obj, "player", Color3.fromRGB(0,255,0))
+            end
+        end
+    elseif toolsESPManuallyEnabled then
+        setupToolESP()
+    end
 end)
 
 ui.CreateToggle("Enemy ESP", contentContainer, function(state)
-	enemyESPEnabled = state
-	clearESPByType("enemy")
-	local folder = workspace:FindFirstChild("Map")
-	local players = folder and folder:FindFirstChild("Players")
-	if not players then return end
-	if state then
-		connectPlayerESPHandlers(players)
-		for _, obj in ipairs(players:GetChildren()) do
-			if obj.Name == "Enemy" then
-				addHighlight(obj, "enemy", Color3.fromRGB(255,0,0))
-				if namesESPEnabled then
-					addNameTag(obj, obj.DisplayName or obj.Name, Color3.fromRGB(255, 0, 0))
-				end
-			end
-		end
-	end
+    enemyESPEnabled = state
+    clearESPByType("enemy")
+
+    local folder = workspace:FindFirstChild("Map")
+    local players = folder and folder:FindFirstChild("Players")
+    if not players then return end
+
+    if state then
+        connectPlayerESPHandlers(players)
+        for _, obj in ipairs(players:GetChildren()) do
+            if obj.Name == "Enemy" then
+                addHighlight(obj, "enemy", Color3.fromRGB(255,0,0))
+            end
+        end
+    end
 end)
+
+local trapESPConnection = nil
 
 ui.CreateToggle("Traps ESP", contentContainer, function(state)
-	trapESPEnabled = state
-	if trapESPConnection then
-		trapESPConnection:Disconnect()
-	end
-	clearESPByType("trap")
-	if not state then return end
-	local map = workspace:FindFirstChild("Map")
-	local traps = map and map:FindFirstChild("Traps")
-	if not traps then return end
-	for _, obj in ipairs(traps:GetChildren()) do
-		if obj:IsA("Model") then
-			addHighlight(obj, "trap", Color3.fromRGB(255, 0, 0))
-		end
-	end
-	trapESPConnection = traps.ChildAdded:Connect(function(obj)
-		if trapESPEnabled and obj:IsA("Model") then
-			addHighlight(obj, "trap", Color3.fromRGB(255, 0, 0))
-		end
-	end)
+    trapESPEnabled = state
+
+    if trapESPConnection then
+        trapESPConnection:Disconnect()
+        trapESPConnection = nil
+    end
+
+    clearESPByType("trap")
+
+    if not state then return end
+
+    local map = workspace:FindFirstChild("Map")
+    local traps = map and map:FindFirstChild("Traps")
+    if not traps then return end
+
+    for _, obj in ipairs(traps:GetChildren()) do
+        if obj:IsA("Model") then
+            addHighlight(obj, "trap", Color3.fromRGB(255, 0, 0))
+        end
+    end
+
+    trapESPConnection = traps.ChildAdded:Connect(function(obj)
+        if trapESPEnabled and obj:IsA("Model") then
+            addHighlight(obj, "trap", Color3.fromRGB(255, 0, 0))
+        end
+    end)
 end)
 
-ui.CreateToggle("Names ESP", contentContainer, function(state)
-	namesESPEnabled = state
+workspace.ChildAdded:Connect(function(child)
+    if child.Name ~= "Map" then return end
+    task.wait(1)
+    local playersFolder = child:FindFirstChild("Players")
+    if playersFolder then
+        connectPlayerESPHandlers(playersFolder)
+    end
 
-	local folder = workspace:FindFirstChild("Map")
-	local players = folder and folder:FindFirstChild("Players")
-	if not players then return end
+    if trapESPConnection then
+        trapESPConnection:Disconnect()
+        trapESPConnection = nil
+    end
 
-	if state then
-		for _, model in ipairs(players:GetChildren()) do
-			if model:IsA("Model") and model:FindFirstChild("HumanoidRootPart") then
-				local plr = Players:GetPlayerFromCharacter(model)
-				if model.Name == "Enemy" and enemyESPEnabled then
-					addNameTag(model, plr and plr.DisplayName or model.Name, Color3.fromRGB(255, 0, 0))
-				elseif model.Name ~= "Enemy" and playerESPEnabled then
-					addNameTag(model, plr and plr.DisplayName or model.Name, Color3.fromRGB(0, 255, 0))
-				end
-			end
-		end
-	else
-		for _, tag in pairs(nameTagsMap) do
-			if tag then tag:Destroy() end
-		end
-		table.clear(nameTagsMap)
-	end
+    if trapESPEnabled then
+        local traps = child:FindFirstChild("Traps")
+        if traps then
+            for _, trap in ipairs(traps:GetChildren()) do
+                if trap:IsA("Model") then
+                    addHighlight(trap, "trap", Color3.fromRGB(255, 0, 0))
+                end
+            end
+
+            trapESPConnection = traps.ChildAdded:Connect(function(obj)
+                if trapESPEnabled and obj:IsA("Model") then
+                    addHighlight(obj, "trap", Color3.fromRGB(255, 0, 0))
+                end
+            end)
+        end
+    end
 end)
 
 local TeleportService = game:GetService("TeleportService")
