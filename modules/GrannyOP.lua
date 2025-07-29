@@ -1,4 +1,4 @@
--- Names ESP fix3
+-- Names ESP fix4
 local requiredGameId = 2165551367
 if game.GameId ~= requiredGameId then return end
 
@@ -640,8 +640,6 @@ end)
 
 ui.CreateToggle("Names ESP", contentContainer, function(state)
 	namesESPEnabled = state
-	clearESPByType("player")
-	clearESPByType("enemy")
 
 	local folder = workspace:FindFirstChild("Map")
 	local players = folder and folder:FindFirstChild("Players")
@@ -652,14 +650,17 @@ ui.CreateToggle("Names ESP", contentContainer, function(state)
 			if model:IsA("Model") and model:FindFirstChild("HumanoidRootPart") then
 				local plr = Players:GetPlayerFromCharacter(model)
 				if model.Name == "Enemy" and enemyESPEnabled then
-					addHighlight(model, "enemy", Color3.fromRGB(255, 0, 0))
 					addNameTag(model, plr and plr.DisplayName or model.Name, Color3.fromRGB(255, 0, 0))
 				elseif model.Name ~= "Enemy" and playerESPEnabled then
-					addHighlight(model, "player", Color3.fromRGB(0, 255, 0))
 					addNameTag(model, plr and plr.DisplayName or model.Name, Color3.fromRGB(0, 255, 0))
 				end
 			end
 		end
+	else
+		for _, tag in pairs(nameTagsMap) do
+			if tag then tag:Destroy() end
+		end
+		table.clear(nameTagsMap)
 	end
 end)
 
