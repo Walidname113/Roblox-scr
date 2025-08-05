@@ -10,7 +10,7 @@ local moduleFunc, err = loadstring(source)
 if not moduleFunc then warn("Error module func:", err) return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.0.1 Public")
+local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.0.2 Public")
 
 local mainCategory = uiModule.CreateCategory("Main")
 local espCategory = uiModule.CreateCategory("ESP")
@@ -71,6 +71,10 @@ local function removeHighlight(model)
 end
 
 local function createESP(player)
+    if espStorage[player] then
+        removeESP(player)
+    end
+
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "ESP_"..player.Name
     billboard.AlwaysOnTop = true
@@ -131,19 +135,27 @@ local function removeESP(player)
     end
 end
 
+local function setupPlayerESP(player)
+    local function onCharacterAdded(char)
+        task.wait(0.1)
+        createESP(player)
+    end
+
+    player.CharacterAdded:Connect(onCharacterAdded)
+    if player.Character then
+        onCharacterAdded(player.Character)
+    end
+end
+
 players.PlayerAdded:Connect(function(p)
     if p ~= localPlayer then
-        createESP(p)
+        setupPlayerESP(p)
     end
-end)
-
-players.PlayerRemoving:Connect(function(p)
-    removeESP(p)
 end)
 
 for _, p in ipairs(players:GetPlayers()) do
     if p ~= localPlayer then
-        createESP(p)
+        setupPlayerESP(p)
     end
 end
 
