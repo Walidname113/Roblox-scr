@@ -48,59 +48,68 @@ uiModule.CreateToggle("Distance ESP", espCategory, function(state) distESPEnable
 
 local espStorage = {}
 
-local function createBillboard(player)
+local function createESP(player)
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "ESP_"..player.Name
     billboard.AlwaysOnTop = true
     billboard.Size = UDim2.new(4, 0, 5, 0)
     billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+    billboard.Parent = game.CoreGui
 
+    -- Box ESP
+    local box = Instance.new("Frame")
+    box.Name = "Box"
+    box.Size = UDim2.new(1, 0, 1, 0)
+    box.BackgroundTransparency = 1
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 1
+    stroke.Color = Color3.fromRGB(255, 0, 0)
+    stroke.Parent = box
+    box.Parent = billboard
+
+    -- Nick
     local nameLabel = Instance.new("TextLabel")
+    nameLabel.Name = "Nick"
     nameLabel.Size = UDim2.new(1, 0, 0, 20)
-    nameLabel.Position = UDim2.new(0, 0, 0, -20)
+    nameLabel.Position = UDim2.new(0, 0, -0.1, 0)
     nameLabel.BackgroundTransparency = 1
     nameLabel.TextColor3 = Color3.new(1, 1, 1)
     nameLabel.TextScaled = true
-    nameLabel.Name = "Nick"
     nameLabel.Parent = billboard
 
+    -- HP
     local hpBar = Instance.new("Frame")
-    hpBar.Size = UDim2.new(0.1, 0, 1, 0)
+    hpBar.Name = "HP"
+    hpBar.Size = UDim2.new(0.05, 0, 1, 0)
     hpBar.Position = UDim2.new(1.05, 0, 0, 0)
     hpBar.BackgroundColor3 = Color3.new(0, 1, 0)
-    hpBar.Name = "HP"
     hpBar.Parent = billboard
 
+    -- Distance
     local distLabel = Instance.new("TextLabel")
+    distLabel.Name = "Dist"
     distLabel.Size = UDim2.new(1, 0, 0, 20)
-    distLabel.Position = UDim2.new(-0.3, 0, 0.5, 0)
+    distLabel.Position = UDim2.new(-0.3, 0, 0.4, 0)
     distLabel.BackgroundTransparency = 1
     distLabel.TextColor3 = Color3.new(1, 1, 1)
     distLabel.TextScaled = true
-    distLabel.Name = "Dist"
     distLabel.Parent = billboard
 
     espStorage[player] = billboard
 end
 
-local function removeBillboard(player)
+local function removeESP(player)
     if espStorage[player] then
         espStorage[player]:Destroy()
         espStorage[player] = nil
     end
 end
 
-players.PlayerAdded:Connect(function(p)
-    createBillboard(p)
-end)
-
-players.PlayerRemoving:Connect(function(p)
-    removeBillboard(p)
-end)
-
+players.PlayerAdded:Connect(createESP)
+players.PlayerRemoving:Connect(removeESP)
 for _, p in ipairs(players:GetPlayers()) do
     if p ~= localPlayer then
-        createBillboard(p)
+        createESP(p)
     end
 end
 
@@ -129,24 +138,33 @@ task.spawn(function()
             end
         end
 
+        -- ESP
         for p, billboard in pairs(espStorage) do
-            if p.Character and p.Character:FindFirstChild("Head") then
-                billboard.Adornee = p.Character.Head
-                billboard.Enabled = boxESPEnabled or nickESPEnabled or hpESPEnabled or distESPEnabled
+            if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                billboard.Adornee = p.Character.HumanoidRootPart
 
+                -- Box
+                billboard.Box.Visible = boxESPEnabled
+
+                -- Nick
                 billboard.Nick.Visible = nickESPEnabled
                 billboard.Nick.Text = p.Name
 
+                -- HP
                 if hpESPEnabled and p.Character:FindFirstChild("Humanoid") then
                     local hp = p.Character.Humanoid.Health / p.Character.Humanoid.MaxHealth
                     billboard.HP.Visible = true
-                    billboard.HP.Size = UDim2.new(0.1, 0, hp, 0)
-                    billboard.HP.BackgroundColor3 = hp > 0.5 and Color3.new(0, 1, 0) or hp > 0.2 and Color3.new(1, 0.5, 0) or Color3.new(1, 0, 0)
+                    billboard.HP.Size = UDim2.new(0.05, 0, hp, 0)
+                    billboard.HP.BackgroundColor3 =
+                        hp > 0.5 and Color3.new(0, 1, 0)
+                        or hp > 0.2 and Color3.new(1, 0.5, 0)
+                        or Color3.new(1, 0, 0)
                 else
                     billboard.HP.Visible = false
                 end
 
-                if distESPEnabled and p.Character:FindFirstChild("HumanoidRootPart") and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                -- Distance
+                if distESPEnabled and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
                     local dist = (p.Character.HumanoidRootPart.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
                     billboard.Dist.Visible = true
                     billboard.Dist.Text = math.floor(dist).." studs"
@@ -154,7 +172,10 @@ task.spawn(function()
                     billboard.Dist.Visible = false
                 end
             else
-                billboard.Enabled = false
+                billboard.Box.Visible = false
+                billboard.Nick.Visible = false
+                billboard.HP.Visible = false
+                billboard.Dist.Visible = false
             end
         end
     end
