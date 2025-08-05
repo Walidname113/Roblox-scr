@@ -10,13 +10,14 @@ local moduleFunc, err = loadstring(source)
 if not moduleFunc then warn("Error module func:", err) return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.0.0 Public")
+local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.0.1 Public")
 
 local mainCategory = uiModule.CreateCategory("Main")
 local espCategory = uiModule.CreateCategory("ESP")
 local players = game:GetService("Players")
 local localPlayer = players.LocalPlayer
 local cam = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
 
 local studs = 100
 local aimbotEnabled = false
@@ -48,26 +49,36 @@ uiModule.CreateToggle("Distance ESP", espCategory, function(state) distESPEnable
 
 local espStorage = {}
 
+local function addHighlight(model)
+    if not model then return end
+    if model:FindFirstChildOfClass("Highlight") then return end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESP_Highlight"
+    highlight.Adornee = model
+    highlight.FillColor = Color3.new(1, 0, 0)
+    highlight.OutlineColor = Color3.new(1, 0, 0)
+    highlight.FillTransparency = 0.7
+    highlight.OutlineTransparency = 0
+    highlight.Parent = game.CoreGui
+    return highlight
+end
+
+local function removeHighlight(model)
+    if not model then return end
+    local highlight = model:FindFirstChildOfClass("Highlight")
+    if highlight then highlight:Destroy() end
+end
+
 local function createESP(player)
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "ESP_"..player.Name
     billboard.AlwaysOnTop = true
     billboard.Size = UDim2.new(4, 0, 5, 0)
     billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+    billboard.Adornee = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
     billboard.Parent = game.CoreGui
 
-    -- Box ESP
-    local box = Instance.new("Frame")
-    box.Name = "Box"
-    box.Size = UDim2.new(1, 0, 1, 0)
-    box.BackgroundTransparency = 1
-    local stroke = Instance.new("UIStroke")
-    stroke.Thickness = 1
-    stroke.Color = Color3.fromRGB(255, 0, 0)
-    stroke.Parent = box
-    box.Parent = billboard
-
-    -- Nick
     local nameLabel = Instance.new("TextLabel")
     nameLabel.Name = "Nick"
     nameLabel.Size = UDim2.new(1, 0, 0, 20)
@@ -77,105 +88,138 @@ local function createESP(player)
     nameLabel.TextScaled = true
     nameLabel.Parent = billboard
 
-    -- HP
     local hpBar = Instance.new("Frame")
     hpBar.Name = "HP"
     hpBar.Size = UDim2.new(0.05, 0, 1, 0)
     hpBar.Position = UDim2.new(1.05, 0, 0, 0)
     hpBar.BackgroundColor3 = Color3.new(0, 1, 0)
+    hpBar.BorderSizePixel = 0
     hpBar.Parent = billboard
 
-    -- Distance
     local distLabel = Instance.new("TextLabel")
     distLabel.Name = "Dist"
-    distLabel.Size = UDim2.new(1, 0, 0, 20)
+    distLabel.Size = UDim2.new(1, 0, 0, 25)
     distLabel.Position = UDim2.new(-0.3, 0, 0.4, 0)
     distLabel.BackgroundTransparency = 1
     distLabel.TextColor3 = Color3.new(1, 1, 1)
-    distLabel.TextScaled = true
+    distLabel.TextScaled = false
+    distLabel.Font = Enum.Font.SourceSansBold
+    distLabel.TextSize = 20
     distLabel.Parent = billboard
 
-    espStorage[player] = billboard
+    espStorage[player] = {
+        Billboard = billboard,
+        Highlight = nil,
+        HP = hpBar,
+        Nick = nameLabel,
+        Dist = distLabel
+    }
+
+    if boxESPEnabled and player.Character then
+        espStorage[player].Highlight = addHighlight(player.Character)
+    end
 end
 
 local function removeESP(player)
     if espStorage[player] then
-        espStorage[player]:Destroy()
+        if espStorage[player].Highlight then
+            removeHighlight(player.Character)
+            espStorage[player].Highlight = nil
+        end
+        espStorage[player].Billboard:Destroy()
         espStorage[player] = nil
     end
 end
 
-players.PlayerAdded:Connect(createESP)
-players.PlayerRemoving:Connect(removeESP)
+players.PlayerAdded:Connect(function(p)
+    if p ~= localPlayer then
+        createESP(p)
+    end
+end)
+
+players.PlayerRemoving:Connect(function(p)
+    removeESP(p)
+end)
+
 for _, p in ipairs(players:GetPlayers()) do
     if p ~= localPlayer then
         createESP(p)
     end
 end
 
-task.spawn(function()
-    while task.wait() do
-        if aimbotEnabled then
-            local char = localPlayer.Character
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                local nearest, minDist = nil, studs
-                for _, p in ipairs(players:GetPlayers()) do
-                    if p ~= localPlayer and p.Character then
-                        local targetHrp = p.Character:FindFirstChild("HumanoidRootPart")
-                        local head = p.Character:FindFirstChild("Head")
-                        if targetHrp and head then
-                            local dist = (targetHrp.Position - hrp.Position).Magnitude
-                            if dist <= studs and dist < minDist then
-                                nearest, minDist = head, dist
-                            end
+RunService.RenderStepped:Connect(function()
+    if aimbotEnabled then
+        local char = localPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local nearest, minDist = nil, studs
+            for _, p in ipairs(players:GetPlayers()) do
+                if p ~= localPlayer and p.Character then
+                    local targetHrp = p.Character:FindFirstChild("HumanoidRootPart")
+                    local head = p.Character:FindFirstChild("Head")
+                    if targetHrp and head then
+                        local dist = (targetHrp.Position - hrp.Position).Magnitude
+                        if dist <= studs and dist < minDist then
+                            nearest, minDist = head, dist
                         end
                     end
                 end
-                if nearest then
-                    cam.CFrame = CFrame.new(cam.CFrame.Position, nearest.Position)
-                end
+            end
+            if nearest then
+                cam.CFrame = CFrame.new(cam.CFrame.Position, nearest.Position)
             end
         end
+    end
 
-        -- ESP
-        for p, billboard in pairs(espStorage) do
-            if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                billboard.Adornee = p.Character.HumanoidRootPart
+    for player, data in pairs(espStorage) do
+        local billboard = data.Billboard
+        local highlight = data.Highlight
 
-                -- Box
-                billboard.Box.Visible = boxESPEnabled
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            billboard.Adornee = player.Character.HumanoidRootPart
+            billboard.Enabled = nickESPEnabled or hpESPEnabled or distESPEnabled
 
-                -- Nick
-                billboard.Nick.Visible = nickESPEnabled
-                billboard.Nick.Text = p.Name
-
-                -- HP
-                if hpESPEnabled and p.Character:FindFirstChild("Humanoid") then
-                    local hp = p.Character.Humanoid.Health / p.Character.Humanoid.MaxHealth
-                    billboard.HP.Visible = true
-                    billboard.HP.Size = UDim2.new(0.05, 0, hp, 0)
-                    billboard.HP.BackgroundColor3 =
-                        hp > 0.5 and Color3.new(0, 1, 0)
-                        or hp > 0.2 and Color3.new(1, 0.5, 0)
-                        or Color3.new(1, 0, 0)
-                else
-                    billboard.HP.Visible = false
-                end
-
-                -- Distance
-                if distESPEnabled and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                    local dist = (p.Character.HumanoidRootPart.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
-                    billboard.Dist.Visible = true
-                    billboard.Dist.Text = math.floor(dist).." studs"
-                else
-                    billboard.Dist.Visible = false
+            if boxESPEnabled then
+                if not highlight then
+                    data.Highlight = addHighlight(player.Character)
                 end
             else
-                billboard.Box.Visible = false
-                billboard.Nick.Visible = false
+                if highlight then
+                    removeHighlight(player.Character)
+                    data.Highlight = nil
+                end
+            end
+
+            billboard.Nick.Visible = nickESPEnabled
+            billboard.Nick.Text = player.Name
+
+            if hpESPEnabled and player.Character:FindFirstChild("Humanoid") then
+                local humanoid = player.Character.Humanoid
+                local hpRatio = humanoid.Health / humanoid.MaxHealth
+                billboard.HP.Visible = true
+                local minHeight = 0.1
+                billboard.HP.Size = UDim2.new(0.05, 0, math.clamp(hpRatio, minHeight, 1), 0)
+                billboard.HP.BackgroundColor3 =
+                    hpRatio > 0.5 and Color3.new(0, 1, 0) or
+                    hpRatio > 0.2 and Color3.new(1, 0.5, 0) or
+                    Color3.new(1, 0, 0)
+            else
                 billboard.HP.Visible = false
+            end
+
+            if distESPEnabled and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                local dist = (player.Character.HumanoidRootPart.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
+                billboard.Dist.Visible = true
+                billboard.Dist.Text = math.floor(dist) .. " studs"
+                billboard.Dist.TextSize = 20
+            else
                 billboard.Dist.Visible = false
+            end
+        else
+            billboard.Enabled = false
+            if highlight then
+                removeHighlight(player.Character)
+                data.Highlight = nil
             end
         end
     end
