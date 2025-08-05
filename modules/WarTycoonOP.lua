@@ -10,7 +10,7 @@ local moduleFunc, err = loadstring(source)
 if not moduleFunc then warn("Error module func:", err) return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.0.2 Public")
+local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.0.3 Public")
 
 local mainCategory = uiModule.CreateCategory("Main")
 local espCategory = uiModule.CreateCategory("ESP")
@@ -51,10 +51,7 @@ local espStorage = {}
 
 local function addHighlight(model)
     if not model then return end
-    if model:FindFirstChildOfClass("Highlight") then return end
-
     local highlight = Instance.new("Highlight")
-    highlight.Name = "ESP_Highlight"
     highlight.Adornee = model
     highlight.FillColor = Color3.new(1, 0, 0)
     highlight.OutlineColor = Color3.new(1, 0, 0)
@@ -64,19 +61,18 @@ local function addHighlight(model)
     return highlight
 end
 
-local function removeHighlight(model)
-    if not model then return end
-    local highlight = model:FindFirstChildOfClass("Highlight")
+local function removeHighlight(highlight)
     if highlight then highlight:Destroy() end
 end
 
 local function createESP(player)
     if espStorage[player] then
-        removeESP(player)
+        espStorage[player].Billboard:Destroy()
+        removeHighlight(espStorage[player].Highlight)
+        espStorage[player] = nil
     end
 
     local billboard = Instance.new("BillboardGui")
-    billboard.Name = "ESP_"..player.Name
     billboard.AlwaysOnTop = true
     billboard.Size = UDim2.new(4, 0, 5, 0)
     billboard.StudsOffset = Vector3.new(0, 2.5, 0)
@@ -85,11 +81,13 @@ local function createESP(player)
 
     local nameLabel = Instance.new("TextLabel")
     nameLabel.Name = "Nick"
-    nameLabel.Size = UDim2.new(1, 0, 0, 20)
-    nameLabel.Position = UDim2.new(0, 0, -0.1, 0)
+    nameLabel.Size = UDim2.new(1, 0, 0, 30)
+    nameLabel.Position = UDim2.new(0, 0, -0.2, 0)
     nameLabel.BackgroundTransparency = 1
     nameLabel.TextColor3 = Color3.new(1, 1, 1)
-    nameLabel.TextScaled = true
+    nameLabel.TextScaled = false
+    nameLabel.TextSize = 24
+    nameLabel.Font = Enum.Font.SourceSansBold
     nameLabel.Parent = billboard
 
     local hpBar = Instance.new("Frame")
@@ -118,32 +116,16 @@ local function createESP(player)
         Nick = nameLabel,
         Dist = distLabel
     }
-
-    if boxESPEnabled and player.Character then
-        espStorage[player].Highlight = addHighlight(player.Character)
-    end
-end
-
-local function removeESP(player)
-    if espStorage[player] then
-        if espStorage[player].Highlight then
-            removeHighlight(player.Character)
-            espStorage[player].Highlight = nil
-        end
-        espStorage[player].Billboard:Destroy()
-        espStorage[player] = nil
-    end
 end
 
 local function setupPlayerESP(player)
-    local function onCharacterAdded(char)
+    local function onCharacterAdded()
         task.wait(0.1)
         createESP(player)
     end
-
     player.CharacterAdded:Connect(onCharacterAdded)
     if player.Character then
-        onCharacterAdded(player.Character)
+        onCharacterAdded()
     end
 end
 
@@ -186,31 +168,26 @@ RunService.RenderStepped:Connect(function()
     for player, data in pairs(espStorage) do
         local billboard = data.Billboard
         local highlight = data.Highlight
-
         if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             billboard.Adornee = player.Character.HumanoidRootPart
             billboard.Enabled = nickESPEnabled or hpESPEnabled or distESPEnabled
-
             if boxESPEnabled then
                 if not highlight then
                     data.Highlight = addHighlight(player.Character)
                 end
             else
                 if highlight then
-                    removeHighlight(player.Character)
+                    removeHighlight(highlight)
                     data.Highlight = nil
                 end
             end
-
             billboard.Nick.Visible = nickESPEnabled
             billboard.Nick.Text = player.Name
-
             if hpESPEnabled and player.Character:FindFirstChild("Humanoid") then
                 local humanoid = player.Character.Humanoid
                 local hpRatio = humanoid.Health / humanoid.MaxHealth
                 billboard.HP.Visible = true
-                local minHeight = 0.1
-                billboard.HP.Size = UDim2.new(0.05, 0, math.clamp(hpRatio, minHeight, 1), 0)
+                billboard.HP.Size = UDim2.new(0.05, 0, math.clamp(hpRatio, 0.1, 1), 0)
                 billboard.HP.BackgroundColor3 =
                     hpRatio > 0.5 and Color3.new(0, 1, 0) or
                     hpRatio > 0.2 and Color3.new(1, 0.5, 0) or
@@ -218,7 +195,6 @@ RunService.RenderStepped:Connect(function()
             else
                 billboard.HP.Visible = false
             end
-
             if distESPEnabled and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
                 local dist = (player.Character.HumanoidRootPart.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
                 billboard.Dist.Visible = true
@@ -230,7 +206,7 @@ RunService.RenderStepped:Connect(function()
         else
             billboard.Enabled = false
             if highlight then
-                removeHighlight(player.Character)
+                removeHighlight(highlight)
                 data.Highlight = nil
             end
         end
