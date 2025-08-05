@@ -1,4 +1,4 @@
-local requiredGameId = 2165551367
+local requiredGameId = 1526814825
 if game.GameId ~= requiredGameId then return end
 
 local uiurl = "https://raw.githubusercontent.com/Walidname113/Roblox-scr/main/uncoded.lua"
