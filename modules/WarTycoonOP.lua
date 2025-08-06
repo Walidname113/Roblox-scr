@@ -10,7 +10,7 @@ local moduleFunc, err = loadstring(source)
 if not moduleFunc then warn("Error module func:", err) return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.0.5 Public")
+local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.0.6 Public")
 
 local mainCategory = uiModule.CreateCategory("Main")
 local espCategory = uiModule.CreateCategory("ESP")
@@ -141,36 +141,58 @@ for _, p in ipairs(players:GetPlayers()) do
     end
 end
 
+local function isVisible(origin, target)
+    local rayParams = RaycastParams.new()
+    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+    rayParams.FilterDescendantsInstances = {localPlayer.Character}
+
+    local direction = target.Position - origin
+    local result = workspace:Raycast(origin, direction.Unit * direction.Magnitude, rayParams)
+
+    if result then
+        return result.Instance:IsDescendantOf(target.Parent)
+    end
+    return false
+end
+
+local function getBestTarget()
+    if not localPlayer.Character or not localPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        return nil
+    end
+
+    local origin = cam.CFrame.Position
+    local bestTarget, bestDist = nil, studs
+
+    for _, p in ipairs(players:GetPlayers()) do
+        if p ~= localPlayer and p.Character and p.Character:FindFirstChild("Head") then
+            local head = p.Character.Head
+            local dist = (head.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
+
+            if dist <= studs and isVisible(origin, head) and dist < bestDist then
+                bestTarget, bestDist = head, dist
+            end
+        end
+    end
+
+    return bestTarget
+end
+
 RunService.RenderStepped:Connect(function()
     if aimbotEnabled then
-        local char = localPlayer.Character
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            local nearest, minDist = nil, studs
-            for _, p in ipairs(players:GetPlayers()) do
-                if p ~= localPlayer and p.Character then
-                    local targetHrp = p.Character:FindFirstChild("HumanoidRootPart")
-                    local head = p.Character:FindFirstChild("Head")
-                    if targetHrp and head then
-                        local dist = (targetHrp.Position - hrp.Position).Magnitude
-                        if dist <= studs and dist < minDist then
-                            nearest, minDist = head, dist
-                        end
-                    end
-                end
-            end
-            if nearest then
-                cam.CFrame = CFrame.new(cam.CFrame.Position, nearest.Position)
-            end
+        local target = getBestTarget()
+        if target then
+            cam.CFrame = CFrame.new(cam.CFrame.Position, target.Position)
         end
     end
 
     for player, data in pairs(espStorage) do
         local billboard = data.Billboard
         local highlight = data.Highlight
+
         if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             billboard.Adornee = player.Character.HumanoidRootPart
             billboard.Enabled = nickESPEnabled or hpESPEnabled or distESPEnabled
+
             if boxESPEnabled then
                 if not highlight then
                     data.Highlight = addHighlight(player.Character)
@@ -181,8 +203,10 @@ RunService.RenderStepped:Connect(function()
                     data.Highlight = nil
                 end
             end
+
             billboard.Nick.Visible = nickESPEnabled
             billboard.Nick.Text = player.Name
+
             if hpESPEnabled and player.Character:FindFirstChild("Humanoid") then
                 local humanoid = player.Character.Humanoid
                 local hpRatio = humanoid.Health / humanoid.MaxHealth
@@ -195,6 +219,7 @@ RunService.RenderStepped:Connect(function()
             else
                 billboard.HP.Visible = false
             end
+
             if distESPEnabled and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
                 local dist = (player.Character.HumanoidRootPart.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
                 billboard.Dist.Visible = true
