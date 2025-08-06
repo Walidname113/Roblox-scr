@@ -10,7 +10,7 @@ local moduleFunc, err = loadstring(source)
 if not moduleFunc then warn("Error module func:", err) return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.0.3 Public")
+local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.0.4 Public")
 
 local mainCategory = uiModule.CreateCategory("Main")
 local espCategory = uiModule.CreateCategory("ESP")
@@ -82,7 +82,7 @@ local function createESP(player)
     local nameLabel = Instance.new("TextLabel")
     nameLabel.Name = "Nick"
     nameLabel.Size = UDim2.new(1, 0, 0, 30)
-    nameLabel.Position = UDim2.new(0, 0, -0.2, 0)
+    nameLabel.Position = UDim2.new(0, 0, -0.4, 0)
     nameLabel.BackgroundTransparency = 1
     nameLabel.TextColor3 = Color3.new(1, 1, 1)
     nameLabel.TextScaled = false
@@ -101,7 +101,7 @@ local function createESP(player)
     local distLabel = Instance.new("TextLabel")
     distLabel.Name = "Dist"
     distLabel.Size = UDim2.new(1, 0, 0, 25)
-    distLabel.Position = UDim2.new(-0.3, 0, 0.4, 0)
+    distLabel.Position = UDim2.new(0, 0, -0.15, 0)
     distLabel.BackgroundTransparency = 1
     distLabel.TextColor3 = Color3.new(1, 1, 1)
     distLabel.TextScaled = false
