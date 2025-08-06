@@ -17,7 +17,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.0.7 Public")
+local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.0.6 Public")
 
 local mainCategory = uiModule.CreateCategory("Main")
 local espCategory = uiModule.CreateCategory("ESP")
@@ -88,12 +88,12 @@ local function createESP(player)
 
     local nameLabel = Instance.new("TextLabel")
     nameLabel.Name = "Nick"
-    nameLabel.Size = UDim2.new(1, 0, 0, 30)
-    nameLabel.Position = UDim2.new(0, 0, -0.2, 0)
+    nameLabel.Size = UDim2.new(1, 0, 0, 15)
+    nameLabel.Position = UDim2.new(0, 0, -0.4, 0)
     nameLabel.BackgroundTransparency = 1
     nameLabel.TextColor3 = Color3.new(1, 1, 1)
     nameLabel.TextScaled = false
-    nameLabel.TextSize = 12
+    nameLabel.TextSize = 24
     nameLabel.Font = Enum.Font.SourceSansBold
     nameLabel.Parent = billboard
 
@@ -108,12 +108,12 @@ local function createESP(player)
     local distLabel = Instance.new("TextLabel")
     distLabel.Name = "Dist"
     distLabel.Size = UDim2.new(1, 0, 0, 25)
-    distLabel.Position = UDim2.new(-0.3, 0, 0.4, 0)
+    distLabel.Position = UDim2.new(0, 0, -0.15, 0)
     distLabel.BackgroundTransparency = 1
     distLabel.TextColor3 = Color3.new(1, 1, 1)
     distLabel.TextScaled = false
     distLabel.Font = Enum.Font.SourceSansBold
-    distLabel.TextSize = 18
+    distLabel.TextSize = 20
     distLabel.Parent = billboard
 
     espStorage[player] = {
@@ -219,6 +219,21 @@ RunService.RenderStepped:Connect(function()
             if highlight then
                 removeHighlight(highlight)
                 data.Highlight = nil
+            end
+        end
+    end
+end)
+
+local noclipEnabled = false
+uiModule.CreateToggle("Noclip", mainCategory, function(state)
+    noclipEnabled = state
+end)
+
+RunService.Stepped:Connect(function()
+    if noclipEnabled and localPlayer.Character then
+        for _, part in ipairs(localPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
             end
         end
     end
