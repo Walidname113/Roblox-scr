@@ -5,12 +5,19 @@ local uiurl = "https://raw.githubusercontent.com/Walidname113/Roblox-scr/main/un
 local success, source = pcall(function()
     return game:HttpGet(uiurl)
 end)
-if not success then warn("Error load UI:", source) return end
+if not success then
+    warn("Error load UI:", source)
+    return
+end
+
 local moduleFunc, err = loadstring(source)
-if not moduleFunc then warn("Error module func:", err) return end
+if not moduleFunc then
+    warn("Error module func:", err)
+    return
+end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.0.6 Public")
+local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.0.7 Public")
 
 local mainCategory = uiModule.CreateCategory("Main")
 local espCategory = uiModule.CreateCategory("ESP")
@@ -81,12 +88,12 @@ local function createESP(player)
 
     local nameLabel = Instance.new("TextLabel")
     nameLabel.Name = "Nick"
-    nameLabel.Size = UDim2.new(1, 0, 0, 15)
-    nameLabel.Position = UDim2.new(0, 0, -0.4, 0)
+    nameLabel.Size = UDim2.new(1, 0, 0, 30)
+    nameLabel.Position = UDim2.new(0, 0, -0.2, 0)
     nameLabel.BackgroundTransparency = 1
     nameLabel.TextColor3 = Color3.new(1, 1, 1)
     nameLabel.TextScaled = false
-    nameLabel.TextSize = 24
+    nameLabel.TextSize = 12
     nameLabel.Font = Enum.Font.SourceSansBold
     nameLabel.Parent = billboard
 
@@ -101,12 +108,12 @@ local function createESP(player)
     local distLabel = Instance.new("TextLabel")
     distLabel.Name = "Dist"
     distLabel.Size = UDim2.new(1, 0, 0, 25)
-    distLabel.Position = UDim2.new(0, 0, -0.15, 0)
+    distLabel.Position = UDim2.new(-0.3, 0, 0.4, 0)
     distLabel.BackgroundTransparency = 1
     distLabel.TextColor3 = Color3.new(1, 1, 1)
     distLabel.TextScaled = false
     distLabel.Font = Enum.Font.SourceSansBold
-    distLabel.TextSize = 20
+    distLabel.TextSize = 18
     distLabel.Parent = billboard
 
     espStorage[player] = {
@@ -141,54 +148,33 @@ for _, p in ipairs(players:GetPlayers()) do
     end
 end
 
-local function isVisible(origin, target)
-    local rayParams = RaycastParams.new()
-    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-    rayParams.FilterDescendantsInstances = {localPlayer.Character}
-
-    local direction = target.Position - origin
-    local result = workspace:Raycast(origin, direction.Unit * direction.Magnitude, rayParams)
-
-    if result then
-        return result.Instance:IsDescendantOf(target.Parent)
-    end
-    return false
-end
-
-local function getBestTarget()
-    if not localPlayer.Character or not localPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        return nil
-    end
-
-    local origin = cam.CFrame.Position
-    local bestTarget, bestDist = nil, studs
-
-    for _, p in ipairs(players:GetPlayers()) do
-        if p ~= localPlayer and p.Character and p.Character:FindFirstChild("Head") then
-            local head = p.Character.Head
-            local dist = (head.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
-
-            if dist <= studs and isVisible(origin, head) and dist < bestDist then
-                bestTarget, bestDist = head, dist
-            end
-        end
-    end
-
-    return bestTarget
-end
-
 RunService.RenderStepped:Connect(function()
     if aimbotEnabled then
-        local target = getBestTarget()
-        if target then
-            cam.CFrame = CFrame.new(cam.CFrame.Position, target.Position)
+        local char = localPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local nearest, minDist = nil, studs
+            for _, p in ipairs(players:GetPlayers()) do
+                if p ~= localPlayer and p.Character then
+                    local targetHrp = p.Character:FindFirstChild("HumanoidRootPart")
+                    local head = p.Character:FindFirstChild("Head")
+                    if targetHrp and head then
+                        local dist = (targetHrp.Position - hrp.Position).Magnitude
+                        if dist <= studs and dist < minDist then
+                            nearest, minDist = head, dist
+                        end
+                    end
+                end
+            end
+            if nearest then
+                cam.CFrame = CFrame.new(cam.CFrame.Position, nearest.Position)
+            end
         end
     end
 
     for player, data in pairs(espStorage) do
         local billboard = data.Billboard
         local highlight = data.Highlight
-
         if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             billboard.Adornee = player.Character.HumanoidRootPart
             billboard.Enabled = nickESPEnabled or hpESPEnabled or distESPEnabled
@@ -233,21 +219,6 @@ RunService.RenderStepped:Connect(function()
             if highlight then
                 removeHighlight(highlight)
                 data.Highlight = nil
-            end
-        end
-    end
-end)
-
-local noclipEnabled = false
-uiModule.CreateToggle("Noclip", mainCategory, function(state)
-    noclipEnabled = state
-end)
-
-RunService.Stepped:Connect(function()
-    if noclipEnabled and localPlayer.Character then
-        for _, part in ipairs(localPlayer.Character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
             end
         end
     end
