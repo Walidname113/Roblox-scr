@@ -244,13 +244,24 @@ uiModule.CreateToggle("No Fall Damage", mainCategory, function(state)
     noFallEnabled = state
 end)
 
-RunService.Heartbeat:Connect(function()
-    if noFallEnabled and localPlayer.Character then
-        local hrp = localPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if hrp and hrp.Velocity.Y < -50 then
-            hrp.Velocity = Vector3.new(hrp.Velocity.X, -50, hrp.Velocity.Z)
+local function setupNoFall(humanoid)
+    humanoid.StateChanged:Connect(function(_, newState)
+        if noFallEnabled and newState == Enum.HumanoidStateType.Landed then
+            humanoid.Health = humanoid.MaxHealth
         end
+    end)
+end
+
+local function attachToCharacter(char)
+    local humanoid = char:WaitForChild("Humanoid", 5)
+    if humanoid then
+        setupNoFall(humanoid)
     end
-end)
+end
+
+localPlayer.CharacterAdded:Connect(attachToCharacter)
+if localPlayer.Character then
+    attachToCharacter(localPlayer.Character)
+end
 
 ui.OpenFirstCategory()
