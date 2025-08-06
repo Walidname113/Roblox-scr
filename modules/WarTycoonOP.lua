@@ -17,7 +17,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.0.6 Public")
+local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.0.7 Public")
 
 local mainCategory = uiModule.CreateCategory("Main")
 local espCategory = uiModule.CreateCategory("ESP")
@@ -235,6 +235,20 @@ RunService.Stepped:Connect(function()
             if part:IsA("BasePart") then
                 part.CanCollide = false
             end
+        end
+    end
+end)
+
+local noFallEnabled = false
+uiModule.CreateToggle("No Fall Damage", mainCategory, function(state)
+    noFallEnabled = state
+end)
+
+RunService.Heartbeat:Connect(function()
+    if noFallEnabled and localPlayer.Character then
+        local hrp = localPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp and hrp.Velocity.Y < -50 then
+            hrp.Velocity = Vector3.new(hrp.Velocity.X, -50, hrp.Velocity.Z)
         end
     end
 end)
