@@ -244,24 +244,23 @@ uiModule.CreateToggle("No Fall Damage", mainCategory, function(state)
     noFallEnabled = state
 end)
 
-local function setupNoFall(humanoid)
-    humanoid.StateChanged:Connect(function(_, newState)
-        if noFallEnabled and newState == Enum.HumanoidStateType.Landed then
-            humanoid.Health = humanoid.MaxHealth
+RunService.Heartbeat:Connect(function()
+    if noFallEnabled and localPlayer.Character then
+        local hrp = localPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local velocity = hrp.Velocity
+            if velocity.Y < -50 then
+                local rayParams = RaycastParams.new()
+                rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+                rayParams.FilterDescendantsInstances = {localPlayer.Character}
+
+                local result = workspace:Raycast(hrp.Position, Vector3.new(0, -10, 0), rayParams)
+                if result and (hrp.Position.Y - result.Position.Y) <= 10 then
+                    hrp.Velocity = Vector3.new(velocity.X, -50, velocity.Z)
+                end
+            end
         end
-    end)
-end
-
-local function attachToCharacter(char)
-    local humanoid = char:WaitForChild("Humanoid", 5)
-    if humanoid then
-        setupNoFall(humanoid)
     end
-end
-
-localPlayer.CharacterAdded:Connect(attachToCharacter)
-if localPlayer.Character then
-    attachToCharacter(localPlayer.Character)
-end
+end)
 
 ui.OpenFirstCategory()
