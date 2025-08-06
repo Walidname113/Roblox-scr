@@ -10,7 +10,7 @@ local moduleFunc, err = loadstring(source)
 if not moduleFunc then warn("Error module func:", err) return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.0.4 Public")
+local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.0.5 Public")
 
 local mainCategory = uiModule.CreateCategory("Main")
 local espCategory = uiModule.CreateCategory("ESP")
@@ -81,7 +81,7 @@ local function createESP(player)
 
     local nameLabel = Instance.new("TextLabel")
     nameLabel.Name = "Nick"
-    nameLabel.Size = UDim2.new(1, 0, 0, 30)
+    nameLabel.Size = UDim2.new(1, 0, 0, 15)
     nameLabel.Position = UDim2.new(0, 0, -0.4, 0)
     nameLabel.BackgroundTransparency = 1
     nameLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -208,6 +208,21 @@ RunService.RenderStepped:Connect(function()
             if highlight then
                 removeHighlight(highlight)
                 data.Highlight = nil
+            end
+        end
+    end
+end)
+
+local noclipEnabled = false
+uiModule.CreateToggle("Noclip", mainCategory, function(state)
+    noclipEnabled = state
+end)
+
+RunService.Stepped:Connect(function()
+    if noclipEnabled and localPlayer.Character then
+        for _, part in ipairs(localPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
             end
         end
     end
