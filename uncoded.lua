@@ -229,6 +229,12 @@ function module.CreateUI(title)
     Instance.new("UICorner", categoryFrame)
     trackObject(categoryFrame)
 
+    -- fix for category buttons overlapping
+    local categoryLayout = Instance.new("UIListLayout")
+    categoryLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    categoryLayout.Padding = UDim.new(0, 6)
+    categoryLayout.Parent = categoryFrame
+
     local contentFrame = Instance.new("Frame", mainFrame)
     contentFrame.Size = UDim2.new(1, -180, 1, -55)
     contentFrame.Position = UDim2.new(0, 170, 0, 45)
@@ -273,10 +279,16 @@ function module.CreateUI(title)
         holder.BackgroundTransparency = 1
         holder.Visible = false
         trackObject(holder)
+
         local layout = Instance.new("UIListLayout", holder)
         layout.SortOrder = Enum.SortOrder.LayoutOrder
         layout.Padding = UDim.new(0,6)
         trackObject(layout)
+
+        layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            holder.Size = UDim2.new(1, 0, 0, layout.AbsoluteContentSize.Y)
+            contentScroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y)
+        end)
 
         trackConnection(button.MouseButton1Click:Connect(function()
             for _, frame in ipairs(contentScroll:GetChildren()) do
