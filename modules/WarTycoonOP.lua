@@ -17,7 +17,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.0.8 Public")
+local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.0.9 Public")
 
 local mainCategory = uiModule.CreateCategory("Main")
 local espCategory = uiModule.CreateCategory("ESP")
@@ -259,6 +259,77 @@ RunService.Heartbeat:Connect(function()
                     hrp.Velocity = Vector3.new(velocity.X, -50, velocity.Z)
                 end
             end
+        end
+    end
+end)
+
+local autoCollectEnabled = false
+local autoCollectToggle = uiModule.CreateToggle("Auto Collect Drones", mainCategory, function(state)
+    autoCollectEnabled = state
+end)
+
+spawn(function()
+    local player = game.Players.LocalPlayer
+    local teamName = player:WaitForChild("leaderstats"):WaitForChild("Team").Value
+    local collectorPath = workspace:WaitForChild("Tycoon"):WaitForChild("Tycoons")
+    local teamTycoon = collectorPath:WaitForChild(teamName)
+    local collectorPart = teamTycoon:WaitForChild("PurchasedObjects"):WaitForChild("Lab Terminal Screen")
+                        :WaitForChild("Research Screen"):WaitForChild("Collector")
+    local collectorCFrame = collectorPart.CFrame + Vector3.new(0, 5, 0)
+
+    local caches = workspace:WaitForChild("ResearchCaches")
+    local model = caches:WaitForChild("Downed Reaper")
+
+    local function teleportToModel()
+        local pivot = model.WorldPivot
+        local offset = Vector3.new(0, 5, 0)
+        local targetCFrame = pivot + offset
+
+        local char = player.Character or player.CharacterAdded:Wait()
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            hrp.CFrame = targetCFrame
+        else
+            char:PivotTo(targetCFrame)
+        end
+    end
+
+    while true do
+        if autoCollectEnabled then
+            task.wait(2)
+            teleportToModel()
+            task.wait(0.1)
+            teleportToModel()
+
+            local prompt = model:FindFirstChild("Interact", true)
+            if not prompt then
+                repeat
+                    local added = model.DescendantAdded:Wait()
+                    if added:IsA("ProximityPrompt") then
+                        prompt = added
+                    end
+                until prompt
+            end
+
+            while not (prompt.Enabled and prompt:IsDescendantOf(workspace)) do
+                task.wait()
+            end
+
+            task.wait(0.1)
+            prompt.HoldDuration = 1
+            prompt.MaxActivationDistance = 10
+            fireproximityprompt(prompt, 1)
+
+            task.wait(0.1)
+            local char = player.Character or player.CharacterAdded:Wait()
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                hrp.CFrame = collectorCFrame
+            else
+                char:PivotTo(collectorCFrame)
+            end
+        else
+            task.wait(0.1)
         end
     end
 end)
