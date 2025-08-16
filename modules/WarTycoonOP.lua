@@ -17,7 +17,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.0.9 Public")
+local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.1.0 Public")
 
 local mainCategory = uiModule.CreateCategory("Main")
 local espCategory = uiModule.CreateCategory("ESP")
@@ -239,30 +239,6 @@ RunService.Stepped:Connect(function()
     end
 end)
 
-local noFallEnabled = false
-uiModule.CreateToggle("No Fall Damage", mainCategory, function(state)
-    noFallEnabled = state
-end)
-
-RunService.Heartbeat:Connect(function()
-    if noFallEnabled and localPlayer.Character then
-        local hrp = localPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            local velocity = hrp.Velocity
-            if velocity.Y < -50 then
-                local rayParams = RaycastParams.new()
-                rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-                rayParams.FilterDescendantsInstances = {localPlayer.Character}
-
-                local result = workspace:Raycast(hrp.Position, Vector3.new(0, -10, 0), rayParams)
-                if result and (hrp.Position.Y - result.Position.Y) <= 10 then
-                    hrp.Velocity = Vector3.new(velocity.X, -50, velocity.Z)
-                end
-            end
-        end
-    end
-end)
-
 local autoCollectEnabled = false
 local autoCollectToggle = uiModule.CreateToggle("Auto Collect Drones", mainCategory, function(state)
     autoCollectEnabled = state
@@ -271,67 +247,75 @@ end)
 spawn(function()
     local player = game.Players.LocalPlayer
     local teamName = player:WaitForChild("leaderstats"):WaitForChild("Team").Value
-    local collectorPath = workspace:WaitForChild("Tycoon"):WaitForChild("Tycoons")
-    local teamTycoon = collectorPath:WaitForChild(teamName)
-    local collectorPart = teamTycoon:WaitForChild("PurchasedObjects"):WaitForChild("Lab Terminal Screen")
-                        :WaitForChild("Research Screen"):WaitForChild("Collector")
+    local collectorPart = workspace:WaitForChild("Tycoon"):WaitForChild("Tycoons")
+                            :WaitForChild(teamName)
+                            :WaitForChild("PurchasedObjects")
+                            :WaitForChild("Lab Terminal Screen")
+                            :WaitForChild("Research Screen")
+                            :WaitForChild("Collector")
     local collectorCFrame = collectorPart.CFrame + Vector3.new(0, 5, 0)
 
     while true do
         if autoCollectEnabled then
-            task.wait(2)
-
             local caches = workspace:WaitForChild("ResearchCaches")
-            local model = caches:FindFirstChild("Downed Reaper")
-            if not model then
-                task.wait(1)
-                continue
-            end
+            local targetModel = nil
 
-            local function teleportToModel()
-                local pivot = model.WorldPivot
-                local offset = Vector3.new(0, 5, 0)
-                local targetCFrame = pivot + offset
-
-                local char = player.Character or player.CharacterAdded:Wait()
-                local hrp = char:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    hrp.CFrame = targetCFrame
-                else
-                    char:PivotTo(targetCFrame)
+            for _, model in pairs(caches:GetChildren()) do
+                local prompt = model:FindFirstChild("Interact", true)
+                if prompt and prompt.Enabled then
+                    targetModel = model
+                    break
                 end
             end
 
-            teleportToModel()
-            task.wait(0.1)
-            teleportToModel()
-
-            local prompt = model:FindFirstChild("Interact", true)
-            if not prompt then
-                repeat
-                    local added = model.DescendantAdded:Wait()
-                    if added:IsA("ProximityPrompt") then
-                        prompt = added
+            if targetModel then
+                local function teleportTo(model)
+                    local char = player.Character or player.CharacterAdded:Wait()
+                    local hrp = char:FindFirstChild("HumanoidRootPart")
+                    local targetCFrame = model.WorldPivot + Vector3.new(0, 5, 0)
+                    if hrp then
+                        hrp.CFrame = targetCFrame
+                    else
+                        char:PivotTo(targetCFrame)
                     end
-                until prompt
-            end
+                end
 
-            while not (prompt.Enabled and prompt:IsDescendantOf(workspace)) do
-                task.wait()
-            end
+                teleportTo(targetModel)
+                task.wait(0.1)
+                teleportTo(targetModel)
 
-            task.wait(0.1)
-            prompt.HoldDuration = 1
-            prompt.MaxActivationDistance = 10
-            fireproximityprompt(prompt, 1)
+            
+                local prompt = targetModel:FindFirstChild("Interact", true)
+                if not prompt then
+                    repeat
+                        local added = targetModel.DescendantAdded:Wait()
+                        if added:IsA("ProximityPrompt") then
+                            prompt = added
+                        end
+                    until prompt
+                end
 
-            task.wait(0.1)
-            local char = player.Character or player.CharacterAdded:Wait()
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                hrp.CFrame = collectorCFrame
+                while not (prompt.Enabled and prompt:IsDescendantOf(workspace)) do
+                    task.wait()
+                end
+
+                task.wait(0.1)
+                prompt.HoldDuration = 1
+                prompt.MaxActivationDistance = 10
+                fireproximityprompt(prompt, 1)
+
+                
+                local char = player.Character or player.CharacterAdded:Wait()
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    hrp.CFrame = collectorCFrame
+                else
+                    char:PivotTo(collectorCFrame)
+                end
+
+                task.wait(8)
             else
-                char:PivotTo(collectorCFrame)
+                task.wait(1)
             end
         else
             task.wait(0.1)
