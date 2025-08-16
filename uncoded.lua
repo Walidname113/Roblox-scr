@@ -126,14 +126,26 @@ function module.CreateUI(title)
     Instance.new("UICorner", closeButton).CornerRadius = UDim.new(0, 6)
     trackObject(closeButton)
 
-    -- confirmation
     local confirmFrame = Instance.new("Frame", screenGui)
-    confirmFrame.Size = UDim2.new(0, 200, 0, 100)
-    confirmFrame.Position = UDim2.new(0.5, -100, 0.5, -50)
+    confirmFrame.Size = UDim2.new(0, 300, 0, 120)
+    confirmFrame.Position = UDim2.new(0.5, -150, 0.5, -60)
     confirmFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     confirmFrame.Visible = false
     Instance.new("UICorner", confirmFrame)
     trackObject(confirmFrame)
+
+    local confirmText = Instance.new("TextLabel", confirmFrame)
+    confirmText.Size = UDim2.new(1, -20, 0, 50)
+    confirmText.Position = UDim2.new(0, 10, 0, 10)
+    confirmText.Text = "Are you sure you want to close the UI?"
+    confirmText.TextColor3 = Color3.new(1,1,1)
+    confirmText.BackgroundTransparency = 1
+    confirmText.Font = Enum.Font.SourceSansBold
+    confirmText.TextSize = 16
+    confirmText.TextWrapped = true
+    confirmText.TextXAlignment = Enum.TextXAlignment.Center
+    confirmText.TextYAlignment = Enum.TextYAlignment.Center
+    trackObject(confirmText)
 
     local yesBtn = Instance.new("TextButton", confirmFrame)
     yesBtn.Size = UDim2.new(0.4, 0, 0.3, 0)
@@ -206,11 +218,10 @@ function module.CreateUI(title)
         minimizedFrame.Visible = false
     end))
 
-    -- content
     local categoryFrame = Instance.new("ScrollingFrame", mainFrame)
     categoryFrame.Size = UDim2.new(0, 150, 1, -55)
     categoryFrame.Position = UDim2.new(0, 10, 0, 45)
-    categoryFrame.CanvasSize = UDim2.new(0,0,0,600)
+    categoryFrame.CanvasSize = UDim2.new(0,0,0,0)
     categoryFrame.ScrollBarThickness = 4
     categoryFrame.BackgroundColor3 = Color3.fromRGB(25,25,25)
     categoryFrame.BorderSizePixel = 0
@@ -233,7 +244,7 @@ function module.CreateUI(title)
     contentScroll.BorderSizePixel = 0
     contentScroll.ScrollBarThickness = 6
     contentScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    contentScroll.CanvasSize = UDim2.new(0,0,0,600)
+    contentScroll.CanvasSize = UDim2.new(0,0,0,0)
     trackObject(contentScroll)
 
     local categories = {}
@@ -329,7 +340,120 @@ function module.CreateUI(title)
         return button
     end
 
+    function module.CreatePlayerList(parentFrame)
+        local selectedPlayer = "---"
+
+        local container = Instance.new("Frame", parentFrame)
+        container.Size = UDim2.new(1, -10, 0, 35)
+        container.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+        container.BorderSizePixel = 0
+        container.ClipsDescendants = false
+        Instance.new("UICorner", container)
+        trackObject(container)
+
+        local dropdownButton = Instance.new("TextButton", container)
+        dropdownButton.Size = UDim2.new(1, -35, 1, 0)
+        dropdownButton.Position = UDim2.new(0, 5, 0, 0)
+        dropdownButton.Text = "Player: " .. selectedPlayer
+        dropdownButton.TextColor3 = Color3.new(1, 1, 1)
+        dropdownButton.Font = Enum.Font.Gotham
+        dropdownButton.TextSize = 14
+        dropdownButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        dropdownButton.TextXAlignment = Enum.TextXAlignment.Left
+        Instance.new("UICorner", dropdownButton)
+        trackObject(dropdownButton)
+
+        local reloadButton = Instance.new("TextButton", container)
+        reloadButton.Size = UDim2.new(0, 25, 0, 25)
+        reloadButton.Position = UDim2.new(1, -30, 0, 5)
+        reloadButton.Text = "@"
+        reloadButton.TextColor3 = Color3.new(1, 1, 1)
+        reloadButton.Font = Enum.Font.Gotham
+        reloadButton.TextSize = 16
+        reloadButton.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
+        Instance.new("UICorner", reloadButton)
+        trackObject(reloadButton)
+
+        local listFrame = Instance.new("ScrollingFrame")
+        listFrame.Parent = parentFrame
+        listFrame.Size = UDim2.new(1, -20, 0, 120)
+        listFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+        listFrame.BorderSizePixel = 0
+        listFrame.ScrollBarThickness = 6
+        listFrame.Visible = false
+        listFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        listFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+        Instance.new("UICorner", listFrame)
+        trackObject(listFrame)
+
+        local layout = Instance.new("UIListLayout", listFrame)
+        layout.SortOrder = Enum.SortOrder.LayoutOrder
+        layout.Padding = UDim.new(0, 4)
+        trackObject(layout)
+
+        local function updateListPosition()
+            local absPos = container.AbsolutePosition
+            listFrame.Position = UDim2.new(0, absPos.X, 0, absPos.Y + container.AbsoluteSize.Y)
+        end
+
+        local function refreshList()
+            for _, child in ipairs(listFrame:GetChildren()) do
+                if child:IsA("TextButton") then
+                    child:Destroy()
+                end
+            end
+
+            selectedPlayer = "---"
+            dropdownButton.Text = "Player: " .. selectedPlayer
+
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= player then
+                    local nameBtn = Instance.new("TextButton", listFrame)
+                    nameBtn.Size = UDim2.new(1, 0, 0, 30)
+                    nameBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+                    nameBtn.Text = p.Name
+                    nameBtn.TextColor3 = Color3.new(1, 1, 1)
+                    nameBtn.Font = Enum.Font.Gotham
+                    nameBtn.TextSize = 14
+                    Instance.new("UICorner", nameBtn)
+                    trackObject(nameBtn)
+
+                    trackConnection(nameBtn.MouseButton1Click:Connect(function()
+                        selectedPlayer = p.Name
+                        dropdownButton.Text = "Player: " .. selectedPlayer
+                        listFrame.Visible = false
+                    end))
+                end
+            end
+        end
+
+        trackConnection(dropdownButton.MouseButton1Click:Connect(function()
+            listFrame.Visible = not listFrame.Visible
+            if listFrame.Visible then
+                updateListPosition()
+            end
+        end))
+
+        trackConnection(reloadButton.MouseButton1Click:Connect(refreshList))
+
+        refreshList()
+
+        return {
+            Container = container,
+            GetSelected = function()
+                return Players:FindFirstChild(selectedPlayer)
+            end
+        }
+    end
+
     makeUIAboveAll(screenGui)
+
+    local function openFirstCategory()
+        if #categories > 0 then
+            categories[1].holder.Visible = true
+            categories[1].bar.Visible = true
+        end
+    end
 
     return {
         ScreenGui = screenGui,
@@ -337,11 +461,30 @@ function module.CreateUI(title)
         MinimizedFrame = minimizedFrame,
         CategoryFrame = categoryFrame,
         ContentFrame = contentScroll,
-        Categories = categories,
-        CreateCategory = module.CreateCategory,
         CreateToggle = module.CreateToggle,
+        CreateCategory = module.CreateCategory,
+        CreatePlayerList = module.CreatePlayerList,
         CreateButton = module.CreateButton,
-        Close = closeUI
+        Close = closeUI,
+        Hide = function()
+            mainFrame.Visible = false
+            minimizedFrame.Visible = true
+        end,
+        Show = function()
+            mainFrame.Visible = true
+            minimizedFrame.Visible = false
+        end,
+        SetMinimizedImage = function(assetId)
+            if assetId and typeof(assetId) == "string" and assetId ~= "" then
+                minimizedFrame.Image = "rbxassetid://" .. assetId
+                plusIcon.Visible = false
+            else
+                minimizedFrame.Image = ""
+                plusIcon.Visible = true
+            end
+        end,
+        OpenFirstCategory = openFirstCategory,
+        Categories = categories
     }
 end
 
