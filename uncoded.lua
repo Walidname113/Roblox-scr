@@ -1,4 +1,3 @@
--- v1
 local module = {}
 
 local Players = game:GetService("Players")
@@ -8,6 +7,7 @@ local player = Players.LocalPlayer
 
 local connections = {}
 local trackedObjects = {}
+local activeCallbacks = {}
 
 local function trackConnection(conn)
     table.insert(connections, conn)
@@ -33,6 +33,15 @@ local function destroyAll()
         end
     end
     trackedObjects = {}
+end
+
+local function cleanupActiveCallbacks()
+    for _, item in ipairs(activeCallbacks) do
+        if item.callback then
+            item.callback(false)
+        end
+    end
+    activeCallbacks = {}
 end
 
 local function makeDraggable(frame)
@@ -171,6 +180,7 @@ function module.CreateUI(title)
     end))
 
     local function closeUI()
+        cleanupActiveCallbacks()
         disconnectAll()
         destroyAll()
     end
@@ -230,12 +240,6 @@ function module.CreateUI(title)
     Instance.new("UICorner", categoryFrame)
     trackObject(categoryFrame)
 
-    -- fix for category buttons overlapping
-    local categoryLayout = Instance.new("UIListLayout")
-    categoryLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    categoryLayout.Padding = UDim.new(0, 6)
-    categoryLayout.Parent = categoryFrame
-
     local contentFrame = Instance.new("Frame", mainFrame)
     contentFrame.Size = UDim2.new(1, -180, 1, -55)
     contentFrame.Position = UDim2.new(0, 170, 0, 45)
@@ -255,6 +259,14 @@ function module.CreateUI(title)
     trackObject(contentScroll)
 
     local categories = {}
+
+    -- Ensure spacing between buttons to prevent overlap
+    local function updateCategoryPositions()
+        local layout = Instance.new("UIListLayout", categoryFrame)
+        layout.SortOrder = Enum.SortOrder.LayoutOrder
+        layout.Padding = UDim.new(0,6)
+        trackObject(layout)
+    end
 
     function module.CreateCategory(name)
         local button = Instance.new("TextButton")
@@ -280,16 +292,10 @@ function module.CreateUI(title)
         holder.BackgroundTransparency = 1
         holder.Visible = false
         trackObject(holder)
-
         local layout = Instance.new("UIListLayout", holder)
         layout.SortOrder = Enum.SortOrder.LayoutOrder
         layout.Padding = UDim.new(0,6)
         trackObject(layout)
-
-        layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            holder.Size = UDim2.new(1, 0, 0, layout.AbsoluteContentSize.Y)
-            contentScroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y)
-        end)
 
         trackConnection(button.MouseButton1Click:Connect(function()
             for _, frame in ipairs(contentScroll:GetChildren()) do
@@ -304,200 +310,110 @@ function module.CreateUI(title)
                     local bar = btn:FindFirstChildWhichIsA("Frame")
                     if bar then bar.Visible = false end
                 end
+                    end
+function module.CreatePlayerList(parentFrame)
+    local selectedPlayer = "---"
+
+    local container = Instance.new("Frame", parentFrame)
+    container.Size = UDim2.new(1, -10, 0, 35)
+    container.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    container.BorderSizePixel = 0
+    container.ClipsDescendants = false
+    Instance.new("UICorner", container)
+    trackObject(container)
+
+    local dropdownButton = Instance.new("TextButton", container)
+    dropdownButton.Size = UDim2.new(1, -35, 1, 0)
+    dropdownButton.Position = UDim2.new(0, 5, 0, 0)
+    dropdownButton.Text = "Player: " .. selectedPlayer
+    dropdownButton.TextColor3 = Color3.new(1, 1, 1)
+    dropdownButton.Font = Enum.Font.Gotham
+    dropdownButton.TextSize = 14
+    dropdownButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+    dropdownButton.TextXAlignment = Enum.TextXAlignment.Left
+    Instance.new("UICorner", dropdownButton)
+    trackObject(dropdownButton)
+
+    local reloadButton = Instance.new("TextButton", container)
+    reloadButton.Size = UDim2.new(0, 25, 0, 25)
+    reloadButton.Position = UDim2.new(1, -30, 0, 5)
+    reloadButton.Text = "@"
+    reloadButton.TextColor3 = Color3.new(1, 1, 1)
+    reloadButton.Font = Enum.Font.Gotham
+    reloadButton.TextSize = 16
+    reloadButton.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
+    Instance.new("UICorner", reloadButton)
+    trackObject(reloadButton)
+
+    local listFrame = Instance.new("ScrollingFrame")
+    listFrame.Parent = parentFrame
+    listFrame.Size = UDim2.new(1, -20, 0, 120)
+    listFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    listFrame.BorderSizePixel = 0
+    listFrame.ScrollBarThickness = 6
+    listFrame.Visible = false
+    listFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    listFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    Instance.new("UICorner", listFrame)
+    trackObject(listFrame)
+
+    local layout = Instance.new("UIListLayout", listFrame)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Padding = UDim.new(0, 4)
+    trackObject(layout)
+
+    local function updateListPosition()
+        local absPos = container.AbsolutePosition
+        listFrame.Position = UDim2.new(0, absPos.X, 0, absPos.Y + container.AbsoluteSize.Y)
+    end
+
+    local function refreshList()
+        for _, child in ipairs(listFrame:GetChildren()) do
+            if child:IsA("TextButton") then
+                child:Destroy()
             end
-            selectionBar.Visible = true
-        end))
-
-        table.insert(categories,{holder=holder,button=button,bar=selectionBar})
-        return holder
-    end
-
-    function module.CreateToggle(text,parent,callback)
-        local button = Instance.new("TextButton")
-        button.Size = UDim2.new(1, -10, 0, 35)
-        button.Text = text
-        button.BackgroundColor3 = Color3.fromRGB(60,60,60)
-        button.TextColor3 = Color3.new(1,1,1)
-        button.Font = Enum.Font.SourceSans
-        button.TextSize = 16
-        Instance.new("UICorner", button)
-        button.Parent = parent
-        trackObject(button)
-
-        local enabled = false
-        trackConnection(button.MouseButton1Click:Connect(function()
-            enabled = not enabled
-            button.BackgroundColor3 = enabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(60,60,60)
-            if callback then callback(enabled) end
-        end))
-
-        return button
-    end
-
-    function module.CreateButton(text,parent,callback)
-        local button = Instance.new("TextButton")
-        button.Size = UDim2.new(1,-10,0,35)
-        button.Text = text
-        button.BackgroundColor3 = Color3.fromRGB(60,60,60)
-        button.TextColor3 = Color3.new(1,1,1)
-        button.Font = Enum.Font.SourceSansBold
-        button.TextSize = 16
-        Instance.new("UICorner", button)
-        button.Parent = parent
-        trackObject(button)
-
-        if callback then
-            trackConnection(button.MouseButton1Click:Connect(callback))
         end
 
-        return button
-    end
-
-    function module.CreatePlayerList(parentFrame)
-        local selectedPlayer = "---"
-
-        local container = Instance.new("Frame", parentFrame)
-        container.Size = UDim2.new(1, -10, 0, 35)
-        container.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-        container.BorderSizePixel = 0
-        container.ClipsDescendants = false
-        Instance.new("UICorner", container)
-        trackObject(container)
-
-        local dropdownButton = Instance.new("TextButton", container)
-        dropdownButton.Size = UDim2.new(1, -35, 1, 0)
-        dropdownButton.Position = UDim2.new(0, 5, 0, 0)
+        selectedPlayer = "---"
         dropdownButton.Text = "Player: " .. selectedPlayer
-        dropdownButton.TextColor3 = Color3.new(1, 1, 1)
-        dropdownButton.Font = Enum.Font.Gotham
-        dropdownButton.TextSize = 14
-        dropdownButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-        dropdownButton.TextXAlignment = Enum.TextXAlignment.Left
-        Instance.new("UICorner", dropdownButton)
-        trackObject(dropdownButton)
 
-        local reloadButton = Instance.new("TextButton", container)
-        reloadButton.Size = UDim2.new(0, 25, 0, 25)
-        reloadButton.Position = UDim2.new(1, -30, 0, 5)
-        reloadButton.Text = "@"
-        reloadButton.TextColor3 = Color3.new(1, 1, 1)
-        reloadButton.Font = Enum.Font.Gotham
-        reloadButton.TextSize = 16
-        reloadButton.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
-        Instance.new("UICorner", reloadButton)
-        trackObject(reloadButton)
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player then
+                local nameBtn = Instance.new("TextButton", listFrame)
+                nameBtn.Size = UDim2.new(1, 0, 0, 30)
+                nameBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+                nameBtn.Text = p.Name
+                nameBtn.TextColor3 = Color3.new(1, 1, 1)
+                nameBtn.Font = Enum.Font.Gotham
+                nameBtn.TextSize = 14
+                Instance.new("UICorner", nameBtn)
+                trackObject(nameBtn)
 
-        local listFrame = Instance.new("ScrollingFrame")
-        listFrame.Parent = parentFrame
-        listFrame.Size = UDim2.new(1, -20, 0, 120)
-        listFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-        listFrame.BorderSizePixel = 0
-        listFrame.ScrollBarThickness = 6
-        listFrame.Visible = false
-        listFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-        listFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-        Instance.new("UICorner", listFrame)
-        trackObject(listFrame)
-
-        local layout = Instance.new("UIListLayout", listFrame)
-        layout.SortOrder = Enum.SortOrder.LayoutOrder
-        layout.Padding = UDim.new(0, 4)
-        trackObject(layout)
-
-        local function updateListPosition()
-            local absPos = container.AbsolutePosition
-            listFrame.Position = UDim2.new(0, absPos.X, 0, absPos.Y + container.AbsoluteSize.Y)
-        end
-
-        local function refreshList()
-            for _, child in ipairs(listFrame:GetChildren()) do
-                if child:IsA("TextButton") then
-                    child:Destroy()
-                end
-            end
-
-            selectedPlayer = "---"
-            dropdownButton.Text = "Player: " .. selectedPlayer
-
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= player then
-                    local nameBtn = Instance.new("TextButton", listFrame)
-                    nameBtn.Size = UDim2.new(1, 0, 0, 30)
-                    nameBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
-                    nameBtn.Text = p.Name
-                    nameBtn.TextColor3 = Color3.new(1, 1, 1)
-                    nameBtn.Font = Enum.Font.Gotham
-                    nameBtn.TextSize = 14
-                    Instance.new("UICorner", nameBtn)
-                    trackObject(nameBtn)
-
-                    trackConnection(nameBtn.MouseButton1Click:Connect(function()
-                        selectedPlayer = p.Name
-                        dropdownButton.Text = "Player: " .. selectedPlayer
-                        listFrame.Visible = false
-                    end))
-                end
+                trackConnection(nameBtn.MouseButton1Click:Connect(function()
+                    selectedPlayer = p.Name
+                    dropdownButton.Text = "Player: " .. selectedPlayer
+                    listFrame.Visible = false
+                end))
             end
         end
-
-        trackConnection(dropdownButton.MouseButton1Click:Connect(function()
-            listFrame.Visible = not listFrame.Visible
-            if listFrame.Visible then
-                updateListPosition()
-            end
-        end))
-
-        trackConnection(reloadButton.MouseButton1Click:Connect(refreshList))
-
-        refreshList()
-
-        return {
-            Container = container,
-            GetSelected = function()
-                return Players:FindFirstChild(selectedPlayer)
-            end
-        }
     end
 
-    makeUIAboveAll(screenGui)
-
-    local function openFirstCategory()
-        if #categories > 0 then
-            categories[1].holder.Visible = true
-            categories[1].bar.Visible = true
+    trackConnection(dropdownButton.MouseButton1Click:Connect(function()
+        listFrame.Visible = not listFrame.Visible
+        if listFrame.Visible then
+            updateListPosition()
         end
-    end
+    end))
+
+    trackConnection(reloadButton.MouseButton1Click:Connect(refreshList))
+
+    refreshList()
 
     return {
-        ScreenGui = screenGui,
-        MainFrame = mainFrame,
-        MinimizedFrame = minimizedFrame,
-        CategoryFrame = categoryFrame,
-        ContentFrame = contentScroll,
-        CreateToggle = module.CreateToggle,
-        CreateCategory = module.CreateCategory,
-        CreatePlayerList = module.CreatePlayerList,
-        CreateButton = module.CreateButton,
-        Close = closeUI,
-        Hide = function()
-            mainFrame.Visible = false
-            minimizedFrame.Visible = true
-        end,
-        Show = function()
-            mainFrame.Visible = true
-            minimizedFrame.Visible = false
-        end,
-        SetMinimizedImage = function(assetId)
-            if assetId and typeof(assetId) == "string" and assetId ~= "" then
-                minimizedFrame.Image = "rbxassetid://" .. assetId
-                plusIcon.Visible = false
-            else
-                minimizedFrame.Image = ""
-                plusIcon.Visible = true
-            end
-        end,
-        OpenFirstCategory = openFirstCategory,
-        Categories = categories
+        Container = container,
+        GetSelected = function()
+            return Players:FindFirstChild(selectedPlayer)
+        end
     }
 end
 
