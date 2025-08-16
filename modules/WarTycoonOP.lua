@@ -277,26 +277,31 @@ spawn(function()
                         :WaitForChild("Research Screen"):WaitForChild("Collector")
     local collectorCFrame = collectorPart.CFrame + Vector3.new(0, 5, 0)
 
-    local caches = workspace:WaitForChild("ResearchCaches")
-    local model = caches:WaitForChild("Downed Reaper")
-
-    local function teleportToModel()
-        local pivot = model.WorldPivot
-        local offset = Vector3.new(0, 5, 0)
-        local targetCFrame = pivot + offset
-
-        local char = player.Character or player.CharacterAdded:Wait()
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            hrp.CFrame = targetCFrame
-        else
-            char:PivotTo(targetCFrame)
-        end
-    end
-
     while true do
         if autoCollectEnabled then
             task.wait(2)
+
+            local caches = workspace:WaitForChild("ResearchCaches")
+            local model = caches:FindFirstChild("Downed Reaper")
+            if not model then
+                task.wait(1)
+                continue
+            end
+
+            local function teleportToModel()
+                local pivot = model.WorldPivot
+                local offset = Vector3.new(0, 5, 0)
+                local targetCFrame = pivot + offset
+
+                local char = player.Character or player.CharacterAdded:Wait()
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    hrp.CFrame = targetCFrame
+                else
+                    char:PivotTo(targetCFrame)
+                end
+            end
+
             teleportToModel()
             task.wait(0.1)
             teleportToModel()
