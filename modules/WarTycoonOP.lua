@@ -17,7 +17,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.1.0 Public")
+local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.1.1 Public")
 
 local mainCategory = uiModule.CreateCategory("Main")
 local espCategory = uiModule.CreateCategory("ESP")
@@ -385,6 +385,66 @@ uiModule.CreateButton("Remove nearby tycoon lasers", mainCategory, function()
     end
 
     removeObstructionsForAllExcept(teamName)
+end)
+
+local tycoonESPEnabled = false
+uiModule.CreateToggle("Tycoons ESP", espCategory, function(state)
+    tycoonESPEnabled = state
+end)
+
+local tycoonESPStorage = {}
+
+local function createTycoonLabel(tycoon)
+    if not tycoon or tycoonESPStorage[tycoon] then return end
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.AlwaysOnTop = true
+    billboard.Size = UDim2.new(0, 200, 0, 50)
+    billboard.StudsOffset = Vector3.new(0, 5, 0)
+    
+    local pivotPart = Instance.new("Part")
+    pivotPart.Anchored = true
+    pivotPart.CanCollide = false
+    pivotPart.Transparency = 1
+    pivotPart.Size = Vector3.new(1,1,1)
+    pivotPart.CFrame = tycoon:GetPivot()
+    pivotPart.Parent = game.CoreGui
+
+    billboard.Adornee = pivotPart
+    billboard.Parent = game.CoreGui
+
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Size = UDim2.new(1, 0, 1, 0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.TextColor3 = Color3.new(1, 1, 1)
+    nameLabel.Font = Enum.Font.SourceSansBold
+    nameLabel.TextSize = 18
+    nameLabel.Text = tycoon.Name
+    nameLabel.TextScaled = true
+    nameLabel.Parent = billboard
+
+    tycoonESPStorage[tycoon] = {Billboard = billboard, PivotPart = pivotPart}
+end
+
+local function removeTycoonLabel(tycoon)
+    if tycoonESPStorage[tycoon] then
+        tycoonESPStorage[tycoon].Billboard:Destroy()
+        tycoonESPStorage[tycoon].PivotPart:Destroy()
+        tycoonESPStorage[tycoon] = nil
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    for _, tycoon in ipairs(workspace:WaitForChild("Tycoon"):WaitForChild("Tycoons"):GetChildren()) do
+        if tycoonESPEnabled then
+            createTycoonLabel(tycoon)
+            if tycoonESPStorage[tycoon] then
+                tycoonESPStorage[tycoon].PivotPart.CFrame = tycoon:GetPivot()
+            end
+        else
+            removeTycoonLabel(tycoon)
+        end
+    end
 end)
 
 local TeleportService = game:GetService("TeleportService")
