@@ -323,6 +323,70 @@ spawn(function()
     end
 end)
 
+uiModule.CreateButton("Remove nearby tycoon lasers", mainCategory, function()
+    local Players = game:GetService("Players")
+    local Workspace = game:GetService("Workspace")
+    local localPlayer = Players.LocalPlayer
+    if not localPlayer then return end
+    local teamName = localPlayer:WaitForChild("leaderstats"):WaitForChild("Team").Value
+
+    local function removeObstruction(obstruction)
+        if obstruction and obstruction:IsA("BasePart") and (obstruction.Name == "Laser" or obstruction.Name == "OwnerOnly") then
+            obstruction:Destroy()
+        end
+    end
+
+    local function removeLaserRecursively(folder)
+        for _, child in ipairs(folder:GetChildren()) do
+            if child:IsA("BasePart") and (child.Name == "Laser" or child.Name == "OwnerOnly") then
+                child:Destroy()
+            elseif child:IsA("Folder") then
+                removeLaserRecursively(child)
+            end
+        end
+    end
+
+    local function removeObstructionsForAllExcept(teamName)
+        local tycoonsFolder = Workspace:WaitForChild("Tycoon"):WaitForChild("Tycoons")
+
+        for _, tycoon in ipairs(tycoonsFolder:GetChildren()) do
+            if tycoon.Name ~= teamName then
+                local purchasedObjects = tycoon:FindFirstChild("PurchasedObjects")
+                if purchasedObjects then
+                    local doorsToCheck = {
+                        {name = "Bunker Owner Only Door", partName = "Laser"},
+                        {name = "Helicopter Hanger Owner Only Door", partName = "Laser"},
+                        {name = "Owner Only Door 3rd Floor", partName = "Laser"},
+                        {name = "Owner Only Door 3rd Floor Roof", partName = "Laser"},
+                        {name = "Owner Only Door Balcony", partName = "Laser"},
+                        {name = "Research Lab Owner Only Door", partName = "Laser"},
+                        {name = "Plane Hanger Owner Only Door", partName = "Laser"},
+                        {name = "Vehicle Bay Owner Only Gate", partName = "OwnerOnly"},
+                        {name = "Vehicle Bay Owner Only Door2", partName = "Laser"},
+                        {name = "OwnerOnlyDoor2", partName = "Laser"},
+                        {name = "Tank Building Owner Only Gate", partName = "OwnerOnly"}
+                    }
+
+                    for _, doorInfo in ipairs(doorsToCheck) do
+                        local door = purchasedObjects:FindFirstChild(doorInfo.name)
+                        if door then
+                            local obstruction = door:FindFirstChild(doorInfo.partName)
+                            removeObstruction(obstruction)
+                        end
+                    end
+
+                    local ownerOnlyDoor = purchasedObjects:FindFirstChild("OwnerOnlyDoor")
+                    if ownerOnlyDoor then
+                        removeLaserRecursively(ownerOnlyDoor)
+                    end
+                end
+            end
+        end
+    end
+
+    removeObstructionsForAllExcept(teamName)
+end)
+
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
