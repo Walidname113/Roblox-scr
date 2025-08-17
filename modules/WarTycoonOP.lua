@@ -17,7 +17,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.1.1 Public")
+local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.1.2 Public")
 
 local mainCategory = uiModule.CreateCategory("Main")
 local espCategory = uiModule.CreateCategory("ESP")
@@ -393,6 +393,7 @@ uiModule.CreateToggle("Tycoons ESP", espCategory, function(state)
 end)
 
 local tycoonESPStorage = {}
+local localPlayer = game:GetService("Players").LocalPlayer
 
 local teamColors = {
     Alpha = Color3.fromRGB(255, 0, 0),
@@ -438,7 +439,16 @@ local function createTycoonLabel(tycoon)
     nameLabel.TextColor3 = teamColors[tycoon.Name] or Color3.new(1,1,1)
     nameLabel.Font = Enum.Font.SourceSansBold
     nameLabel.TextSize = 14
-    nameLabel.Text = tycoon.Name
+    if localPlayer:FindFirstChild("leaderstats") and localPlayer.leaderstats:FindFirstChild("Team") then
+        local playerTeam = localPlayer.leaderstats.Team.Value
+        if tycoon.Name == playerTeam then
+            nameLabel.Text = tycoon.Name.." (You)"
+        else
+            nameLabel.Text = tycoon.Name
+        end
+    else
+        nameLabel.Text = tycoon.Name
+    end
     nameLabel.TextScaled = true
     nameLabel.Parent = billboard
 
@@ -451,6 +461,14 @@ local function removeTycoonLabel(tycoon)
         tycoonESPStorage[tycoon] = nil
     end
 end
+
+workspace.Tycoon.Tycoons.ChildAdded:Connect(function(tycoon)
+    createTycoonLabel(tycoon)
+end)
+
+workspace.Tycoon.Tycoons.ChildRemoved:Connect(function(tycoon)
+    removeTycoonLabel(tycoon)
+end)
 
 RunService.RenderStepped:Connect(function()
     for _, tycoon in ipairs(workspace:WaitForChild("Tycoon"):WaitForChild("Tycoons"):GetChildren()) do
