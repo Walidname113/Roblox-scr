@@ -407,11 +407,22 @@ local teamColors = {
     Kilo = Color3.fromRGB(128, 0, 128),
     Lima = Color3.fromRGB(255, 105, 180),
     Sierra = Color3.fromRGB(255, 224, 189),
-    Tango = Color3.fromRGB(139, 69, 19)
+    Tango = Color3.fromRGB(139, 69, 19),
+    Zulu = Color3.fromRGB(128, 128, 128)
 }
+
+local function isTycoonVisible(tycoon)
+    for _, part in ipairs(tycoon:GetDescendants()) do
+        if part:IsA("BasePart") and part:IsDescendantOf(workspace) then
+            return true
+        end
+    end
+    return false
+end
 
 local function createTycoonLabel(tycoon)
     if not tycoon or tycoonESPStorage[tycoon] then return end
+    if not isTycoonVisible(tycoon) then return end
 
     local billboard = Instance.new("BillboardGui")
     billboard.AlwaysOnTop = true
