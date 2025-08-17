@@ -399,8 +399,8 @@ local function createTycoonLabel(tycoon)
 
     local billboard = Instance.new("BillboardGui")
     billboard.AlwaysOnTop = true
-    billboard.Size = UDim2.new(0, 200, 0, 50)
-    billboard.StudsOffset = Vector3.new(0, 5, 0)
+    billboard.Size = UDim2.new(0, 150, 0, 30)
+    billboard.StudsOffset = Vector3.new(0, 150, 0)
     
     local pivotPart = Instance.new("Part")
     pivotPart.Anchored = true
@@ -418,7 +418,7 @@ local function createTycoonLabel(tycoon)
     nameLabel.BackgroundTransparency = 1
     nameLabel.TextColor3 = Color3.new(1, 1, 1)
     nameLabel.Font = Enum.Font.SourceSansBold
-    nameLabel.TextSize = 18
+    nameLabel.TextSize = 14
     nameLabel.Text = tycoon.Name
     nameLabel.TextScaled = true
     nameLabel.Parent = billboard
