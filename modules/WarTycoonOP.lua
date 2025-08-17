@@ -394,6 +394,22 @@ end)
 
 local tycoonESPStorage = {}
 
+local teamColors = {
+    Alpha = Color3.fromRGB(255, 0, 0),
+    Bravo = Color3.fromRGB(255, 165, 0),
+    Charlie = Color3.fromRGB(255, 255, 0),
+    Delta = Color3.fromRGB(0, 255, 0),
+    Echo = Color3.fromRGB(0, 100, 0),
+    Foxtrot = Color3.fromRGB(0, 255, 255),
+    Golf = Color3.fromRGB(0, 0, 255),
+    Hotel = Color3.fromRGB(0, 0, 139),
+    Juliet = Color3.fromRGB(0, 0, 80),
+    Kilo = Color3.fromRGB(128, 0, 128),
+    Lima = Color3.fromRGB(255, 105, 180),
+    Sierra = Color3.fromRGB(255, 224, 189),
+    Tango = Color3.fromRGB(139, 69, 19)
+}
+
 local function createTycoonLabel(tycoon)
     if not tycoon or tycoonESPStorage[tycoon] then return end
 
@@ -416,7 +432,7 @@ local function createTycoonLabel(tycoon)
     local nameLabel = Instance.new("TextLabel")
     nameLabel.Size = UDim2.new(1, 0, 1, 0)
     nameLabel.BackgroundTransparency = 1
-    nameLabel.TextColor3 = Color3.new(1, 1, 1)
+    nameLabel.TextColor3 = teamColors[tycoon.Name] or Color3.new(1,1,1)
     nameLabel.Font = Enum.Font.SourceSansBold
     nameLabel.TextSize = 14
     nameLabel.Text = tycoon.Name
