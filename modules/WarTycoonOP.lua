@@ -411,33 +411,25 @@ local teamColors = {
     Zulu = Color3.fromRGB(128, 128, 128)
 }
 
-local function isTycoonVisible(tycoon)
+local function getAnyBasePart(tycoon)
     for _, part in ipairs(tycoon:GetDescendants()) do
         if part:IsA("BasePart") and part:IsDescendantOf(workspace) then
-            return true
+            return part
         end
     end
-    return false
+    return nil
 end
 
 local function createTycoonLabel(tycoon)
-    if not tycoon or tycoonESPStorage[tycoon] then return end
-    if not isTycoonVisible(tycoon) then return end
+    if not tycoonESPEnabled or tycoonESPStorage[tycoon] then return end
+    local basePart = getAnyBasePart(tycoon)
+    if not basePart then return end
 
     local billboard = Instance.new("BillboardGui")
     billboard.AlwaysOnTop = true
     billboard.Size = UDim2.new(0, 150, 0, 30)
     billboard.StudsOffset = Vector3.new(0, 150, 0)
-    
-    local pivotPart = Instance.new("Part")
-    pivotPart.Anchored = true
-    pivotPart.CanCollide = false
-    pivotPart.Transparency = 1
-    pivotPart.Size = Vector3.new(1,1,1)
-    pivotPart.CFrame = tycoon:GetPivot()
-    pivotPart.Parent = game.CoreGui
-
-    billboard.Adornee = pivotPart
+    billboard.Adornee = basePart
     billboard.Parent = game.CoreGui
 
     local nameLabel = Instance.new("TextLabel")
@@ -450,13 +442,12 @@ local function createTycoonLabel(tycoon)
     nameLabel.TextScaled = true
     nameLabel.Parent = billboard
 
-    tycoonESPStorage[tycoon] = {Billboard = billboard, PivotPart = pivotPart}
+    tycoonESPStorage[tycoon] = billboard
 end
 
 local function removeTycoonLabel(tycoon)
     if tycoonESPStorage[tycoon] then
-        tycoonESPStorage[tycoon].Billboard:Destroy()
-        tycoonESPStorage[tycoon].PivotPart:Destroy()
+        tycoonESPStorage[tycoon]:Destroy()
         tycoonESPStorage[tycoon] = nil
     end
 end
@@ -464,9 +455,13 @@ end
 RunService.RenderStepped:Connect(function()
     for _, tycoon in ipairs(workspace:WaitForChild("Tycoon"):WaitForChild("Tycoons"):GetChildren()) do
         if tycoonESPEnabled then
-            createTycoonLabel(tycoon)
-            if tycoonESPStorage[tycoon] then
-                tycoonESPStorage[tycoon].PivotPart.CFrame = tycoon:GetPivot()
+            if not tycoonESPStorage[tycoon] then
+                createTycoonLabel(tycoon)
+            else
+                local basePart = getAnyBasePart(tycoon)
+                if basePart then
+                    tycoonESPStorage[tycoon].Adornee = basePart
+                end
             end
         else
             removeTycoonLabel(tycoon)
