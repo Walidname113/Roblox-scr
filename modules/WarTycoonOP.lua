@@ -17,7 +17,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.1.3 Public")
+local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.1.4 Public")
 
 local mainCategory = uiModule.CreateCategory("Main")
 local espCategory = uiModule.CreateCategory("ESP")
@@ -89,11 +89,11 @@ local function createESP(player)
     local nameLabel = Instance.new("TextLabel")
     nameLabel.Name = "Nick"
     nameLabel.Size = UDim2.new(1, 0, 0, 15)
-    nameLabel.Position = UDim2.new(0, 0, -0.4, 0)
+    nameLabel.Position = UDim2.new(0, 0, -0.25, 0)
     nameLabel.BackgroundTransparency = 1
     nameLabel.TextColor3 = Color3.new(1, 1, 1)
     nameLabel.TextScaled = false
-    nameLabel.TextSize = 24
+    nameLabel.TextSize = 15
     nameLabel.Font = Enum.Font.SourceSansBold
     nameLabel.Parent = billboard
 
@@ -107,13 +107,13 @@ local function createESP(player)
 
     local distLabel = Instance.new("TextLabel")
     distLabel.Name = "Dist"
-    distLabel.Size = UDim2.new(1, 0, 0, 25)
-    distLabel.Position = UDim2.new(0, 0, -0.15, 0)
+    distLabel.Size = UDim2.new(1, 0, 0, 15)
+    distLabel.Position = UDim2.new(0, 0, -0.05, 0)
     distLabel.BackgroundTransparency = 1
     distLabel.TextColor3 = Color3.new(1, 1, 1)
     distLabel.TextScaled = false
+    distLabel.TextSize = 15
     distLabel.Font = Enum.Font.SourceSansBold
-    distLabel.TextSize = 20
     distLabel.Parent = billboard
 
     espStorage[player] = {
@@ -210,7 +210,7 @@ RunService.RenderStepped:Connect(function()
                 local dist = (player.Character.HumanoidRootPart.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
                 billboard.Dist.Visible = true
                 billboard.Dist.Text = math.floor(dist) .. " studs"
-                billboard.Dist.TextSize = 20
+                billboard.Dist.Position = UDim2.new(0, 0, 0, 15)
             else
                 billboard.Dist.Visible = false
             end
@@ -305,7 +305,7 @@ spawn(function()
 
                 local char = player.Character or player.CharacterAdded:Wait()
                 local hrp = char:FindFirstChild("HumanoidRootPart")
-                local backOffset = Vector3.new(0, 0, -3)
+                local backOffset = Vector3.new(0, 0, 3)
                 if hrp then
                     hrp.CFrame = collectorCFrameBase + backOffset
                 else
