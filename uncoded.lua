@@ -1,3 +1,4 @@
+-- v1
 local module = {}
 
 local Players = game:GetService("Players")
@@ -462,6 +463,10 @@ function module.CreateUI(title)
 
     local function openFirstCategory()
         if #categories > 0 then
+            for _, cat in ipairs(categories) do
+                cat.holder.Visible = false
+                cat.bar.Visible = false
+            end
             categories[1].holder.Visible = true
             categories[1].bar.Visible = true
         end
