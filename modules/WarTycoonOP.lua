@@ -108,12 +108,12 @@ local function createESP(player)
     local distLabel = Instance.new("TextLabel")
     distLabel.Name = "Dist"
     distLabel.Size = UDim2.new(1, 0, 0, 25)
-    distLabel.Position = UDim2.new(0, 0, -0.15, 0)
+    distLabel.Position = UDim2.new(0, 0, -0.20, 0)
     distLabel.BackgroundTransparency = 1
     distLabel.TextColor3 = Color3.new(1, 1, 1)
     distLabel.TextScaled = false
     distLabel.Font = Enum.Font.SourceSansBold
-    distLabel.TextSize = 15
+    distLabel.TextSize = 10
     distLabel.Parent = billboard
 
     espStorage[player] = {
