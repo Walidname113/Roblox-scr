@@ -17,7 +17,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.1.2 Public")
+local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.1.3 Public")
 
 local mainCategory = uiModule.CreateCategory("Main")
 local espCategory = uiModule.CreateCategory("ESP")
@@ -253,7 +253,7 @@ spawn(function()
                             :WaitForChild("Lab Terminal Screen")
                             :WaitForChild("Research Screen")
                             :WaitForChild("Collector")
-    local collectorCFrame = collectorPart.CFrame + Vector3.new(0, 5, 0)
+    local collectorCFrameBase = collectorPart.CFrame + Vector3.new(0, 5, 0)
 
     while true do
         if autoCollectEnabled then
@@ -284,7 +284,6 @@ spawn(function()
                 task.wait(0.1)
                 teleportTo(targetModel)
 
-            
                 local prompt = targetModel:FindFirstChild("Interact", true)
                 if not prompt then
                     repeat
@@ -304,13 +303,13 @@ spawn(function()
                 prompt.MaxActivationDistance = 10
                 fireproximityprompt(prompt, 1)
 
-                
                 local char = player.Character or player.CharacterAdded:Wait()
                 local hrp = char:FindFirstChild("HumanoidRootPart")
+                local backOffset = Vector3.new(0, 0, -3)
                 if hrp then
-                    hrp.CFrame = collectorCFrame
+                    hrp.CFrame = collectorCFrameBase + backOffset
                 else
-                    char:PivotTo(collectorCFrame)
+                    char:PivotTo(collectorCFrameBase + backOffset)
                 end
 
                 task.wait(8)
