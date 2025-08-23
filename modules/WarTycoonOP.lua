@@ -17,7 +17,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.1.7 optimization update")
+local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.1.8 ESP Update")
 
 ui.SetMinimizedImage("108856686741748")
 
@@ -27,6 +27,26 @@ local players = game:GetService("Players")
 local localPlayer = players.LocalPlayer
 local cam = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
+
+local espcolors = {
+    Alpha = Color3.fromRGB(255, 0, 0),
+    Bravo = Color3.fromRGB(255, 165, 0),
+    Charlie = Color3.fromRGB(255, 255, 0),
+    Delta = Color3.fromRGB(0, 255, 0),
+    Echo = Color3.fromRGB(0, 100, 0),
+    Foxtrot = Color3.fromRGB(0, 255, 255),
+    Golf = Color3.fromRGB(0, 0, 255),
+    Hotel = Color3.fromRGB(0, 0, 139),
+    Juliet = Color3.fromRGB(0, 0, 80),
+    Kilo = Color3.fromRGB(128, 0, 128),
+    Lima = Color3.fromRGB(178, 102, 255),
+    Sierra = Color3.fromRGB(255, 224, 189),
+    Tango = Color3.fromRGB(139, 69, 19),
+    Zulu = Color3.fromRGB(128, 128, 128),
+	Romeo = Color3.fromRGB(245, 222, 179),
+	Omega = Color3.fromRGB(255, 0, 255),
+	Yankee = Color3.fromRGB(160, 160, 160)
+}
 
 local aimbotContainer = Instance.new("Frame")
 aimbotContainer.Size = UDim2.new(1, -10, 0, 40)
@@ -86,7 +106,7 @@ end
 local function getPlayerTycoonColor(player)
     local team = player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("Team")
     if team and team.Value ~= "" then
-        return teamColors[team.Value] or Color3.new(1,0,0)
+        return espcolors [team.Value] or Color3.new(1,0,0)
     end
     return Color3.new(1,0,0)
 end
