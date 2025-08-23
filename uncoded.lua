@@ -223,6 +223,11 @@ function module.CreateUI(title)
     minimizedFrame.Visible = true
 end))
 
+    trackConnection(minimizedFrame.MouseButton1Click:Connect(function()
+    mainFrame.Visible = true
+    minimizedFrame.Visible = false
+end))
+
     local categoryFrame = Instance.new("ScrollingFrame", mainFrame)
     categoryFrame.Size = UDim2.new(0, 150, 1, -55)
     categoryFrame.Position = UDim2.new(0, 10, 0, 45)
@@ -550,7 +555,15 @@ end))
         Close = closeUI,
         SetMinimizedImage = setMinimizedImage,
         OpenFirstCategory = openFirstCategory,
-        Categories = categories
+        Categories = categories,
+        Hide = function()
+            mainFrame.Visible = false
+            minimizedFrame.Visible = true
+        end,
+        Show = function()
+            mainFrame.Visible = true
+            minimizedFrame.Visible = false
+        end
     }
 end
 
