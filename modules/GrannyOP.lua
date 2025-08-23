@@ -138,26 +138,30 @@ ui.CreateToggle("Freecam", mainContainer, function(state)
     end
 end)
 
-local speedToggle = uiModule.CreateToggle("Speed Hack", mainContainer, function(state)
+local speedContainer = Instance.new("Frame")
+speedContainer.Size = UDim2.new(1, -10, 0, 40)
+speedContainer.BackgroundTransparency = 1
+speedContainer.Parent = mainContainer
+
+local speedToggle = uiModule.CreateToggle("Speed Hack", speedContainer, function(state)
     local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
     if humanoid then
         humanoid.WalkSpeed = state and tonumber(speedInput.Text) or (originalWalkSpeed or 16)
     end
 end)
-
-speedToggle.Size = UDim2.new(1, -10, 1, 40)
+speedToggle.Size = UDim2.new(1, -70, 1, 0)
 
 local speedInput = Instance.new("TextBox")
-speedInput.Size = UDim2.new(0, 60, 1, 0)
-speedInput.Position = UDim2.new(1, -60, 0, 0)
+speedInput.Size = UDim2.new(0, 60, 0, 30)
+speedInput.Position = UDim2.new(1, -60, 0.5, -15)
 speedInput.Text = tostring(originalWalkSpeed or 16)
 speedInput.PlaceholderText = "Speed"
-speedInput.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+speedInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 speedInput.TextColor3 = Color3.new(1,1,1)
 speedInput.Font = Enum.Font.SourceSans
 speedInput.TextSize = 16
 Instance.new("UICorner", speedInput)
-speedInput.Parent = speedToggle
+speedInput.Parent = speedContainer
 
 speedInput.FocusLost:Connect(function()
     local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
