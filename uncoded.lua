@@ -1,4 +1,4 @@
--- v4
+-- v5
 local module = {}
 
 local Players = game:GetService("Players")
@@ -193,7 +193,6 @@ function module.CreateUI(title)
     local minimizedFrame = Instance.new("ImageButton", screenGui)
     minimizedFrame.Size = UDim2.new(0, 40, 0, 40)
     minimizedFrame.Position = UDim2.new(0.5, -20, 0.5, -20)
-    minimizedFrame.Image = ""
     minimizedFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
     minimizedFrame.Visible = false
     Instance.new("UICorner", minimizedFrame)
@@ -201,18 +200,23 @@ function module.CreateUI(title)
     trackObject(minimizedFrame)
 
     local plusIcon = Instance.new("TextLabel", minimizedFrame)
-    plusIcon.Text = "+"
     plusIcon.Size = UDim2.new(1, 0, 1, 0)
+    plusIcon.Text = "+"
     plusIcon.TextColor3 = Color3.new(1,1,1)
     plusIcon.BackgroundTransparency = 1
     plusIcon.Font = Enum.Font.GothamBold
     plusIcon.TextSize = 24
     trackObject(plusIcon)
 
-    trackConnection(minimizeButton.MouseButton1Click:Connect(function()
-        mainFrame.Visible = false
-        minimizedFrame.Visible = true
-    end))
+    local function setMinimizedImage(assetId)
+        if assetId and typeof(assetId) == "string" and assetId ~= "" then
+            minimizedFrame.Image = "rbxassetid://" .. assetId
+            plusIcon.Visible = false
+        else
+            minimizedFrame.Image = ""
+            plusIcon.Visible = true
+        end
+    end
 
     trackConnection(minimizedFrame.MouseButton1Click:Connect(function()
         mainFrame.Visible = true
@@ -230,7 +234,6 @@ function module.CreateUI(title)
     Instance.new("UICorner", categoryFrame)
     trackObject(categoryFrame)
 
-    -- fix for category buttons overlapping
     local categoryLayout = Instance.new("UIListLayout")
     categoryLayout.SortOrder = Enum.SortOrder.LayoutOrder
     categoryLayout.Padding = UDim.new(0, 6)
@@ -545,23 +548,7 @@ function module.CreateUI(title)
         CreatePlayerList = module.CreatePlayerList,
         CreateButton = module.CreateButton,
         Close = closeUI,
-        Hide = function()
-            mainFrame.Visible = false
-            minimizedFrame.Visible = true
-        end,
-        Show = function()
-            mainFrame.Visible = true
-            minimizedFrame.Visible = false
-        end,
-        SetMinimizedImage = function(assetId)
-            if assetId and typeof(assetId) == "string" and assetId ~= "" then
-                minimizedFrame.Image = "rbxassetid://" .. assetId
-                plusIcon.Visible = false
-            else
-                minimizedFrame.Image = ""
-                plusIcon.Visible = true
-            end
-        end,
+        SetMinimizedImage = setMinimizedImage,
         OpenFirstCategory = openFirstCategory,
         Categories = categories
     }
