@@ -17,7 +17,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.1.5 Public")
+local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.1.6 Public")
 
 local mainCategory = uiModule.CreateCategory("Main")
 local espCategory = uiModule.CreateCategory("ESP")
@@ -26,26 +26,39 @@ local localPlayer = players.LocalPlayer
 local cam = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
 
-local studs = 100
-local aimbotEnabled = false
+local aimbotContainer = Instance.new("Frame")
+aimbotContainer.Size = UDim2.new(1, -10, 0, 40)
+aimbotContainer.BackgroundTransparency = 1
+aimbotContainer.Parent = mainCategory
 
-local aimbotToggle = uiModule.CreateToggle("Aimbot", mainCategory, function(state)
+local aimbotToggle = uiModule.CreateToggle("Aimbot", aimbotContainer, function(state)
     aimbotEnabled = state
 end)
 
+aimbotToggle.Size = UDim2.new(1, -70, 1, 0)
+
+local studs = 100
+
 local distanceInput = Instance.new("TextBox")
 distanceInput.Size = UDim2.new(0, 60, 0, 30)
-distanceInput.Position = UDim2.new(1, -65, 0, 0)
-distanceInput.Text = tostring(studs)
-distanceInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+distanceInput.Position = UDim2.new(1, -60, 0.5, -15)
+distanceInput.Text = ""
+distanceInput.PlaceholderText = "100 studs"
 distanceInput.TextColor3 = Color3.new(1, 1, 1)
 distanceInput.Font = Enum.Font.SourceSans
 distanceInput.TextSize = 16
+distanceInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 Instance.new("UICorner", distanceInput)
-distanceInput.Parent = aimbotToggle
+distanceInput.Parent = aimbotContainer
+
 distanceInput.FocusLost:Connect(function()
     local val = tonumber(distanceInput.Text)
-    if val then studs = val end
+    if val then
+        studs = val
+    else
+        distanceInput.Text = ""
+        studs = 100
+    end
 end)
 
 local boxESPEnabled, nickESPEnabled, hpESPEnabled, distESPEnabled = false, false, false, false
