@@ -19,7 +19,7 @@ end
 local uiModule = moduleFunc()
 local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.1.7 optimization update")
 
-ui.SetMinimizedImage("137789424069704")
+ui.SetMinimizedImage("108856686741748")
 
 local mainCategory = uiModule.CreateCategory("Main")
 local espCategory = uiModule.CreateCategory("ESP")
