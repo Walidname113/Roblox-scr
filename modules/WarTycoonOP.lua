@@ -415,10 +415,12 @@ local teamColors = {
     Hotel = Color3.fromRGB(0, 0, 139),
     Juliet = Color3.fromRGB(0, 0, 80),
     Kilo = Color3.fromRGB(128, 0, 128),
-    Lima = Color3.fromRGB(255, 105, 180),
+    Lima = Color3.fromRGB(178, 102, 255),
     Sierra = Color3.fromRGB(255, 224, 189),
     Tango = Color3.fromRGB(139, 69, 19),
-    Zulu = Color3.fromRGB(128, 128, 128)
+    Zulu = Color3.fromRGB(128, 128, 128),
+	Romeo = Color3.fromRGB(245, 222, 179),
+	Omega = Color3.fromRGB(255, 0, 255)
 }
 
 local function getAnyBasePart(tycoon)
