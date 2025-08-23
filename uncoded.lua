@@ -1,4 +1,4 @@
--- v3
+-- v4
 local module = {}
 
 local Players = game:GetService("Players")
@@ -349,7 +349,7 @@ function module.CreateUI(title)
         trackObject(knob)
 
         local enabled = false
-        local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local tweenInfo = TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
         local function updateVisual()
             if enabled then
@@ -374,21 +374,43 @@ function module.CreateUI(title)
         return container
     end
 
-    function module.CreateButton(text,parent,callback)
+    function module.CreateButton(text, parent, callback)
         local button = Instance.new("TextButton")
         button.Size = UDim2.new(1,-10,0,35)
         button.Text = text
         button.BackgroundColor3 = Color3.fromRGB(60,60,60)
         button.TextColor3 = Color3.new(1,1,1)
-        button.Font = Enum.Font.SourceSansBold
+        button.Font = Enum.Font.GothamBold
         button.TextSize = 16
-        Instance.new("UICorner", button)
+        button.AutoButtonColor = false
+        Instance.new("UICorner", button).CornerRadius = UDim.new(0, 6)
         button.Parent = parent
         trackObject(button)
 
-        if callback then
-            trackConnection(button.MouseButton1Click:Connect(callback))
-        end
+        local gradient = Instance.new("UIGradient", button)
+        gradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(80,80,80)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(50,50,50))
+        })
+
+        local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+        trackConnection(button.MouseEnter:Connect(function()
+            TweenService:Create(button, tweenInfo, {BackgroundColor3 = Color3.fromRGB(90,90,90)}):Play()
+        end))
+        trackConnection(button.MouseLeave:Connect(function()
+            TweenService:Create(button, tweenInfo, {BackgroundColor3 = Color3.fromRGB(60,60,60)}):Play()
+        end))
+
+        trackConnection(button.MouseButton1Click:Connect(function()
+            local down = TweenService:Create(button, TweenInfo.new(0.1), {Size = UDim2.new(1,-12,0,33)})
+            local up = TweenService:Create(button, TweenInfo.new(0.1), {Size = UDim2.new(1,-10,0,35)})
+            down:Play()
+            down.Completed:Connect(function()
+                up:Play()
+            end)
+            if callback then callback() end
+        end))
 
         return button
     end
