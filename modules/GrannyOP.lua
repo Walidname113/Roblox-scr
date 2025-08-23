@@ -10,63 +10,7 @@ local moduleFunc, err = loadstring(source)
 if not moduleFunc then warn("Error module func:", err) return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("Granny by Kiyatsuka | Version: 1.0.5 Public")
-
-function ui.CreateToggleWithInput(title, parent, data)  
-    local container = Instance.new("Frame")  
-    container.Size = UDim2.new(1, 0, 0, 30)  
-    container.BackgroundTransparency = 1  
-    container.Parent = parent  
-  
-    local toggle = Instance.new("TextButton")  
-    toggle.Size = UDim2.new(0, 100, 1, 0)  
-    toggle.Position = UDim2.new(0, 0, 0, 0)  
-    toggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)  
-    toggle.TextColor3 = Color3.new(1, 1, 1)  
-    toggle.Text = title  
-    toggle.Parent = container  
-  
-    local input = Instance.new("TextBox")  
-    input.Size = UDim2.new(0, 60, 1, 0)  
-    input.Position = UDim2.new(0, 110, 0, 0)  
-    input.BackgroundColor3 = Color3.fromRGB(30, 30, 30)  
-    input.TextColor3 = Color3.new(1, 1, 1)  
-    input.Text = type(data.default) == "function" and data.default() or (data.default or "")  
-    input.Parent = container  
-  
-    local reset = Instance.new("TextButton")  
-    reset.Size = UDim2.new(0, 30, 1, 0)  
-    reset.Position = UDim2.new(0, 180, 0, 0)  
-    reset.BackgroundColor3 = Color3.fromRGB(80, 30, 30)  
-    reset.TextColor3 = Color3.new(1, 1, 1)  
-    reset.Text = "X"  
-    reset.Parent = container  
-  
-    local state = false  
-  
-    toggle.MouseButton1Click:Connect(function()  
-        state = not state  
-        toggle.BackgroundColor3 = state and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(50, 50, 50)  
-        if data.onToggle then  
-            data.onToggle(state, input.Text)  
-        end  
-    end)  
-  
-    input.FocusLost:Connect(function()  
-        if data.onToggle then  
-            data.onToggle(state, input.Text)  
-        end  
-    end)  
-  
-    reset.MouseButton1Click:Connect(function()  
-        input.Text = type(data.default) == "function" and data.default() or (data.default or "")  
-        if data.reset then  
-            data.reset()  
-        end  
-    end)  
-  
-    return container  
-end
+local ui = uiModule.CreateUI("Granny by Kiyatsuka | Version: 1.0.6 Public")
 
 local highlightsMap = {} -- [object] = {highlight, type="player"/"tool"/etc}
 
@@ -121,8 +65,6 @@ local player = Players.LocalPlayer
 local noclipConnection
 local originalCameraMode
 local originalWalkSpeed
-local originalJumpPower
-local infinityJumpEnabled = false
 
 local function showJumpButton()
     local touchGui = player:WaitForChild("PlayerGui"):FindFirstChild("TouchGui")
@@ -139,7 +81,6 @@ local function cacheOriginalValues()
     local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
     if humanoid then
         originalWalkSpeed = humanoid.WalkSpeed
-        originalJumpPower = humanoid.JumpPower
     end
     if not originalCameraMode then
         originalCameraMode = player.CameraMode
@@ -197,59 +138,40 @@ ui.CreateToggle("Freecam", mainContainer, function(state)
     end
 end)
 
-ui.CreateToggle("InfinityJump", mainContainer, function(state)
-    infinityJumpEnabled = state
-    if state then
-        showJumpButton()
+local speedToggle = uiModule.CreateToggle("Speed Hack", mainContainer, function(state)
+    local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.WalkSpeed = state and tonumber(speedInput.Text) or (originalWalkSpeed or 16)
     end
 end)
 
-UserInputService.JumpRequest:Connect(function()
-    if infinityJumpEnabled and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
-        player.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
-    end
-end)
+speedToggle.Size = UDim2.new(1, -70, 1, 0)
 
-ui.CreateToggleWithInput("SpeedHack", mainContainer, {
-    default = function()
-        return tostring(originalWalkSpeed or 16)
-    end,
-    reset = function()
-        local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-        if humanoid and originalWalkSpeed then
+local speedInput = Instance.new("TextBox")
+speedInput.Size = UDim2.new(0, 60, 1, 0)
+speedInput.Position = UDim2.new(1, -60, 0, 0)
+speedInput.Text = tostring(originalWalkSpeed or 16)
+speedInput.PlaceholderText = "Speed"
+speedInput.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+speedInput.TextColor3 = Color3.new(1,1,1)
+speedInput.Font = Enum.Font.SourceSans
+speedInput.TextSize = 16
+Instance.new("UICorner", speedInput)
+speedInput.Parent = speedToggle
+
+speedInput.FocusLost:Connect(function()
+    local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+    local speed = tonumber(speedInput.Text)
+    if humanoid and speed then
+        if speedToggle._state then
+            humanoid.WalkSpeed = speed
+        else
             humanoid.WalkSpeed = originalWalkSpeed
         end
-    end,
-    onToggle = function(state, inputValue)
-        local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-        local speed = tonumber(inputValue)
-        if humanoid and speed then
-            humanoid.WalkSpeed = state and speed or (originalWalkSpeed or 16)
-        end
+    else
+        speedInput.Text = ""
     end
-})
-
-ui.CreateToggleWithInput("JumpHack", mainContainer, {
-    default = function()
-        return tostring(originalJumpPower or 50)
-    end,
-    reset = function()
-        local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-        if humanoid and originalJumpPower then
-            humanoid.JumpPower = originalJumpPower
-        end
-    end,
-    onToggle = function(state, inputValue)
-        local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-        local power = tonumber(inputValue)
-        if humanoid and power then
-            humanoid.JumpPower = state and power or (originalJumpPower or 50)
-        end
-        if state then
-            showJumpButton()
-        end
-    end
-})
+end)
 
 local tpContainer = Instance.new("Frame")
 tpContainer.Size = UDim2.new(1, 0, 0, 30)
