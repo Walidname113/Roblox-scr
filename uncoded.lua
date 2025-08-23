@@ -1,4 +1,4 @@
--- v5
+-- v6
 local module = {}
 
 local Players = game:GetService("Players")
@@ -211,6 +211,7 @@ function module.CreateUI(title)
     local function setMinimizedImage(assetId)
         if assetId and typeof(assetId) == "string" and assetId ~= "" then
             minimizedFrame.Image = "rbxassetid://" .. assetId
+            minimizedFrame.ImageTransparency = 0
             plusIcon.Visible = false
         else
             minimizedFrame.Image = ""
