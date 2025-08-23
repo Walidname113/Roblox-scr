@@ -10,7 +10,7 @@ local moduleFunc, err = loadstring(source)
 if not moduleFunc then warn("Error module func:", err) return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("Granny by Kiyatsuka | Version: 1.0.6 Public")
+local ui = uiModule.CreateUI("Granny by Kiyatsuka | Version: 1.0.7 Public")
 
 local highlightsMap = {} -- [object] = {highlight, type="player"/"tool"/etc}
 
@@ -65,16 +65,6 @@ local player = Players.LocalPlayer
 local noclipConnection
 local originalCameraMode
 local originalWalkSpeed
-
-local function showJumpButton()
-    local touchGui = player:WaitForChild("PlayerGui"):FindFirstChild("TouchGui")
-    if touchGui then
-        local jumpButton = touchGui:FindFirstChild("JumpButton", true)
-        if jumpButton then
-            jumpButton.Visible = true
-        end
-    end
-end
 
 local function cacheOriginalValues()
     task.wait(1)
@@ -143,12 +133,7 @@ speedContainer.Size = UDim2.new(1, -10, 0, 40)
 speedContainer.BackgroundTransparency = 1
 speedContainer.Parent = mainContainer
 
-local speedToggle = uiModule.CreateToggle("Speed Hack", speedContainer, function(state)
-    local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-    if humanoid then
-        humanoid.WalkSpeed = state and tonumber(speedInput.Text) or (originalWalkSpeed or 16)
-    end
-end)
+local speedToggle = uiModule.CreateToggle("Speed Hack", speedContainer)
 speedToggle.Size = UDim2.new(1, -70, 1, 0)
 
 local speedInput = Instance.new("TextBox")
@@ -163,17 +148,40 @@ speedInput.TextSize = 16
 Instance.new("UICorner", speedInput)
 speedInput.Parent = speedContainer
 
-speedInput.FocusLost:Connect(function()
+local speedHackEnabled = false
+local desiredSpeed = tonumber(speedInput.Text) or 16
+
+local function applySpeed()
     local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-    local speed = tonumber(speedInput.Text)
-    if humanoid and speed then
-        if speedToggle._state then
-            humanoid.WalkSpeed = speed
-        else
-            humanoid.WalkSpeed = originalWalkSpeed
+    if humanoid then
+        humanoid.WalkSpeed = speedHackEnabled and desiredSpeed or originalWalkSpeed
+    end
+end
+
+RunService.Heartbeat:Connect(function()
+    if speedHackEnabled then
+        applySpeed()
+    end
+end)
+
+speedToggle.Callback = function(state)
+    speedHackEnabled = state
+    local inputSpeed = tonumber(speedInput.Text)
+    if inputSpeed then
+        desiredSpeed = inputSpeed
+    end
+    applySpeed()
+end
+
+speedInput.FocusLost:Connect(function()
+    local newSpeed = tonumber(speedInput.Text)
+    if newSpeed then
+        desiredSpeed = newSpeed
+        if speedHackEnabled then
+            applySpeed()
         end
     else
-        speedInput.Text = ""
+        speedInput.Text = tostring(desiredSpeed)
     end
 end)
 
