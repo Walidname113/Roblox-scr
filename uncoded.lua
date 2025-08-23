@@ -1,4 +1,4 @@
--- v2
+-- v3
 local module = {}
 
 local Players = game:GetService("Players")
@@ -349,13 +349,15 @@ function module.CreateUI(title)
         trackObject(knob)
 
         local enabled = false
+        local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
         local function updateVisual()
             if enabled then
-                switch.BackgroundColor3 = Color3.fromRGB(0,170,0)
-                knob.Position = UDim2.new(1, -19, 0.5, -9)
+                TweenService:Create(switch, tweenInfo, {BackgroundColor3 = Color3.fromRGB(0,170,0)}):Play()
+                TweenService:Create(knob, tweenInfo, {Position = UDim2.new(1, -19, 0.5, -9)}):Play()
             else
-                switch.BackgroundColor3 = Color3.fromRGB(70,70,70)
-                knob.Position = UDim2.new(0, 1, 0.5, -9)
+                TweenService:Create(switch, tweenInfo, {BackgroundColor3 = Color3.fromRGB(70,70,70)}):Play()
+                TweenService:Create(knob, tweenInfo, {Position = UDim2.new(0, 1, 0.5, -9)}):Play()
             end
         end
 
