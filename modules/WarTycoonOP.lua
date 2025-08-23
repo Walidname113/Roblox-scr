@@ -420,7 +420,8 @@ local teamColors = {
     Tango = Color3.fromRGB(139, 69, 19),
     Zulu = Color3.fromRGB(128, 128, 128),
 	Romeo = Color3.fromRGB(245, 222, 179),
-	Omega = Color3.fromRGB(255, 0, 255)
+	Omega = Color3.fromRGB(255, 0, 255),
+	Yankee = Color3.fromRGB(160, 160, 160)
 }
 
 local function getAnyBasePart(tycoon)
