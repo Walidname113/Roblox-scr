@@ -145,7 +145,7 @@ local speedToggle = uiModule.CreateToggle("Speed Hack", mainContainer, function(
     end
 end)
 
-speedToggle.Size = UDim2.new(1, -70, 1, 0)
+speedToggle.Size = UDim2.new(1, -10, 1, 40)
 
 local speedInput = Instance.new("TextBox")
 speedInput.Size = UDim2.new(0, 60, 1, 0)
