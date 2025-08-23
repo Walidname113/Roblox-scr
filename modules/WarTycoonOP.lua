@@ -71,16 +71,24 @@ uiModule.CreateToggle("Distance ESP", espCategory, function(state) distESPEnable
 
 local espStorage = {}
 
-local function addHighlight(model)
+local function addHighlight(model, color)
     if not model then return end
     local highlight = Instance.new("Highlight")
     highlight.Adornee = model
-    highlight.FillColor = Color3.new(1, 0, 0)
-    highlight.OutlineColor = Color3.new(1, 0, 0)
+    highlight.FillColor = color or Color3.new(1, 0, 0)
+    highlight.OutlineColor = color or Color3.new(1, 0, 0)
     highlight.FillTransparency = 0.7
     highlight.OutlineTransparency = 0
     highlight.Parent = game.CoreGui
     return highlight
+end
+
+local function getPlayerTycoonColor(player)
+    local team = player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("Team")
+    if team and team.Value ~= "" then
+        return teamColors[team.Value] or Color3.new(1,0,0)
+    end
+    return Color3.new(1,0,0)
 end
 
 local function removeHighlight(highlight)
@@ -187,55 +195,59 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    for player, data in pairs(espStorage) do
-        local billboard = data.Billboard
-        local highlight = data.Highlight
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            billboard.Adornee = player.Character.HumanoidRootPart
-            billboard.Enabled = nickESPEnabled or hpESPEnabled or distESPEnabled
+    for player, data in pairs(espStorage) do  
+        local billboard = data.Billboard  
+        local highlight = data.Highlight  
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then  
+            billboard.Adornee = player.Character.HumanoidRootPart  
+            billboard.Enabled = nickESPEnabled or hpESPEnabled or distESPEnabled  
 
-            if boxESPEnabled then
-                if not highlight then
-                    data.Highlight = addHighlight(player.Character)
-                end
-            else
-                if highlight then
-                    removeHighlight(highlight)
-                    data.Highlight = nil
-                end
-            end
+            if boxESPEnabled then  
+                local color = getPlayerTycoonColor(player)
+                if not highlight then  
+                    data.Highlight = addHighlight(player.Character, color)  
+                else
+                    highlight.FillColor = color
+                    highlight.OutlineColor = color
+                end  
+            else  
+                if highlight then  
+                    removeHighlight(highlight)  
+                    data.Highlight = nil  
+                end  
+            end  
 
-            billboard.Nick.Visible = nickESPEnabled
-            billboard.Nick.Text = player.Name
+            billboard.Nick.Visible = nickESPEnabled  
+            billboard.Nick.Text = player.Name  
 
-            if hpESPEnabled and player.Character:FindFirstChild("Humanoid") then
-                local humanoid = player.Character.Humanoid
-                local hpRatio = humanoid.Health / humanoid.MaxHealth
-                billboard.HP.Visible = true
-                billboard.HP.Size = UDim2.new(0.05, 0, math.clamp(hpRatio, 0.1, 1), 0)
-                billboard.HP.BackgroundColor3 =
-                    hpRatio > 0.5 and Color3.new(0, 1, 0) or
-                    hpRatio > 0.2 and Color3.new(1, 0.5, 0) or
-                    Color3.new(1, 0, 0)
-            else
-                billboard.HP.Visible = false
-            end
+            if hpESPEnabled and player.Character:FindFirstChild("Humanoid") then  
+                local humanoid = player.Character.Humanoid  
+                local hpRatio = humanoid.Health / humanoid.MaxHealth  
+                billboard.HP.Visible = true  
+                billboard.HP.Size = UDim2.new(0.05, 0, math.clamp(hpRatio, 0.1, 1), 0)  
+                billboard.HP.BackgroundColor3 =  
+                    hpRatio > 0.5 and Color3.new(0, 1, 0) or  
+                    hpRatio > 0.2 and Color3.new(1, 0.5, 0) or  
+                    Color3.new(1, 0, 0)  
+            else  
+                billboard.HP.Visible = false  
+            end  
 
-            if distESPEnabled and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                local dist = (player.Character.HumanoidRootPart.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
-                billboard.Dist.Visible = true
-                billboard.Dist.Text = math.floor(dist) .. " studs"
-                billboard.Dist.TextSize = 20
-            else
-                billboard.Dist.Visible = false
-            end
-        else
-            billboard.Enabled = false
-            if highlight then
-                removeHighlight(highlight)
-                data.Highlight = nil
-            end
-        end
+            if distESPEnabled and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then  
+                local dist = (player.Character.HumanoidRootPart.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude  
+                billboard.Dist.Visible = true  
+                billboard.Dist.Text = math.floor(dist) .. " studs"  
+                billboard.Dist.TextSize = 20  
+            else  
+                billboard.Dist.Visible = false  
+            end  
+        else  
+            billboard.Enabled = false  
+            if highlight then  
+                removeHighlight(highlight)  
+                data.Highlight = nil  
+            end  
+        end  
     end
 end)
 
