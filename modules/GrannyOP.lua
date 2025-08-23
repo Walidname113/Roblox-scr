@@ -133,13 +133,9 @@ speedContainer.Size = UDim2.new(1, -10, 0, 40)
 speedContainer.BackgroundTransparency = 1
 speedContainer.Parent = mainContainer
 
-local speedToggle = uiModule.CreateToggle("Speed Hack", speedContainer)
-speedToggle.Size = UDim2.new(1, -70, 1, 0)
-
 local speedInput = Instance.new("TextBox")
 speedInput.Size = UDim2.new(0, 60, 0, 30)
 speedInput.Position = UDim2.new(1, -60, 0.5, -15)
-speedInput.Text = tostring(originalWalkSpeed or 16)
 speedInput.PlaceholderText = "Speed"
 speedInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 speedInput.TextColor3 = Color3.new(1,1,1)
@@ -149,7 +145,7 @@ Instance.new("UICorner", speedInput)
 speedInput.Parent = speedContainer
 
 local speedHackEnabled = false
-local desiredSpeed = tonumber(speedInput.Text) or 16
+local desiredSpeed = 16
 
 local function applySpeed()
     local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
@@ -164,14 +160,18 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
-speedToggle.Callback = function(state)
+local speedToggle = uiModule.CreateToggle("Speed Hack", speedContainer, function(state)
     speedHackEnabled = state
     local inputSpeed = tonumber(speedInput.Text)
     if inputSpeed then
         desiredSpeed = inputSpeed
     end
     applySpeed()
-end
+end)
+speedToggle.Size = UDim2.new(1, -70, 1, 0)
+
+speedInput.Text = tostring(originalWalkSpeed or 16)
+desiredSpeed = tonumber(speedInput.Text) or 16
 
 speedInput.FocusLost:Connect(function()
     local newSpeed = tonumber(speedInput.Text)
