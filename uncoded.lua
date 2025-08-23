@@ -1,4 +1,4 @@
--- v1
+-- v2
 local module = {}
 
 local Players = game:GetService("Players")
@@ -312,26 +312,64 @@ function module.CreateUI(title)
         return holder
     end
 
-    function module.CreateToggle(text,parent,callback)
-        local button = Instance.new("TextButton")
-        button.Size = UDim2.new(1, -10, 0, 35)
-        button.Text = text
-        button.BackgroundColor3 = Color3.fromRGB(60,60,60)
-        button.TextColor3 = Color3.new(1,1,1)
-        button.Font = Enum.Font.SourceSans
-        button.TextSize = 16
-        Instance.new("UICorner", button)
-        button.Parent = parent
-        trackObject(button)
+    function module.CreateToggle(text, parent, callback)
+        local container = Instance.new("Frame")
+        container.Size = UDim2.new(1, -10, 0, 35)
+        container.BackgroundColor3 = Color3.fromRGB(45,45,45)
+        container.BorderSizePixel = 0
+        Instance.new("UICorner", container)
+        container.Parent = parent
+        trackObject(container)
+
+        local label = Instance.new("TextLabel", container)
+        label.Size = UDim2.new(1, -50, 1, 0)
+        label.Position = UDim2.new(0, 10, 0, 0)
+        label.BackgroundTransparency = 1
+        label.Text = text
+        label.Font = Enum.Font.SourceSans
+        label.TextSize = 16
+        label.TextColor3 = Color3.new(1,1,1)
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        trackObject(label)
+
+        local switch = Instance.new("Frame", container)
+        switch.Size = UDim2.new(0, 40, 0, 20)
+        switch.Position = UDim2.new(1, -45, 0.5, -10)
+        switch.BackgroundColor3 = Color3.fromRGB(70,70,70)
+        switch.BorderSizePixel = 0
+        Instance.new("UICorner", switch).CornerRadius = UDim.new(1,0)
+        trackObject(switch)
+
+        local knob = Instance.new("Frame", switch)
+        knob.Size = UDim2.new(0, 18, 0, 18)
+        knob.Position = UDim2.new(0, 1, 0.5, -9)
+        knob.BackgroundColor3 = Color3.fromRGB(200,200,200)
+        knob.BorderSizePixel = 0
+        Instance.new("UICorner", knob).CornerRadius = UDim.new(1,0)
+        trackObject(knob)
 
         local enabled = false
-        trackConnection(button.MouseButton1Click:Connect(function()
-            enabled = not enabled
-            button.BackgroundColor3 = enabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(60,60,60)
-            if callback then callback(enabled) end
+        local function updateVisual()
+            if enabled then
+                switch.BackgroundColor3 = Color3.fromRGB(0,170,0)
+                knob.Position = UDim2.new(1, -19, 0.5, -9)
+            else
+                switch.BackgroundColor3 = Color3.fromRGB(70,70,70)
+                knob.Position = UDim2.new(0, 1, 0.5, -9)
+            end
+        end
+
+        trackConnection(container.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 
+            or input.UserInputType == Enum.UserInputType.Touch then
+                enabled = not enabled
+                updateVisual()
+                if callback then callback(enabled) end
+            end
         end))
 
-        return button
+        updateVisual()
+        return container
     end
 
     function module.CreateButton(text,parent,callback)
