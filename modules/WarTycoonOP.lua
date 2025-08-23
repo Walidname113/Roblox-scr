@@ -17,7 +17,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.1.6 Public")
+local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.1.7 optimization update")
 
 local mainCategory = uiModule.CreateCategory("Main")
 local espCategory = uiModule.CreateCategory("ESP")
@@ -400,12 +400,9 @@ uiModule.CreateButton("Remove nearby tycoon lasers", mainCategory, function()
 end)
 
 local tycoonESPEnabled = false
-uiModule.CreateToggle("Tycoons ESP", espCategory, function(state)
-    tycoonESPEnabled = state
-end)
-
 local tycoonESPStorage = {}
 local localPlayer = game:GetService("Players").LocalPlayer
+local tycoonsFolder = workspace:WaitForChild("Tycoon"):WaitForChild("Tycoons")
 
 local teamColors = {
     Alpha = Color3.fromRGB(255, 0, 0),
@@ -434,7 +431,7 @@ local function getAnyBasePart(tycoon)
 end
 
 local function createTycoonLabel(tycoon)
-    if not tycoonESPEnabled or tycoonESPStorage[tycoon] then return end
+    if tycoonESPStorage[tycoon] then return end
     local basePart = getAnyBasePart(tycoon)
     if not basePart then return end
 
@@ -451,6 +448,7 @@ local function createTycoonLabel(tycoon)
     nameLabel.TextColor3 = teamColors[tycoon.Name] or Color3.new(1,1,1)
     nameLabel.Font = Enum.Font.SourceSansBold
     nameLabel.TextSize = 14
+    nameLabel.TextScaled = true
     if localPlayer:FindFirstChild("leaderstats") and localPlayer.leaderstats:FindFirstChild("Team") then
         local playerTeam = localPlayer.leaderstats.Team.Value
         if tycoon.Name == playerTeam then
@@ -461,7 +459,6 @@ local function createTycoonLabel(tycoon)
     else
         nameLabel.Text = tycoon.Name
     end
-    nameLabel.TextScaled = true
     nameLabel.Parent = billboard
 
     tycoonESPStorage[tycoon] = billboard
@@ -474,27 +471,46 @@ local function removeTycoonLabel(tycoon)
     end
 end
 
-workspace.Tycoon.Tycoons.ChildAdded:Connect(function(tycoon)
-    createTycoonLabel(tycoon)
+uiModule.CreateToggle("Tycoons ESP", espCategory, function(state)
+    tycoonESPEnabled = state
+    if not state then
+        for tycoon, _ in pairs(tycoonESPStorage) do
+            removeTycoonLabel(tycoon)
+        end
+	else
+        for _, tycoon in ipairs(tycoonsFolder:GetChildren()) do
+            createTycoonLabel(tycoon)
+        end
+    end
 end)
 
-workspace.Tycoon.Tycoons.ChildRemoved:Connect(function(tycoon)
+tycoonsFolder.ChildAdded:Connect(function(tycoon)
+    if tycoonESPEnabled then
+        createTycoonLabel(tycoon)
+    end
+end)
+tycoonsFolder.ChildRemoved:Connect(function(tycoon)
     removeTycoonLabel(tycoon)
 end)
 
-RunService.RenderStepped:Connect(function()
-    for _, tycoon in ipairs(workspace:WaitForChild("Tycoon"):WaitForChild("Tycoons"):GetChildren()) do
-        if tycoonESPEnabled then
-            if not tycoonESPStorage[tycoon] then
-                createTycoonLabel(tycoon)
-            else
-                local basePart = getAnyBasePart(tycoon)
-                if basePart then
-                    tycoonESPStorage[tycoon].Adornee = basePart
-                end
-            end
+local RunService = game:GetService("RunService")
+local updateInterval = 0.3
+local lastUpdate = 0
+
+RunService.RenderStepped:Connect(function(delta)
+    lastUpdate = lastUpdate + delta
+    if lastUpdate < updateInterval then return end
+    lastUpdate = 0
+
+    if not tycoonESPEnabled then return end
+
+    for tycoon, billboard in pairs(tycoonESPStorage) do
+        local basePart = getAnyBasePart(tycoon)
+        if basePart then
+            billboard.Adornee = basePart
+            billboard.Enabled = true
         else
-            removeTycoonLabel(tycoon)
+            billboard.Enabled = false
         end
     end
 end)
