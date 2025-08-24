@@ -63,7 +63,6 @@ local aimbotEnabled = false
 local currentTarget = nil
 local studs = 100
 local switchAngle = 10
-local smoothing = 0.1
 
 
 local aimbotContainer = Instance.new("Frame")
@@ -158,9 +157,8 @@ RunService.RenderStepped:Connect(function()
     end
 
     if currentTarget then
-        local goal = CFrame.new(camPos, currentTarget.Position)
-        cam.CFrame = cam.CFrame:Lerp(goal, smoothing)
-    end
+		cam.CFrame = CFrame.new(cam.CFrame.Position, currentTarget.Position)
+	end
 end)
 
 local noFallEnabled = false
