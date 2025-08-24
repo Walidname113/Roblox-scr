@@ -63,7 +63,7 @@ local aimbotEnabled = false
 local currentTarget = nil
 local studs = 100
 local switchAngle = 10
-local smoothing = 0.15
+local smoothing = 0.1
 
 
 local aimbotContainer = Instance.new("Frame")
