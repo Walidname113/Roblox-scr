@@ -103,24 +103,11 @@ local function addHighlight(model, color)
     return highlight
 end
 
-local function getPlayerTycoonColor(player)
-    local tycoonsFolder = workspace:FindFirstChild("Tycoon")
-    if not tycoonsFolder then return Color3.new(1,0,0) end
-
-    local allTycoons = tycoonsFolder:FindFirstChild("Tycoons")
-    if not allTycoons then return Color3.new(1,0,0) end
-
-    for _, tycoon in ipairs(allTycoons:GetChildren()) do
-        local owner = tycoon:FindFirstChild("Owner")
-        if owner and owner.Value then
-            if typeof(owner.Value) == "Instance" and owner.Value == player then
-                return teamColors[tycoon.Name] or Color3.new(1,0,0)
-            elseif typeof(owner.Value) == "string" and owner.Value == player.Name then
-                return teamColors[tycoon.Name] or Color3.new(1,0,0)
-            end
-        end
+local function getPlayerTeamColor(player)
+    local teamValue = player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("Team")
+    if teamValue then
+        return teamColors[teamValue.Value] or Color3.new(1,0,0)
     end
-
     return Color3.new(1,0,0)
 end
 
@@ -164,7 +151,7 @@ local function createESP(player)
     local distLabel = Instance.new("TextLabel")
     distLabel.Name = "Dist"
     distLabel.Size = UDim2.new(1, 0, 0, 25)
-    distLabel.Position = UDim2.new(0, 0, -0.20, 0)
+    distLabel.Position = UDim2.new(0, 0, -0.2, 0)
     distLabel.BackgroundTransparency = 1
     distLabel.TextColor3 = Color3.new(1, 1, 1)
     distLabel.TextScaled = false
@@ -228,61 +215,62 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    for player, data in pairs(espStorage) do  
-        local billboard = data.Billboard  
-        local highlight = data.Highlight  
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then  
-            billboard.Adornee = player.Character.HumanoidRootPart  
-            billboard.Enabled = nickESPEnabled or hpESPEnabled or distESPEnabled  
+    for player, data in pairs(espStorage) do
+        local char = player.Character
+        if not char or not char:FindFirstChild("HumanoidRootPart") then
+            if data.Highlight then
+                removeHighlight(data.Highlight)
+                data.Highlight = nil
+            end
+            data.Billboard.Enabled = false
+            continue
+        end
 
-            if boxESPEnabled then  
-                local color = getPlayerTycoonColor(player)
-                if not highlight then  
-                    data.Highlight = addHighlight(player.Character, color)  
-                else
-                    highlight.FillColor = color
-                    highlight.OutlineColor = color
-                end  
-            else  
-                if highlight then  
-                    removeHighlight(highlight)  
-                    data.Highlight = nil  
-                end  
-            end  
+        local hrp = char.HumanoidRootPart
+        data.Billboard.Adornee = hrp
+        data.Billboard.Enabled = nickESPEnabled or hpESPEnabled or distESPEnabled
 
-            billboard.Nick.Visible = nickESPEnabled  
-            billboard.Nick.Text = player.Name  
+        if boxESPEnabled then
+            local color = getPlayerTeamColor(player)
+            if not data.Highlight then
+                data.Highlight = addHighlight(char, color)
+            else
+                data.Highlight.FillColor = color
+                data.Highlight.OutlineColor = color
+            end
+        else
+            if data.Highlight then
+                removeHighlight(data.Highlight)
+                data.Highlight = nil
+            end
+        end
 
-            if hpESPEnabled and player.Character:FindFirstChild("Humanoid") then  
-                local humanoid = player.Character.Humanoid  
-                local hpRatio = humanoid.Health / humanoid.MaxHealth  
-                billboard.HP.Visible = true  
-                billboard.HP.Size = UDim2.new(0.05, 0, math.clamp(hpRatio, 0.1, 1), 0)  
-                billboard.HP.BackgroundColor3 =  
-                    hpRatio > 0.5 and Color3.new(0, 1, 0) or  
-                    hpRatio > 0.2 and Color3.new(1, 0.5, 0) or  
-                    Color3.new(1, 0, 0)  
-            else  
-                billboard.HP.Visible = false  
-            end  
+        data.Billboard.Nick.Visible = nickESPEnabled
+        data.Billboard.Nick.Text = player.Name
 
-            if distESPEnabled and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then  
-                local dist = (player.Character.HumanoidRootPart.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude  
-                billboard.Dist.Visible = true  
-                billboard.Dist.Text = math.floor(dist) .. " studs"  
-                billboard.Dist.TextSize = 20  
-            else  
-                billboard.Dist.Visible = false  
-            end  
-        else  
-            billboard.Enabled = false  
-            if highlight then  
-                removeHighlight(highlight)  
-                data.Highlight = nil  
-            end  
-        end  
+        if hpESPEnabled and char:FindFirstChild("Humanoid") then
+            local humanoid = char.Humanoid
+            local hpRatio = humanoid.Health / humanoid.MaxHealth
+            data.Billboard.HP.Visible = true
+            data.Billboard.HP.Size = UDim2.new(0.05, 0, math.clamp(hpRatio, 0.1, 1), 0)
+            data.Billboard.HP.BackgroundColor3 =
+                hpRatio > 0.5 and Color3.new(0, 1, 0) or
+                hpRatio > 0.2 and Color3.new(1, 0.5, 0) or
+                Color3.new(1, 0, 0)
+        else
+            data.Billboard.HP.Visible = false
+        end
+
+        if distESPEnabled and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local dist = (hrp.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
+            data.Billboard.Dist.Visible = true
+            data.Billboard.Dist.Text = math.floor(dist).." studs"
+        else
+            data.Billboard.Dist.Visible = false
+        end
     end
 end)
+
 
 local noclipEnabled = false
 uiModule.CreateToggle("Noclip", mainCategory, function(state)
