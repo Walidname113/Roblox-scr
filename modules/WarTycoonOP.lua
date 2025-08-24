@@ -59,6 +59,11 @@ local teamColors = {
 	Yankee = Color3.fromRGB(160, 160, 160)
 }
 
+local aimbotEnabled = false
+local studs = 100
+local smoothing = 0.15
+local currentTarget = nil
+
 local aimbotContainer = Instance.new("Frame")
 aimbotContainer.Size = UDim2.new(1, -10, 0, 40)
 aimbotContainer.BackgroundTransparency = 1
@@ -69,8 +74,6 @@ local aimbotToggle = uiModule.CreateToggle("Aimbot", aimbotContainer, function(s
 end)
 
 aimbotToggle.Size = UDim2.new(1, -70, 1, 0)
-
-local studs = 100
 
 local distanceInput = Instance.new("TextBox")
 distanceInput.Size = UDim2.new(0, 60, 0, 30)
@@ -91,6 +94,58 @@ distanceInput.FocusLost:Connect(function()
     else
         distanceInput.Text = ""
         studs = 100
+    end
+end)
+
+local function isVisible(targetPart)
+    local origin = cam.CFrame.Position
+    local direction = (targetPart.Position - origin).Unit * (targetPart.Position - origin).Magnitude
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {localPlayer.Character}
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    local result = workspace:Raycast(origin, direction, raycastParams)
+    return not result or result.Instance:IsDescendantOf(targetPart.Parent)
+end
+
+local function getClosestHead(maxDist)
+    local closest, closestDist = nil, maxDist
+    for _, plr in pairs(players:GetPlayers()) do
+        if plr ~= localPlayer and plr.Character then
+            local head = plr.Character:FindFirstChild("Head")
+            local hum = plr.Character:FindFirstChild("Humanoid")
+            if head and hum and hum.Health > 0 then
+                local dist = (head.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
+                if dist < closestDist then
+                    if isVisible(head) then
+                        closest = head
+                        closestDist = dist
+                    end
+                end
+            end
+        end
+    end
+    return closest
+end
+
+RunService.RenderStepped:Connect(function()
+    if not aimbotEnabled then return end
+
+    if currentTarget and currentTarget.Parent and currentTarget.Parent:FindFirstChild("Humanoid") and currentTarget.Parent.Humanoid.Health > 0 then
+        local dist = (currentTarget.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
+        if dist > studs then
+            currentTarget = nil
+        end
+    else
+        currentTarget = nil
+    end
+
+    if not currentTarget then
+        currentTarget = getClosestHead(studs)
+    end
+
+    if currentTarget then
+        local goal = CFrame.new(cam.CFrame.Position, currentTarget.Position)
+        cam.CFrame = cam.CFrame:Lerp(goal, smoothing)
     end
 end)
 
