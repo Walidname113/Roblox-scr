@@ -62,8 +62,6 @@ local teamColors = {
 local aimbotEnabled = false
 local currentTarget = nil
 local studs = 100
-local switchAngle = 10
-
 
 local aimbotContainer = Instance.new("Frame")
 aimbotContainer.Size = UDim2.new(1, -10, 0, 40)
@@ -72,7 +70,80 @@ aimbotContainer.Parent = mainCategory
 
 local aimbotToggle = uiModule.CreateToggle("Aimbot", aimbotContainer, function(state)
     aimbotEnabled = state
-    if not state then currentTarget = nil end
+    if not state then
+        currentTarget = nil
+        if playerListFrame then playerListFrame:Destroy() playerListFrame = nil end
+    else
+        playerListFrame = Instance.new("Frame")
+        playerListFrame.Size = UDim2.new(0, 150, 0, 200)
+        playerListFrame.Position = UDim2.new(0, 10, 0, 50)
+        playerListFrame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+        playerListFrame.Parent = game.CoreGui
+
+        local scroll = Instance.new("ScrollingFrame")
+        scroll.Size = UDim2.new(1, 0, 1, 0)
+        scroll.CanvasSize = UDim2.new(0,0,0,0)
+        scroll.ScrollBarThickness = 6
+        scroll.Parent = playerListFrame
+
+        local layout = Instance.new("UIListLayout")
+        layout.SortOrder = Enum.SortOrder.LayoutOrder
+        layout.Padding = UDim.new(0,2)
+        layout.Parent = scroll
+
+        local playerButtons = {}
+
+        local function updatePlayers()
+            local char = localPlayer.Character
+            if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+            local hrpPos = char.HumanoidRootPart.Position
+
+            for name, btn in pairs(playerButtons) do
+                local plr = players:FindFirstChild(name)
+                if not plr or not plr.Character or not plr.Character:FindFirstChild("Humanoid") 
+                   or plr.Character.Humanoid.Health <= 0 
+                   or (plr.Character.HumanoidRootPart.Position - hrpPos).Magnitude > studs then
+                    btn:Destroy()
+                    playerButtons[name] = nil
+                    if currentTarget and currentTarget.Parent == plr.Character then
+                        currentTarget = nil
+                    end
+                end
+            end
+
+            for _, plr in pairs(players:GetPlayers()) do
+                if plr ~= localPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                    local dist = (plr.Character.HumanoidRootPart.Position - hrpPos).Magnitude
+                    if dist <= studs and not playerButtons[plr.Name] then
+                        local btn = Instance.new("TextButton")
+                        btn.Size = UDim2.new(1,0,0,25)
+                        btn.Text = plr.Name
+                        btn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+                        btn.TextColor3 = Color3.new(1,1,1)
+                        btn.Parent = scroll
+                        btn.MouseButton1Click:Connect(function()
+                            currentTarget = plr.Character:FindFirstChild("Head")
+                            -- перекрашиваем кнопки
+                            for _, b in pairs(scroll:GetChildren()) do
+                                if b:IsA("TextButton") then
+                                    b.BackgroundColor3 = (b.Text == plr.Name) and Color3.fromRGB(0,255,0) or Color3.fromRGB(80,80,80)
+                                end
+                            end
+                        end)
+                        playerButtons[plr.Name] = btn
+                    end
+                end
+            end
+
+            scroll.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y)
+        end
+
+        RunService.RenderStepped:Connect(function()
+            if aimbotEnabled then
+                updatePlayers()
+            end
+        end)
+    end
 end)
 aimbotToggle.Size = UDim2.new(1, -140, 1, 0)
 
@@ -90,75 +161,13 @@ distanceInput.Parent = aimbotContainer
 
 distanceInput.FocusLost:Connect(function()
     local val = tonumber(distanceInput.Text)
-    if val then
-        studs = val
-    else
-        studs = 100
-        distanceInput.Text = ""
-    end
-end)
-
-local angleInput = Instance.new("TextBox")
-angleInput.Size = UDim2.new(0, 60, 0, 30)
-angleInput.Position = UDim2.new(1, -65, 0.5, -15)
-angleInput.Text = ""
-angleInput.PlaceholderText = "10°"
-angleInput.TextColor3 = Color3.new(1, 1, 1)
-angleInput.Font = Enum.Font.SourceSans
-angleInput.TextSize = 16
-angleInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-Instance.new("UICorner", angleInput)
-angleInput.Parent = aimbotContainer
-
-angleInput.FocusLost:Connect(function()
-    local val = tonumber(angleInput.Text)
-    if val then
-        switchAngle = val
-    else
-        switchAngle = 10
-        angleInput.Text = ""
-    end
+    if val then studs = val else studs = 100 distanceInput.Text = "" end
 end)
 
 RunService.RenderStepped:Connect(function()
-    if not aimbotEnabled then return end
-
-    local char = localPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-
-    local camDir = cam.CFrame.LookVector
-    local camPos = cam.CFrame.Position
-
-    if currentTarget and (not currentTarget.Parent or not currentTarget.Parent:FindFirstChild("Humanoid") 
-        or currentTarget.Parent.Humanoid.Health <= 0 
-        or (currentTarget.Position - char.HumanoidRootPart.Position).Magnitude > studs) then
-        currentTarget = nil
+    if aimbotEnabled and currentTarget then
+        cam.CFrame = CFrame.new(cam.CFrame.Position, currentTarget.Position)
     end
-
-    local best, bestAngle = nil, math.rad(switchAngle)
-    for _, plr in pairs(players:GetPlayers()) do
-        if plr ~= localPlayer and plr.Character then
-            local head = plr.Character:FindFirstChild("Head")
-            local hum = plr.Character:FindFirstChild("Humanoid")
-            if head and hum and hum.Health > 0 then
-                local dir = (head.Position - camPos).Unit
-                local angle = math.acos(math.clamp(camDir:Dot(dir), -1, 1))
-                local dist = (head.Position - char.HumanoidRootPart.Position).Magnitude
-                if dist < studs and angle < bestAngle then
-                    best = head
-                    bestAngle = angle
-                end
-            end
-        end
-    end
-
-    if best and best ~= currentTarget then
-        currentTarget = best
-    end
-
-    if currentTarget then
-		cam.CFrame = CFrame.new(cam.CFrame.Position, currentTarget.Position)
-	end
 end)
 
 local noFallEnabled = false
