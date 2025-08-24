@@ -217,6 +217,23 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+local wallbangEnabled = false
+uiModule.CreateToggle("Fire Through Walls (Not worked)", mainCategory, function(state)
+    wallbangEnabled = state
+end)
+
+local function customRaycast(origin, direction)
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Blacklist
+    params.FilterDescendantsInstances = {char}
+    if wallbangEnabled then
+        params.IgnoreWater = true
+        return workspace:Raycast(origin, direction * 10000, params)
+    else
+        return workspace:Raycast(origin, direction, params)
+    end
+end
+
 local boxESPEnabled, nickESPEnabled, hpESPEnabled, distESPEnabled = false, false, false, false
 uiModule.CreateToggle("Box ESP", espCategory, function(state) boxESPEnabled = state end)
 uiModule.CreateToggle("Nick ESP", espCategory, function(state) nickESPEnabled = state end)
