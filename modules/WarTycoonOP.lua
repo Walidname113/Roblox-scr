@@ -17,7 +17,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.1.8 ESP Update")
+local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.1.9 ESP Update")
 
 ui.SetMinimizedImage("108856686741748")
 
@@ -104,11 +104,10 @@ local function addHighlight(model, color)
 end
 
 local function getPlayerTeamColor(player)
-    local teamValue = player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("Team")
-    if teamValue then
-        return teamColors[teamValue.Value] or Color3.new(1,0,0)
-    end
-    return Color3.new(1,0,0)
+    if not player:FindFirstChild("leaderstats") then return Color3.new(1,0,0) end
+    local teamStat = player.leaderstats:FindFirstChild("Team")
+    if not teamStat then return Color3.new(1,0,0) end
+    return teamColors[teamStat.Value] or Color3.new(1,0,0)
 end
 
 local function removeHighlight(highlight)
@@ -151,7 +150,7 @@ local function createESP(player)
     local distLabel = Instance.new("TextLabel")
     distLabel.Name = "Dist"
     distLabel.Size = UDim2.new(1, 0, 0, 25)
-    distLabel.Position = UDim2.new(0, 0, -0.2, 0)
+    distLabel.Position = UDim2.new(0, 0, -0.20, 0)
     distLabel.BackgroundTransparency = 1
     distLabel.TextColor3 = Color3.new(1, 1, 1)
     distLabel.TextScaled = false
@@ -166,24 +165,28 @@ local function createESP(player)
         Nick = nameLabel,
         Dist = distLabel
     }
+
+    if player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("Team") then
+        player.leaderstats.Team.Changed:Connect(function()
+            if espStorage[player] and espStorage[player].Highlight then
+                espStorage[player].Highlight.FillColor = getPlayerTeamColor(player)
+                espStorage[player].Highlight.OutlineColor = getPlayerTeamColor(player)
+            end
+        end)
+    end
 end
 
 local function setupPlayerESP(player)
-    local function onCharacterAdded()
+    player.CharacterAdded:Connect(function()
         task.wait(0.1)
         createESP(player)
-    end
-    player.CharacterAdded:Connect(onCharacterAdded)
+    end)
     if player.Character then
-        onCharacterAdded()
+        createESP(player)
     end
 end
 
-players.PlayerAdded:Connect(function(p)
-    if p ~= localPlayer then
-        setupPlayerESP(p)
-    end
-end)
+players.PlayerAdded:Connect(setupPlayerESP)
 
 for _, p in ipairs(players:GetPlayers()) do
     if p ~= localPlayer then
@@ -192,29 +195,6 @@ for _, p in ipairs(players:GetPlayers()) do
 end
 
 RunService.RenderStepped:Connect(function()
-    if aimbotEnabled then
-        local char = localPlayer.Character
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            local nearest, minDist = nil, studs
-            for _, p in ipairs(players:GetPlayers()) do
-                if p ~= localPlayer and p.Character then
-                    local targetHrp = p.Character:FindFirstChild("HumanoidRootPart")
-                    local head = p.Character:FindFirstChild("Head")
-                    if targetHrp and head then
-                        local dist = (targetHrp.Position - hrp.Position).Magnitude
-                        if dist <= studs and dist < minDist then
-                            nearest, minDist = head, dist
-                        end
-                    end
-                end
-            end
-            if nearest then
-                cam.CFrame = CFrame.new(cam.CFrame.Position, nearest.Position)
-            end
-        end
-    end
-
     for player, data in pairs(espStorage) do
         local char = player.Character
         if not char or not char:FindFirstChild("HumanoidRootPart") then
@@ -270,7 +250,6 @@ RunService.RenderStepped:Connect(function()
         end
     end
 end)
-
 
 local noclipEnabled = false
 uiModule.CreateToggle("Noclip", mainCategory, function(state)
