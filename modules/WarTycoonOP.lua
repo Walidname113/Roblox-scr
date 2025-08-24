@@ -83,6 +83,30 @@ distanceInput.FocusLost:Connect(function()
     end
 end)
 
+local noFallEnabled = false
+uiModule.CreateToggle("No Fall Damage", mainCategory, function(state)
+    noFallEnabled = state
+end)
+
+RunService.Heartbeat:Connect(function()
+    if noFallEnabled and localPlayer.Character then
+        local hrp = localPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local velocity = hrp.Velocity
+            if velocity.Y < -50 then
+                local rayParams = RaycastParams.new()
+                rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+                rayParams.FilterDescendantsInstances = {localPlayer.Character}
+
+                local result = workspace:Raycast(hrp.Position, Vector3.new(0, -10, 0), rayParams)
+                if result and (hrp.Position.Y - result.Position.Y) <= 10 then
+                    hrp.Velocity = Vector3.new(velocity.X, -50, velocity.Z)
+                end
+            end
+        end
+    end
+end)
+
 local speedHackEnabled = false
 local jumpHackEnabled = false
 local infinityJumpEnabled = false
