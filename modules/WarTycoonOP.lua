@@ -60,9 +60,11 @@ local teamColors = {
 }
 
 local aimbotEnabled = false
-local studs = 100
-local smoothing = 0.15
 local currentTarget = nil
+local studs = 100
+local switchAngle = 10
+local smoothing = 0.15
+
 
 local aimbotContainer = Instance.new("Frame")
 aimbotContainer.Size = UDim2.new(1, -10, 0, 40)
@@ -71,13 +73,13 @@ aimbotContainer.Parent = mainCategory
 
 local aimbotToggle = uiModule.CreateToggle("Aimbot", aimbotContainer, function(state)
     aimbotEnabled = state
+    if not state then currentTarget = nil end
 end)
-
-aimbotToggle.Size = UDim2.new(1, -70, 1, 0)
+aimbotToggle.Size = UDim2.new(1, -140, 1, 0)
 
 local distanceInput = Instance.new("TextBox")
 distanceInput.Size = UDim2.new(0, 60, 0, 30)
-distanceInput.Position = UDim2.new(1, -60, 0.5, -15)
+distanceInput.Position = UDim2.new(1, -130, 0.5, -15)
 distanceInput.Text = ""
 distanceInput.PlaceholderText = "100 studs"
 distanceInput.TextColor3 = Color3.new(1, 1, 1)
@@ -92,59 +94,71 @@ distanceInput.FocusLost:Connect(function()
     if val then
         studs = val
     else
-        distanceInput.Text = ""
         studs = 100
+        distanceInput.Text = ""
     end
 end)
 
-local function isVisible(targetPart)
-    local origin = cam.CFrame.Position
-    local direction = (targetPart.Position - origin).Unit * (targetPart.Position - origin).Magnitude
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterDescendantsInstances = {localPlayer.Character}
-    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-    local result = workspace:Raycast(origin, direction, raycastParams)
-    return not result or result.Instance:IsDescendantOf(targetPart.Parent)
-end
+local angleInput = Instance.new("TextBox")
+angleInput.Size = UDim2.new(0, 60, 0, 30)
+angleInput.Position = UDim2.new(1, -65, 0.5, -15)
+angleInput.Text = ""
+angleInput.PlaceholderText = "10°"
+angleInput.TextColor3 = Color3.new(1, 1, 1)
+angleInput.Font = Enum.Font.SourceSans
+angleInput.TextSize = 16
+angleInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+Instance.new("UICorner", angleInput)
+angleInput.Parent = aimbotContainer
 
-local function getClosestHead(maxDist)
-    local closest, closestDist = nil, maxDist
+angleInput.FocusLost:Connect(function()
+    local val = tonumber(angleInput.Text)
+    if val then
+        switchAngle = val
+    else
+        switchAngle = 10
+        angleInput.Text = ""
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if not aimbotEnabled then return end
+
+    local char = localPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+
+    local camDir = cam.CFrame.LookVector
+    local camPos = cam.CFrame.Position
+
+    if currentTarget and (not currentTarget.Parent or not currentTarget.Parent:FindFirstChild("Humanoid") 
+        or currentTarget.Parent.Humanoid.Health <= 0 
+        or (currentTarget.Position - char.HumanoidRootPart.Position).Magnitude > studs) then
+        currentTarget = nil
+    end
+
+    local best, bestAngle = nil, math.rad(switchAngle)
     for _, plr in pairs(players:GetPlayers()) do
         if plr ~= localPlayer and plr.Character then
             local head = plr.Character:FindFirstChild("Head")
             local hum = plr.Character:FindFirstChild("Humanoid")
             if head and hum and hum.Health > 0 then
-                local dist = (head.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
-                if dist < closestDist then
-                    if isVisible(head) then
-                        closest = head
-                        closestDist = dist
-                    end
+                local dir = (head.Position - camPos).Unit
+                local angle = math.acos(math.clamp(camDir:Dot(dir), -1, 1))
+                local dist = (head.Position - char.HumanoidRootPart.Position).Magnitude
+                if dist < studs and angle < bestAngle then
+                    best = head
+                    bestAngle = angle
                 end
             end
         end
     end
-    return closest
-end
 
-RunService.RenderStepped:Connect(function()
-    if not aimbotEnabled then return end
-
-    if currentTarget and currentTarget.Parent and currentTarget.Parent:FindFirstChild("Humanoid") and currentTarget.Parent.Humanoid.Health > 0 then
-        local dist = (currentTarget.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
-        if dist > studs then
-            currentTarget = nil
-        end
-    else
-        currentTarget = nil
-    end
-
-    if not currentTarget then
-        currentTarget = getClosestHead(studs)
+    if best and best ~= currentTarget then
+        currentTarget = best
     end
 
     if currentTarget then
-        local goal = CFrame.new(cam.CFrame.Position, currentTarget.Position)
+        local goal = CFrame.new(camPos, currentTarget.Position)
         cam.CFrame = cam.CFrame:Lerp(goal, smoothing)
     end
 end)
