@@ -27,6 +27,17 @@ local players = game:GetService("Players")
 local localPlayer = players.LocalPlayer
 local cam = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
+local char, humanoid, hrp
+
+local function getCharacter()
+    if char and char.Parent then return char, humanoid, hrp end
+    char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+    humanoid = char:WaitForChild("Humanoid")
+    hrp = char:WaitForChild("HumanoidRootPart")
+    defaultWalkSpeed = humanoid.WalkSpeed
+    defaultJumpPower = humanoid.JumpPower
+    return char, humanoid, hrp
+end
 
 local teamColors = {
     Alpha = Color3.fromRGB(255, 0, 0),
@@ -107,15 +118,12 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
-local speedHackEnabled = false
-local jumpHackEnabled = false
-local infinityJumpEnabled = false
+local speedHackEnabled, jumpHackEnabled, infinityJumpEnabled = false, false, false
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local localPlayer = game.Players.LocalPlayer
+local defaultWalkSpeed, defaultJumpPower = 16, 50
 
-local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
-local humanoid = char:WaitForChild("Humanoid")
-
-local defaultWalkSpeed = humanoid.WalkSpeed
-local defaultJumpPower = humanoid.JumpPower
 
 local speedContainer = Instance.new("Frame")
 speedContainer.Size = UDim2.new(1, -10, 0, 40)
@@ -124,8 +132,9 @@ speedContainer.Parent = mainCategory
 
 local speedToggle = uiModule.CreateToggle("Speed Hack", speedContainer, function(state)
     speedHackEnabled = state
-    if not state then
-        humanoid.WalkSpeed = defaultWalkSpeed
+    local _, h = getCharacter()
+    if not state and h then
+        h.WalkSpeed = defaultWalkSpeed
         speedInput.Text = tostring(defaultWalkSpeed)
     end
 end)
@@ -135,7 +144,6 @@ local speedInput = Instance.new("TextBox")
 speedInput.Size = UDim2.new(0, 60, 0, 30)
 speedInput.Position = UDim2.new(1, -60, 0.5, -15)
 speedInput.PlaceholderText = "Speed"
-speedInput.Text = tostring(defaultWalkSpeed)
 speedInput.TextColor3 = Color3.new(1,1,1)
 speedInput.Font = Enum.Font.SourceSans
 speedInput.TextSize = 16
@@ -144,12 +152,11 @@ Instance.new("UICorner", speedInput)
 speedInput.Parent = speedContainer
 
 speedInput.FocusLost:Connect(function()
+    local _, h = getCharacter()
     local val = tonumber(speedInput.Text)
-    if val then
-        humanoid.WalkSpeed = val
-    else
-        humanoid.WalkSpeed = defaultWalkSpeed
-        speedInput.Text = tostring(defaultWalkSpeed)
+    if h then
+        h.WalkSpeed = val or defaultWalkSpeed
+        speedInput.Text = tostring(val or defaultWalkSpeed)
     end
 end)
 
@@ -160,8 +167,9 @@ jumpContainer.Parent = mainCategory
 
 local jumpToggle = uiModule.CreateToggle("Jump Hack", jumpContainer, function(state)
     jumpHackEnabled = state
-    if not state then
-        humanoid.JumpPower = defaultJumpPower
+    local _, h = getCharacter()
+    if not state and h then
+        h.JumpPower = defaultJumpPower
         jumpInput.Text = tostring(defaultJumpPower)
     end
 end)
@@ -171,7 +179,6 @@ local jumpInput = Instance.new("TextBox")
 jumpInput.Size = UDim2.new(0, 60, 0, 30)
 jumpInput.Position = UDim2.new(1, -60, 0.5, -15)
 jumpInput.PlaceholderText = "Jump Power"
-jumpInput.Text = tostring(defaultJumpPower)
 jumpInput.TextColor3 = Color3.new(1,1,1)
 jumpInput.Font = Enum.Font.SourceSans
 jumpInput.TextSize = 16
@@ -180,12 +187,11 @@ Instance.new("UICorner", jumpInput)
 jumpInput.Parent = jumpContainer
 
 jumpInput.FocusLost:Connect(function()
+    local _, h = getCharacter()
     local val = tonumber(jumpInput.Text)
-    if val then
-        humanoid.JumpPower = val
-    else
-        humanoid.JumpPower = defaultJumpPower
-        jumpInput.Text = tostring(defaultJumpPower)
+    if h then
+        h.JumpPower = val or defaultJumpPower
+        jumpInput.Text = tostring(val or defaultJumpPower)
     end
 end)
 
@@ -193,32 +199,23 @@ uiModule.CreateToggle("Infinity Jump", mainCategory, function(state)
     infinityJumpEnabled = state
 end)
 
-local UserInputService = game:GetService("UserInputService")
-
 UserInputService.JumpRequest:Connect(function()
-    if infinityJumpEnabled and humanoid then
-        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    local _, h = getCharacter()
+    if infinityJumpEnabled and h then
+        h:ChangeState(Enum.HumanoidStateType.Jumping)
     end
 end)
 
 RunService.RenderStepped:Connect(function()
+    local _, h = getCharacter()
+    if not h then return end
     if speedHackEnabled then
         local val = tonumber(speedInput.Text)
-        if val then
-            humanoid.WalkSpeed = val
-        else
-            humanoid.WalkSpeed = defaultWalkSpeed
-            speedInput.Text = tostring(defaultWalkSpeed)
-        end
+        h.WalkSpeed = val or defaultWalkSpeed
     end
     if jumpHackEnabled then
         local val = tonumber(jumpInput.Text)
-        if val then
-            humanoid.JumpPower = val
-        else
-            humanoid.JumpPower = defaultJumpPower
-            jumpInput.Text = tostring(defaultJumpPower)
-        end
+        h.JumpPower = val or defaultJumpPower
     end
 end)
 
