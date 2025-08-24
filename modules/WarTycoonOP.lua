@@ -17,7 +17,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.2.0 Functions Update.")
+local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.2.1 Bug Fixes.")
 
 ui.SetMinimizedImage("108856686741748")
 
@@ -191,7 +191,6 @@ local RunService = game:GetService("RunService")
 local localPlayer = game.Players.LocalPlayer
 local defaultWalkSpeed, defaultJumpPower = 16, 50
 
-
 local speedContainer = Instance.new("Frame")
 speedContainer.Size = UDim2.new(1, -10, 0, 40)
 speedContainer.BackgroundTransparency = 1
@@ -217,6 +216,11 @@ speedInput.TextSize = 16
 speedInput.BackgroundColor3 = Color3.fromRGB(50,50,50)
 Instance.new("UICorner", speedInput)
 speedInput.Parent = speedContainer
+
+task.spawn(function()
+    local _, h = getCharacter()
+    speedInput.Text = tostring(h and h.WalkSpeed or defaultWalkSpeed)
+end)
 
 speedInput.FocusLost:Connect(function()
     local _, h = getCharacter()
@@ -253,6 +257,11 @@ jumpInput.BackgroundColor3 = Color3.fromRGB(50,50,50)
 Instance.new("UICorner", jumpInput)
 jumpInput.Parent = jumpContainer
 
+task.spawn(function()
+    local _, h = getCharacter()
+    jumpInput.Text = tostring(h and h.JumpPower or defaultJumpPower)
+end)
+
 jumpInput.FocusLost:Connect(function()
     local _, h = getCharacter()
     local val = tonumber(jumpInput.Text)
@@ -277,12 +286,14 @@ RunService.RenderStepped:Connect(function()
     local _, h = getCharacter()
     if not h then return end
     if speedHackEnabled then
-        local val = tonumber(speedInput.Text)
-        h.WalkSpeed = val or defaultWalkSpeed
+        local val = tonumber(speedInput.Text) or defaultWalkSpeed
+        h.WalkSpeed = val
+        speedInput.Text = tostring(val)
     end
     if jumpHackEnabled then
-        local val = tonumber(jumpInput.Text)
-        h.JumpPower = val or defaultJumpPower
+        local val = tonumber(jumpInput.Text) or defaultJumpPower
+        h.JumpPower = val
+        jumpInput.Text = tostring(val)
     end
 end)
 
