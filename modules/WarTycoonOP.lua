@@ -1,5 +1,47 @@
-local requiredGameId = 1526814825
-if game.GameId ~= requiredGameId then return end
+local REQUIRED_GAME_ID = 1526814825
+if game.GameId ~= REQUIRED_GAME_ID then return end
+
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TeleportService = game:GetService("TeleportService")
+local Workspace = game:GetService("Workspace")
+local HttpService = game:GetService("HttpService")
+
+local function safeWaitForChild(parent, name, timeout)
+    timeout = timeout or 10
+    if not parent then return nil end
+    local obj = parent:FindFirstChild(name)
+    if obj then return obj end
+    local elapsed = 0
+    local conn
+    local resolved = false
+    conn = parent.DescendantAdded:Connect(function(desc)
+        if desc.Name == name and desc.Parent == parent then
+            resolved = true
+        end
+    end)
+    while elapsed < timeout and not obj do
+        obj = parent:FindFirstChild(name)
+        if obj then break end
+        task.wait(0.1)
+        elapsed = elapsed + 0.1
+    end
+    if conn then conn:Disconnect() end
+    return obj
+end
+
+local function safeFindChain(root, names, timeoutPer)
+    timeoutPer = timeoutPer or 10
+    local cur = root
+    for _, n in ipairs(names) do
+        if not cur then return nil end
+        cur = safeWaitForChild(cur, n, timeoutPer)
+        if not cur then return nil end
+    end
+    return cur
+end
 
 local uiurl = "https://raw.githubusercontent.com/Walidname113/Roblox-scr/main/uncoded.lua"
 local success, source = pcall(function()
@@ -17,25 +59,45 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.2.1 Bug Fixes.")
-
+local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.2.2 Optimization Update.")
 ui.SetMinimizedImage("108856686741748")
 
 local mainCategory = uiModule.CreateCategory("Main")
 local espCategory = uiModule.CreateCategory("ESP")
-local players = game:GetService("Players")
-local localPlayer = players.LocalPlayer
-local cam = workspace.CurrentCamera
-local RunService = game:GetService("RunService")
-local char, humanoid, hrp
 
+local localPlayer = Players.LocalPlayer
+local cam = workspace.CurrentCamera
+
+local defaultWaitTimeout = 10
+local char, humanoid, hrp
 local function getCharacter()
     if char and char.Parent then return char, humanoid, hrp end
-    char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
-    humanoid = char:WaitForChild("Humanoid")
-    hrp = char:WaitForChild("HumanoidRootPart")
-    defaultWalkSpeed = humanoid.WalkSpeed
-    defaultJumpPower = humanoid.JumpPower
+
+    char = localPlayer.Character
+    if not char then
+        local elapsed = 0
+        local got = nil
+        local con
+        con = localPlayer.CharacterAdded:Connect(function(c)
+            got = c
+        end)
+        while elapsed < defaultWaitTimeout and not got do
+            task.wait(0.1); elapsed = elapsed + 0.1
+            if localPlayer.Character then got = localPlayer.Character; break end
+        end
+        if con then con:Disconnect() end
+        char = got or localPlayer.Character
+        if not char then return nil, nil, nil end
+    end
+
+    humanoid = safeWaitForChild(char, "Humanoid", defaultWaitTimeout)
+    hrp = safeWaitForChild(char, "HumanoidRootPart", defaultWaitTimeout)
+    if not humanoid or not hrp then
+        return nil, nil, nil
+    end
+
+    defaultWalkSpeed = humanoid.WalkSpeed or 16
+    defaultJumpPower = humanoid.JumpPower or 50
     return char, humanoid, hrp
 end
 
@@ -54,16 +116,15 @@ local teamColors = {
     Sierra = Color3.fromRGB(255, 224, 189),
     Tango = Color3.fromRGB(139, 69, 19),
     Zulu = Color3.fromRGB(128, 128, 128),
-	Romeo = Color3.fromRGB(245, 222, 179),
-	Omega = Color3.fromRGB(255, 0, 255),
-	Yankee = Color3.fromRGB(160, 160, 160)
+    Romeo = Color3.fromRGB(245, 222, 179),
+    Omega = Color3.fromRGB(255, 0, 255),
+    Yankee = Color3.fromRGB(160, 160, 160)
 }
 
 local aimbotEnabled = false
 local currentTarget = nil
 local studs = 100
 local switchAngle = 10
-
 
 local aimbotContainer = Instance.new("Frame")
 aimbotContainer.Size = UDim2.new(1, -10, 0, 40)
@@ -123,27 +184,29 @@ end)
 RunService.RenderStepped:Connect(function()
     if not aimbotEnabled then return end
 
-    local char = localPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local c, h, r = getCharacter()
+    if not c or not r then return end
 
-    local camDir = cam.CFrame.LookVector
-    local camPos = cam.CFrame.Position
+    local camCFrame = cam and cam.CFrame
+    if not camCFrame then return end
+    local camDir = camCFrame.LookVector
+    local camPos = camCFrame.Position
 
     if currentTarget and (not currentTarget.Parent or not currentTarget.Parent:FindFirstChild("Humanoid") 
         or currentTarget.Parent.Humanoid.Health <= 0 
-        or (currentTarget.Position - char.HumanoidRootPart.Position).Magnitude > studs) then
+        or (currentTarget.Position - r.Position).Magnitude > studs) then
         currentTarget = nil
     end
 
     local best, bestAngle = nil, math.rad(switchAngle)
-    for _, plr in pairs(players:GetPlayers()) do
+    for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= localPlayer and plr.Character then
             local head = plr.Character:FindFirstChild("Head")
             local hum = plr.Character:FindFirstChild("Humanoid")
             if head and hum and hum.Health > 0 then
                 local dir = (head.Position - camPos).Unit
                 local angle = math.acos(math.clamp(camDir:Dot(dir), -1, 1))
-                local dist = (head.Position - char.HumanoidRootPart.Position).Magnitude
+                local dist = (head.Position - r.Position).Magnitude
                 if dist < studs and angle < bestAngle then
                     best = head
                     bestAngle = angle
@@ -157,8 +220,8 @@ RunService.RenderStepped:Connect(function()
     end
 
     if currentTarget then
-		cam.CFrame = CFrame.new(cam.CFrame.Position, currentTarget.Position)
-	end
+        cam.CFrame = CFrame.new(cam.CFrame.Position, currentTarget.Position)
+    end
 end)
 
 local noFallEnabled = false
@@ -167,15 +230,15 @@ uiModule.CreateToggle("No Fall Damage", mainCategory, function(state)
 end)
 
 RunService.Heartbeat:Connect(function()
-    local _, h, r = getCharacter()
-    if noFallEnabled and r then
+    local c, h, r = getCharacter()
+    if noFallEnabled and r and c then
         local velocity = r.Velocity
         if velocity.Y < -50 then
             local rayParams = RaycastParams.new()
             rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-            rayParams.FilterDescendantsInstances = {char}
+            rayParams.FilterDescendantsInstances = {c}
 
-            local result = workspace:Raycast(r.Position, Vector3.new(0, -10, 0), rayParams)
+            local result = Workspace:Raycast(r.Position, Vector3.new(0, -10, 0), rayParams)
             if result and (r.Position.Y - result.Position.Y) <= 10 then
                 r.Velocity = Vector3.new(velocity.X, -50, velocity.Z)
             end
@@ -184,9 +247,6 @@ RunService.Heartbeat:Connect(function()
 end)
 
 local speedHackEnabled, jumpHackEnabled, infinityJumpEnabled = false, false, false
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local localPlayer = game.Players.LocalPlayer
 local defaultWalkSpeed, defaultJumpPower = 16, 50
 
 local speedContainer = Instance.new("Frame")
@@ -306,9 +366,9 @@ local function customRaycast(origin, direction)
     params.FilterDescendantsInstances = {char}
     if wallbangEnabled then
         params.IgnoreWater = true
-        return workspace:Raycast(origin, direction * 10000, params)
+        return Workspace:Raycast(origin, direction * 10000, params)
     else
-        return workspace:Raycast(origin, direction, params)
+        return Workspace:Raycast(origin, direction, params)
     end
 end
 
@@ -415,9 +475,8 @@ local function setupPlayerESP(player)
     end
 end
 
-players.PlayerAdded:Connect(setupPlayerESP)
-
-for _, p in ipairs(players:GetPlayers()) do
+Players.PlayerAdded:Connect(setupPlayerESP)
+for _, p in ipairs(Players:GetPlayers()) do
     if p ~= localPlayer then
         setupPlayerESP(p)
     end
@@ -425,8 +484,8 @@ end
 
 RunService.RenderStepped:Connect(function()
     for player, data in pairs(espStorage) do
-        local char = player.Character
-        if not char or not char:FindFirstChild("HumanoidRootPart") then
+        local charLocal = player.Character
+        if not charLocal or not charLocal:FindFirstChild("HumanoidRootPart") then
             if data.Highlight then
                 removeHighlight(data.Highlight)
                 data.Highlight = nil
@@ -435,14 +494,14 @@ RunService.RenderStepped:Connect(function()
             continue
         end
 
-        local hrp = char.HumanoidRootPart
+        local hrp = charLocal.HumanoidRootPart
         data.Billboard.Adornee = hrp
         data.Billboard.Enabled = nickESPEnabled or hpESPEnabled or distESPEnabled
 
         if boxESPEnabled then
             local color = getPlayerTeamColor(player)
             if not data.Highlight then
-                data.Highlight = addHighlight(char, color)
+                data.Highlight = addHighlight(charLocal, color)
             else
                 data.Highlight.FillColor = color
                 data.Highlight.OutlineColor = color
@@ -457,9 +516,9 @@ RunService.RenderStepped:Connect(function()
         data.Billboard.Nick.Visible = nickESPEnabled
         data.Billboard.Nick.Text = player.Name
 
-        if hpESPEnabled and char:FindFirstChild("Humanoid") then
-            local humanoid = char.Humanoid
-            local hpRatio = humanoid.Health / humanoid.MaxHealth
+        if hpESPEnabled and charLocal:FindFirstChild("Humanoid") then
+            local humanoidLocal = charLocal.Humanoid
+            local hpRatio = humanoidLocal.Health / humanoidLocal.MaxHealth
             data.Billboard.HP.Visible = true
             data.Billboard.HP.Size = UDim2.new(0.05, 0, math.clamp(hpRatio, 0.1, 1), 0)
             data.Billboard.HP.BackgroundColor3 =
@@ -501,38 +560,57 @@ local autoCollectToggle = uiModule.CreateToggle("Auto Collect Drones", mainCateg
 end)
 
 spawn(function()
-    local player = game.Players.LocalPlayer
-    local teamName = player:WaitForChild("leaderstats"):WaitForChild("Team").Value
-    local collectorPart = workspace:WaitForChild("Tycoon"):WaitForChild("Tycoons")
-                            :WaitForChild(teamName)
-                            :WaitForChild("PurchasedObjects")
-                            :WaitForChild("Lab Terminal Screen")
-                            :WaitForChild("Research Screen")
-                            :WaitForChild("Collector")
-    local collectorCFrameBase = collectorPart.CFrame + Vector3.new(0, 5, 0)
+    local player = Players.LocalPlayer
+    local leader = safeWaitForChild(player, "leaderstats", 10)
+    local teamStat = leader and safeWaitForChild(leader, "Team", 10)
+    local teamName = teamStat and teamStat.Value
+
+    if not teamName then
+        local elapsed = 0
+        local con
+        con = (leader and leader.Team).Changed:Connect(function() end)
+        while elapsed < 10 and (not teamName) do
+            leader = leader or safeWaitForChild(player, "leaderstats", 1)
+            teamStat = leader and leader:FindFirstChild("Team")
+            teamName = teamStat and teamStat.Value
+            task.wait(0.5); elapsed = elapsed + 0.5
+        end
+        if con then pcall(function() con:Disconnect() end) end
+    end
+
+    local tycoonsRoot = safeFindChain(Workspace, {"Tycoon", "Tycoons"}, 10)
+    local collectorPart
+    if teamName and tycoonsRoot then
+        local targetTycoon = tycoonsRoot:FindFirstChild(teamName)
+        collectorPart = targetTycoon and safeFindChain(targetTycoon, {"PurchasedObjects", "Lab Terminal Screen", "Research Screen", "Collector"}, 5)
+    end
+
+    local collectorCFrameBase = collectorPart and (collectorPart.CFrame + Vector3.new(0, 5, 0))
 
     while true do
         if autoCollectEnabled then
-            local caches = workspace:WaitForChild("ResearchCaches")
+            local caches = safeWaitForChild(Workspace, "ResearchCaches", 5)
             local targetModel = nil
 
-            for _, model in pairs(caches:GetChildren()) do
-                local prompt = model:FindFirstChild("Interact", true)
-                if prompt and prompt.Enabled then
-                    targetModel = model
-                    break
+            if caches then
+                for _, model in pairs(caches:GetChildren()) do
+                    local prompt = model:FindFirstChild("Interact", true)
+                    if prompt and prompt.Enabled then
+                        targetModel = model
+                        break
+                    end
                 end
             end
 
             if targetModel then
                 local function teleportTo(model)
-                    local char = player.Character or player.CharacterAdded:Wait()
-                    local hrp = char:FindFirstChild("HumanoidRootPart")
+                    local c = player.Character or player.CharacterAdded:Wait()
+                    local hrpLocal = c and c:FindFirstChild("HumanoidRootPart")
                     local targetCFrame = model.WorldPivot + Vector3.new(0, 5, 0)
-                    if hrp then
-                        hrp.CFrame = targetCFrame
+                    if hrpLocal then
+                        hrpLocal.CFrame = targetCFrame
                     else
-                        char:PivotTo(targetCFrame)
+                        pcall(function() c:PivotTo(targetCFrame) end)
                     end
                 end
 
@@ -550,22 +628,22 @@ spawn(function()
                     until prompt
                 end
 
-                while not (prompt.Enabled and prompt:IsDescendantOf(workspace)) do
+                while not (prompt.Enabled and prompt:IsDescendantOf(Workspace)) do
                     task.wait()
                 end
 
                 task.wait(0.1)
                 prompt.HoldDuration = 1
                 prompt.MaxActivationDistance = 10
-                fireproximityprompt(prompt, 1)
+                pcall(function() fireproximityprompt(prompt, 1) end)
 
-                local char = player.Character or player.CharacterAdded:Wait()
-                local hrp = char:FindFirstChild("HumanoidRootPart")
+                local c = player.Character or player.CharacterAdded:Wait()
+                local hrpLocal = c and c:FindFirstChild("HumanoidRootPart")
                 local backOffset = Vector3.new(0, 0, 2)
-                if hrp then
-                    hrp.CFrame = collectorCFrameBase + backOffset
+                if hrpLocal and collectorCFrameBase then
+                    hrpLocal.CFrame = collectorCFrameBase + backOffset
                 else
-                    char:PivotTo(collectorCFrameBase + backOffset)
+                    if c and collectorCFrameBase then pcall(function() c:PivotTo(collectorCFrameBase + backOffset) end) end
                 end
 
                 task.wait(8)
@@ -579,11 +657,13 @@ spawn(function()
 end)
 
 uiModule.CreateButton("Remove nearby tycoon lasers", mainCategory, function()
-    local Players = game:GetService("Players")
-    local Workspace = game:GetService("Workspace")
     local localPlayer = Players.LocalPlayer
     if not localPlayer then return end
-    local teamName = localPlayer:WaitForChild("leaderstats"):WaitForChild("Team").Value
+    local leader = safeWaitForChild(localPlayer, "leaderstats", 5)
+    local teamName = leader and leader:FindFirstChild("Team") and leader.Team.Value
+
+    local tycoonsFolder = safeFindChain(Workspace, {"Tycoon", "Tycoons"}, 10)
+    if not tycoonsFolder then return end
 
     local function removeObstruction(obstruction)
         if obstruction and obstruction:IsA("BasePart") and (obstruction.Name == "Laser" or obstruction.Name == "OwnerOnly") then
@@ -601,11 +681,9 @@ uiModule.CreateButton("Remove nearby tycoon lasers", mainCategory, function()
         end
     end
 
-    local function removeObstructionsForAllExcept(teamName)
-        local tycoonsFolder = Workspace:WaitForChild("Tycoon"):WaitForChild("Tycoons")
-
+    local function removeObstructionsForAllExcept(teamNameLocal)
         for _, tycoon in ipairs(tycoonsFolder:GetChildren()) do
-            if tycoon.Name ~= teamName then
+            if tycoon.Name ~= teamNameLocal then
                 local purchasedObjects = tycoon:FindFirstChild("PurchasedObjects")
                 if purchasedObjects then
                     local doorsToCheck = {
@@ -644,12 +722,11 @@ end)
 
 local tycoonESPEnabled = false
 local tycoonESPStorage = {}
-local localPlayer = game:GetService("Players").LocalPlayer
-local tycoonsFolder = workspace:WaitForChild("Tycoon"):WaitForChild("Tycoons")
+local tycoonsFolder = safeFindChain(Workspace, {"Tycoon", "Tycoons"}, 10)
 
 local function getAnyBasePart(tycoon)
     for _, part in ipairs(tycoon:GetDescendants()) do
-        if part:IsA("BasePart") and part:IsDescendantOf(workspace) then
+        if part:IsA("BasePart") and part:IsDescendantOf(Workspace) then
             return part
         end
     end
@@ -703,26 +780,28 @@ uiModule.CreateToggle("Tycoons ESP", espCategory, function(state)
         for tycoon, _ in pairs(tycoonESPStorage) do
             removeTycoonLabel(tycoon)
         end
-	else
-        for _, tycoon in ipairs(tycoonsFolder:GetChildren()) do
-            createTycoonLabel(tycoon)
+    else
+        if tycoonsFolder then
+            for _, tycoon in ipairs(tycoonsFolder:GetChildren()) do
+                createTycoonLabel(tycoon)
+            end
         end
     end
 end)
 
-tycoonsFolder.ChildAdded:Connect(function(tycoon)
-    if tycoonESPEnabled then
-        createTycoonLabel(tycoon)
-    end
-end)
-tycoonsFolder.ChildRemoved:Connect(function(tycoon)
-    removeTycoonLabel(tycoon)
-end)
+if tycoonsFolder then
+    tycoonsFolder.ChildAdded:Connect(function(tycoon)
+        if tycoonESPEnabled then
+            createTycoonLabel(tycoon)
+        end
+    end)
+    tycoonsFolder.ChildRemoved:Connect(function(tycoon)
+        removeTycoonLabel(tycoon)
+    end)
+end
 
-local RunService = game:GetService("RunService")
 local updateInterval = 0.3
 local lastUpdate = 0
-
 RunService.RenderStepped:Connect(function(delta)
     lastUpdate = lastUpdate + delta
     if lastUpdate < updateInterval then return end
@@ -741,12 +820,7 @@ RunService.RenderStepped:Connect(function(delta)
     end
 end)
 
-local TeleportService = game:GetService("TeleportService")
-local Players = game:GetService("Players")
-local HttpService = game:GetService("HttpService")
-
 local settingsContainer = ui.CreateCategory("Settings")
-local localPlayer = Players.LocalPlayer
 
 local banner = Instance.new("Frame")
 banner.Size = UDim2.new(1, 0, 0, 70)
@@ -776,57 +850,57 @@ nameLabel.TextXAlignment = Enum.TextXAlignment.Left
 nameLabel.Parent = banner
 
 if localPlayer.DisplayName ~= localPlayer.Name then
-	local userLabel = Instance.new("TextLabel")
-	userLabel.Position = UDim2.new(0, 70, 0, 35)
-	userLabel.Size = UDim2.new(1, -80, 0, 15)
-	userLabel.Text = "@" .. localPlayer.Name
-	userLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-	userLabel.BackgroundTransparency = 1
-	userLabel.Font = Enum.Font.SourceSans
-	userLabel.TextSize = 14
-	userLabel.TextXAlignment = Enum.TextXAlignment.Left
-	userLabel.Parent = banner
+    local userLabel = Instance.new("TextLabel")
+    userLabel.Position = UDim2.new(0, 70, 0, 35)
+    userLabel.Size = UDim2.new(1, -80, 0, 15)
+    userLabel.Text = "@" .. localPlayer.Name
+    userLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+    userLabel.BackgroundTransparency = 1
+    userLabel.Font = Enum.Font.SourceSans
+    userLabel.TextSize = 14
+    userLabel.TextXAlignment = Enum.TextXAlignment.Left
+    userLabel.Parent = banner
 end
 
 local function createSettingButton(text, callback)
-	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(1, 0, 0, 30)
-	btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-	btn.TextColor3 = Color3.new(1, 1, 1)
-	btn.Text = text
-	btn.Font = Enum.Font.SourceSansBold
-	btn.TextSize = 16
-	btn.Parent = settingsContainer
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 30)
+    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Text = text
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 16
+    btn.Parent = settingsContainer
 
-	btn.MouseButton1Click:Connect(callback)
+    btn.MouseButton1Click:Connect(callback)
 end
 
 createSettingButton("Rejoin Server", function()
-	TeleportService:Teleport(game.PlaceId, localPlayer)
+    TeleportService:Teleport(game.PlaceId, localPlayer)
 end)
 
 createSettingButton("Server Hop", function()
-	local servers = {}
-	local pages
-	local success, err = pcall(function()
-		pages = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))
-	end)
-	if not success or not pages or not pages.data then return end
+    local servers = {}
+    local pages
+    local ok, res = pcall(function()
+        pages = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))
+    end)
+    if not ok or not pages or not pages.data then return end
 
-	for _, server in ipairs(pages.data) do
-		if server.playing < server.maxPlayers and server.id ~= game.JobId then
-			table.insert(servers, server.id)
-		end
-	end
+    for _, server in ipairs(pages.data) do
+        if server.playing < server.maxPlayers and server.id ~= game.JobId then
+            table.insert(servers, server.id)
+        end
+    end
 
-	if #servers > 0 then
-		local random = servers[math.random(1, #servers)]
-		TeleportService:TeleportToPlaceInstance(game.PlaceId, random, localPlayer)
-	end
+    if #servers > 0 then
+        local random = servers[math.random(1, #servers)]
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, random, localPlayer)
+    end
 end)
 
 createSettingButton("Leave Server", function()
-	localPlayer:Kick("You left the game.")
+    localPlayer:Kick("You left the game.")
 end)
 
 ui.OpenFirstCategory()
