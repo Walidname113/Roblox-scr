@@ -17,7 +17,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.1.9 ESP Update")
+local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.2.0 Functions Update.")
 
 ui.SetMinimizedImage("108856686741748")
 
@@ -80,6 +80,96 @@ distanceInput.FocusLost:Connect(function()
     else
         distanceInput.Text = ""
         studs = 100
+    end
+end)
+
+local speedHackEnabled = false
+local jumpHackEnabled = false
+local infinityJumpEnabled = false
+
+local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+local humanoid = char:WaitForChild("Humanoid")
+
+local speedContainer = Instance.new("Frame")
+speedContainer.Size = UDim2.new(1, -10, 0, 40)
+speedContainer.BackgroundTransparency = 1
+speedContainer.Parent = mainCategory
+
+local speedToggle = uiModule.CreateToggle("Speed Hack", speedContainer, function(state)
+    speedHackEnabled = state
+    if not state then
+        humanoid.WalkSpeed = tonumber(speedInput.Text) or 16 -- вернём дефолт
+    end
+end)
+speedToggle.Size = UDim2.new(1, -70, 1, 0)
+
+local speedInput = Instance.new("TextBox")
+speedInput.Size = UDim2.new(0, 60, 0, 30)
+speedInput.Position = UDim2.new(1, -60, 0.5, -15)
+speedInput.PlaceholderText = "Speed"
+speedInput.Text = tostring(humanoid.WalkSpeed)
+speedInput.TextColor3 = Color3.new(1,1,1)
+speedInput.Font = Enum.Font.SourceSans
+speedInput.TextSize = 16
+speedInput.BackgroundColor3 = Color3.fromRGB(50,50,50)
+Instance.new("UICorner", speedInput)
+speedInput.Parent = speedContainer
+
+speedInput.FocusLost:Connect(function()
+    local val = tonumber(speedInput.Text)
+    if val then humanoid.WalkSpeed = val end
+end)
+
+local jumpContainer = Instance.new("Frame")
+jumpContainer.Size = UDim2.new(1, -10, 0, 40)
+jumpContainer.BackgroundTransparency = 1
+jumpContainer.Parent = mainCategory
+
+local jumpToggle = uiModule.CreateToggle("Jump Hack", jumpContainer, function(state)
+    jumpHackEnabled = state
+    if not state then
+        humanoid.JumpPower = tonumber(jumpInput.Text) or 50 -- дефолт
+    end
+end)
+jumpToggle.Size = UDim2.new(1, -70, 1, 0)
+
+local jumpInput = Instance.new("TextBox")
+jumpInput.Size = UDim2.new(0, 60, 0, 30)
+jumpInput.Position = UDim2.new(1, -60, 0.5, -15)
+jumpInput.PlaceholderText = "Jump Power"
+jumpInput.Text = tostring(humanoid.JumpPower)
+jumpInput.TextColor3 = Color3.new(1,1,1)
+jumpInput.Font = Enum.Font.SourceSans
+jumpInput.TextSize = 16
+jumpInput.BackgroundColor3 = Color3.fromRGB(50,50,50)
+Instance.new("UICorner", jumpInput)
+jumpInput.Parent = jumpContainer
+
+jumpInput.FocusLost:Connect(function()
+    local val = tonumber(jumpInput.Text)
+    if val then humanoid.JumpPower = val end
+end)
+
+uiModule.CreateToggle("Infinity Jump", mainCategory, function(state)
+    infinityJumpEnabled = state
+end)
+
+local UserInputService = game:GetService("UserInputService")
+
+UserInputService.JumpRequest:Connect(function()
+    if infinityJumpEnabled and humanoid then
+        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if speedHackEnabled then
+        local val = tonumber(speedInput.Text)
+        if val then humanoid.WalkSpeed = val end
+    end
+    if jumpHackEnabled then
+        local val = tonumber(jumpInput.Text)
+        if val then humanoid.JumpPower = val end
     end
 end)
 
