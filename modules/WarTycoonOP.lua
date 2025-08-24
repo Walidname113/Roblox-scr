@@ -28,26 +28,6 @@ local localPlayer = players.LocalPlayer
 local cam = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
 
-local espcolors = {
-    Alpha = Color3.fromRGB(255, 0, 0),
-    Bravo = Color3.fromRGB(255, 165, 0),
-    Charlie = Color3.fromRGB(255, 255, 0),
-    Delta = Color3.fromRGB(0, 255, 0),
-    Echo = Color3.fromRGB(0, 100, 0),
-    Foxtrot = Color3.fromRGB(0, 255, 255),
-    Golf = Color3.fromRGB(0, 0, 255),
-    Hotel = Color3.fromRGB(0, 0, 139),
-    Juliet = Color3.fromRGB(0, 0, 80),
-    Kilo = Color3.fromRGB(128, 0, 128),
-    Lima = Color3.fromRGB(178, 102, 255),
-    Sierra = Color3.fromRGB(255, 224, 189),
-    Tango = Color3.fromRGB(139, 69, 19),
-    Zulu = Color3.fromRGB(128, 128, 128),
-	Romeo = Color3.fromRGB(245, 222, 179),
-	Omega = Color3.fromRGB(255, 0, 255),
-	Yankee = Color3.fromRGB(160, 160, 160)
-}
-
 local aimbotContainer = Instance.new("Frame")
 aimbotContainer.Size = UDim2.new(1, -10, 0, 40)
 aimbotContainer.BackgroundTransparency = 1
@@ -104,10 +84,23 @@ local function addHighlight(model, color)
 end
 
 local function getPlayerTycoonColor(player)
-    local team = player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("Team")
-    if team and team.Value ~= "" then
-        return espcolors [team.Value] or Color3.new(1,0,0)
+    local tycoonsFolder = workspace:FindFirstChild("Tycoon")
+    if not tycoonsFolder then return Color3.new(1,0,0) end
+
+    local allTycoons = tycoonsFolder:FindFirstChild("Tycoons")
+    if not allTycoons then return Color3.new(1,0,0) end
+
+    for _, tycoon in ipairs(allTycoons:GetChildren()) do
+        local owner = tycoon:FindFirstChild("Owner")
+        if owner and owner.Value then
+            if typeof(owner.Value) == "Instance" and owner.Value == player then
+                return teamColors[tycoon.Name] or Color3.new(1,0,0)
+            elseif typeof(owner.Value) == "string" and owner.Value == player.Name then
+                return teamColors[tycoon.Name] or Color3.new(1,0,0)
+            end
+        end
     end
+
     return Color3.new(1,0,0)
 end
 
