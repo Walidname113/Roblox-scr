@@ -100,19 +100,17 @@ uiModule.CreateToggle("No Fall Damage", mainCategory, function(state)
 end)
 
 RunService.Heartbeat:Connect(function()
-    if noFallEnabled and localPlayer.Character then
-        local hrp = localPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            local velocity = hrp.Velocity
-            if velocity.Y < -50 then
-                local rayParams = RaycastParams.new()
-                rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-                rayParams.FilterDescendantsInstances = {localPlayer.Character}
+    local _, h, r = getCharacter()
+    if noFallEnabled and r then
+        local velocity = r.Velocity
+        if velocity.Y < -50 then
+            local rayParams = RaycastParams.new()
+            rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+            rayParams.FilterDescendantsInstances = {char}
 
-                local result = workspace:Raycast(hrp.Position, Vector3.new(0, -10, 0), rayParams)
-                if result and (hrp.Position.Y - result.Position.Y) <= 10 then
-                    hrp.Velocity = Vector3.new(velocity.X, -50, velocity.Z)
-                end
+            local result = workspace:Raycast(r.Position, Vector3.new(0, -10, 0), rayParams)
+            if result and (r.Position.Y - result.Position.Y) <= 10 then
+                r.Velocity = Vector3.new(velocity.X, -50, velocity.Z)
             end
         end
     end
