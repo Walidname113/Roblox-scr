@@ -1,4 +1,4 @@
--- v6
+-- v7
 local module = {}
 
 local Players = game:GetService("Players")
@@ -371,11 +371,26 @@ end))
         end
 
         trackConnection(container.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 
-            or input.UserInputType == Enum.UserInputType.Touch then
-                enabled = not enabled
-                updateVisual()
-                if callback then callback(enabled) end
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                local startPos = input.Position
+                local moved = false
+                local moveConn
+
+                moveConn = input.Changed:Connect(function()
+                    if input.UserInputState == Enum.UserInputState.Change then
+                        if (input.Position - startPos).Magnitude > 5 then
+                            moved = true
+                            moveConn:Disconnect()
+                        end
+                    elseif input.UserInputState == Enum.UserInputState.End then
+                        if not moved then
+                            enabled = not enabled
+                            updateVisual()
+                            if callback then callback(enabled) end
+                        end
+                        if moveConn.Connected then moveConn:Disconnect() end
+                    end
+                end)
             end
         end))
 
