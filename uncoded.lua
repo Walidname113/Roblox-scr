@@ -1,4 +1,4 @@
--- v7
+-- v8
 local module = {}
 
 local Players = game:GetService("Players")
@@ -75,11 +75,20 @@ end
 function module.CreateUI(title)
     local headerText = title or "Unnamed UI"
 
-    local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-    screenGui.Name = "CustomScriptUI"
-    screenGui.ResetOnSpawn = false
-    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    trackObject(screenGui)
+    local screenGui
+    local function ensureScreenGui()
+        if not screenGui or not screenGui.Parent then
+            screenGui = Instance.new("ScreenGui")
+            screenGui.Name = "CustomScriptUI"
+            screenGui.ResetOnSpawn = false
+            screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+            screenGui.Parent = player:WaitForChild("PlayerGui")
+            trackObject(screenGui)
+        end
+        return screenGui
+    end
+
+    screenGui = ensureScreenGui()
 
     local function makeUIAboveAll(screenGui)
         screenGui.DisplayOrder = 9999
@@ -190,44 +199,53 @@ function module.CreateUI(title)
     Instance.new("UICorner", minimizeButton)
     trackObject(minimizeButton)
 
-    local minimizedFrame = Instance.new("ImageButton", screenGui)
-    minimizedFrame.Size = UDim2.new(0, 40, 0, 40)
-    minimizedFrame.Position = UDim2.new(0.5, -20, 0.5, -20)
-    minimizedFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-    minimizedFrame.Visible = false
-    Instance.new("UICorner", minimizedFrame)
-    makeDraggable(minimizedFrame)
-    trackObject(minimizedFrame)
+    local minimizedFrame
+    if not module.MinimizedFrame or not module.MinimizedFrame.Parent then
+        minimizedFrame = Instance.new("ImageButton", screenGui)
+        minimizedFrame.Size = UDim2.new(0, 40, 0, 40)
+        minimizedFrame.Position = UDim2.new(0.5, -20, 0.5, -20)
+        minimizedFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+        minimizedFrame.Visible = false
+        Instance.new("UICorner", minimizedFrame)
+        makeDraggable(minimizedFrame)
+        trackObject(minimizedFrame)
 
-    local plusIcon = Instance.new("TextLabel", minimizedFrame)
-    plusIcon.Size = UDim2.new(1, 0, 1, 0)
-    plusIcon.Text = "+"
-    plusIcon.TextColor3 = Color3.new(1,1,1)
-    plusIcon.BackgroundTransparency = 1
-    plusIcon.Font = Enum.Font.GothamBold
-    plusIcon.TextSize = 24
-    trackObject(plusIcon)
+        local plusIcon = Instance.new("TextLabel", minimizedFrame)
+        plusIcon.Size = UDim2.new(1, 0, 1, 0)
+        plusIcon.Text = "+"
+        plusIcon.TextColor3 = Color3.new(1,1,1)
+        plusIcon.BackgroundTransparency = 1
+        plusIcon.Font = Enum.Font.GothamBold
+        plusIcon.TextSize = 24
+        trackObject(plusIcon)
+
+        module.MinimizedFrame = minimizedFrame
+    else
+        minimizedFrame = module.MinimizedFrame
+    end
 
     local function setMinimizedImage(assetId)
         if assetId and typeof(assetId) == "string" and assetId ~= "" then
             minimizedFrame.Image = "rbxassetid://" .. assetId
             minimizedFrame.ImageTransparency = 0
-            plusIcon.Visible = false
+            minimizedFrame:FindFirstChildWhichIsA("TextLabel").Visible = false
         else
             minimizedFrame.Image = ""
-            plusIcon.Visible = true
+            minimizedFrame:FindFirstChildWhichIsA("TextLabel").Visible = true
         end
     end
 
     trackConnection(minimizeButton.MouseButton1Click:Connect(function()
-    mainFrame.Visible = false
-    minimizedFrame.Visible = true
-end))
+        mainFrame.Visible = false
+        minimizedFrame.Visible = true
+    end))
 
     trackConnection(minimizedFrame.MouseButton1Click:Connect(function()
-    mainFrame.Visible = true
-    minimizedFrame.Visible = false
-end))
+        mainFrame.Visible = true
+        minimizedFrame.Visible = false
+    end))
+
+    makeUIAboveAll(screenGui)
 
     local categoryFrame = Instance.new("ScrollingFrame", mainFrame)
     categoryFrame.Size = UDim2.new(0, 150, 1, -55)
