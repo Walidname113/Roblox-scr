@@ -60,7 +60,7 @@ end
 
 local uiModule = moduleFunc()
 local ui = uiModule.CreateUI("Violence District by Kiyatsuka | Version: 1.0.0 Public.")
-ui.SetMinimizedImage("108856686741748")
+ui.SetMinimizedImage("97837481633367")
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
