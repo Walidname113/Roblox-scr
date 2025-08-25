@@ -1,4 +1,4 @@
--- v8
+-- v9
 local module = {}
 
 local Players = game:GetService("Players")
@@ -201,14 +201,13 @@ function module.CreateUI(title)
 
     local minimizedFrame
     if not module.MinimizedFrame or not module.MinimizedFrame.Parent then
-        minimizedFrame = Instance.new("ImageButton", screenGui)
+        minimizedFrame = Instance.new("ImageButton")
         minimizedFrame.Size = UDim2.new(0, 40, 0, 40)
         minimizedFrame.Position = UDim2.new(0.5, -20, 0.5, -20)
         minimizedFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
         minimizedFrame.Visible = false
         Instance.new("UICorner", minimizedFrame)
         makeDraggable(minimizedFrame)
-        trackObject(minimizedFrame)
 
         local plusIcon = Instance.new("TextLabel", minimizedFrame)
         plusIcon.Size = UDim2.new(1, 0, 1, 0)
@@ -217,7 +216,6 @@ function module.CreateUI(title)
         plusIcon.BackgroundTransparency = 1
         plusIcon.Font = Enum.Font.GothamBold
         plusIcon.TextSize = 24
-        trackObject(plusIcon)
 
         module.MinimizedFrame = minimizedFrame
     else
