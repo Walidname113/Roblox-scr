@@ -1,4 +1,4 @@
--- v9
+-- v10
 local module = {}
 
 local Players = game:GetService("Players")
@@ -208,6 +208,7 @@ function module.CreateUI(title)
         minimizedFrame.Visible = false
         Instance.new("UICorner", minimizedFrame)
         makeDraggable(minimizedFrame)
+        minimizedFrame.Parent = screenGui
 
         local plusIcon = Instance.new("TextLabel", minimizedFrame)
         plusIcon.Size = UDim2.new(1, 0, 1, 0)
