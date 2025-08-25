@@ -1,4 +1,4 @@
-local REQUIRED_GAME_ID = 1526814825
+local REQUIRED_GAME_ID = 6739698191
 if game.GameId ~= REQUIRED_GAME_ID then return end
 
 local HttpService = game:GetService("HttpService")
