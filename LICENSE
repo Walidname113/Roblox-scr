@@ -1,39 +1,49 @@
-Copyright (c) 2025 Kiyatsuka Licensed under the Kiyatsuka GUI Proprietary License v1.0
+Copyright (c) 2025 Kiyatsuka
+Licensed under the Kiyatsuka GUI Proprietary License v1.1
 
 GUI Source Code: https://raw.githubusercontent.com/Walidname113/Roblox-scr/refs/heads/main/uncoded.lua
 
-Kiyatsuka GUI Proprietary License v1.0 (with Explicit Acceptance)
+Kiyatsuka GUI Proprietary License v1.1 (with Explicit Acceptance and Extended Terms)
 
-Preamble: This license governs the use of the software "Kiyatsuka GUI" (hereafter "Software"), including its GUI source code and associated scripts. By using, downloading, installing, or otherwise obtaining the Software, you (hereafter "User") explicitly agree to the terms of this license. If you do not agree with the terms, you are not authorized to use the Software.
+Preamble:
+This license governs the use, distribution, and modification of the software "Kiyatsuka GUI" (hereafter "Software"), including all GUI source code, scripts, assets, and related materials. By downloading, installing, copying, forking, or using the Software, the User explicitly agrees to all terms contained in this license. Non-acceptance prohibits any use or interaction with the Software.
 
-1. Definitions: 
-1.1 "Software" refers exclusively to the Kiyatsuka GUI source code, GUI elements, scripts, and all related resources contained in the distributed file/module. 
-1.2 "User" refers to any individual, organization, or legal entity that obtains the Software, whether through download, installation, distribution, or other means. 
-1.3 "Modification" means any alteration, editing, patching, reverse-engineering, decompiling, or otherwise changing of the Software's source code, structure, UI elements, or functional components.
-1.4 "Usage" means running, integrating, calling, or embedding the Software’s functionality within scripts, games, applications, or other projects. 
-1.5 "Derivative Work" means any software or product created by modifying, extending, or adapting the Software beyond its intended interface without explicit permission.
+1. Definitions
+   1.1 "Software" – The Kiyatsuka GUI source code, scripts, GUI elements, assets, modules, and any other materials distributed as part of the Software package.
+   1.2 "User" – Any individual, organization, or legal entity that obtains the Software through download, distribution, installation, or any other means.
+   1.3 "Modification" – Any alteration, editing, patching, reverse-engineering, decompiling, or other change of the Software’s source code, structure, assets, or GUI elements.
+   1.4 "Usage" – Running, integrating, calling, embedding, or interacting with the Software’s functionality in any scripts, games, applications, or projects.
+   1.5 "Derivative Work" – Any software or product created by modifying, extending, or adapting the Software beyond its intended interface without explicit permission.
 
+2. Rights of the User
+   2.1 Users may:
+   a) Download, install, and run the Software.
+   b) Use the Software within projects to implement functionality as provided.
+   c) Integrate the Software into scripts, games, applications, or other projects.
+   d) Develop extensions or scripts that interact with the Software through its public interface or provided functions.
 
-2. Rights of the User: 
-2.1 Users may: a) Download, install, and run the Software. 
-b) Use the Software within projects to implement functionality as provided by the original code. 
-c) Integrate the Software into any scripts, games, applications, or other projects. 
-d) Develop extensions or scripts that interact with the Software through its public interface or provided functions.
+3. Restrictions
+   3.1 Users MAY NOT:
+   a) Modify, edit, or alter the GUI source code in any form.
+   b) Create derivative works based on modified GUI code.
+   c) Redistribute modified versions of the Software without express written permission from Kiyatsuka.
+   d) Reverse-engineer, decompile, or disassemble the Software for creating modifications.
+   e) Use the Software in violation of applicable laws or in a manner that harms third parties.
 
+4. Integration and Interaction
+   4.1 Users may create scripts or programs that call public functions of the Software.
+   4.2 The Software may be embedded into projects for display or functional purposes, provided the Software remains unmodified.
 
-3. Restrictions: 
-3.1 Users MAY NOT: 
-a) Modify, edit, or alter the GUI source code in any form. 
-b) Create derivative works based on modified GUI code. 
-c) Redistribute modified versions of the Software without express written permission from Kiyatsuka. 
-d) Reverse-engineer, decompile, or disassemble the Software for the purpose of creating modifications. e) Use the Software in violation of applicable laws or in a manner that causes harm to third parties.
+5. Acceptance and Educational Copying
+   5.1 By downloading, installing, copying, forking, or using the Software, the User explicitly accepts all terms of this license. Non-acceptance prohibits any use.
+   5.2 Users may fork, copy, or load the Software without modification for review, study, or evaluation. Any modification beyond public interface usage is prohibited without explicit written permission.
 
+6. Termination
+   6.1 Any violation of this license results in automatic termination of the User’s rights to use the Software.
+   6.2 Upon termination, the User must cease all use and destroy any copies of the Software.
 
-4. Integration and Interaction:
-4.1 Users may create scripts or programs that call public functions of the Software. 
-4.2 The Software may be embedded into projects for display or functional purposes, provided that the Software remains unmodified.
+7. Liability
+   7.1 The Software is provided "as is" without warranty of any kind. Kiyatsuka is not liable for damages arising from use, inability to use, or misuse of the Software.
 
-
-5. Acceptance and Educational Copying:
-5.1 By downloading, installing, copying, forking, or using the Software in any form, the User explicitly accepts all terms and conditions of this license. Non-acceptance prohibits any use of the Software. 
-5.2 Users are permitted to fork, copy, or load the Software without modification for the purpose of review, study, or evaluation of the Software. Any modification of the Software’s code, structure, or UI elements beyond mere usage through public interfaces is prohibited without explicit written permission.
+8. Governing Law
+   8.1 This license shall be governed by the laws of the jurisdiction in which Kiyatsuka operates. Any disputes will be resolved under said jurisdiction.
