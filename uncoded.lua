@@ -1,6 +1,6 @@
 --[[
 Copyright (c) 2025 Kiyatsuka
-Licensed under the Kiyatsuka GUI Proprietary License v1.0
+Licensed under the Kiyatsuka GUI Proprietary License v1.1
 GUI Source Code: https://raw.githubusercontent.com/Walidname113/Roblox-scr/refs/heads/main/uncoded.lua
 Full license text: https://raw.githubusercontent.com/Walidname113/Roblox-scr/refs/heads/main/LICENSE
 
