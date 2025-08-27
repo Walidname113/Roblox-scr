@@ -12,7 +12,7 @@ Key points:
 - Educational copying (review, study, evaluation) allowed without modification.
 --]]
 
--- v11
+-- v12
 local module = {}
 
 local Players = game:GetService("Players")
@@ -203,6 +203,29 @@ function module.CreateUI(title)
         confirmFrame.Visible = false
     end))
 
+    local scaleButton = Instance.new("TextButton", mainFrame)
+    scaleButton.Text = "◯"
+    scaleButton.Font = Enum.Font.GothamBold
+    scaleButton.Size = UDim2.new(0, 25, 0, 25)
+    scaleButton.Position = UDim2.new(1, -95, 0, 5)
+    scaleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    scaleButton.TextColor3 = Color3.new(1, 1, 1)
+    Instance.new("UICorner", scaleButton).CornerRadius = UDim.new(0, 6)
+    trackObject(scaleButton)
+
+    local isScaledDown = false
+    local normalSize = UDim2.new(0, 600, 0, 400)
+    local smallSize = UDim2.new(0, 400, 0, 280)
+
+    trackConnection(scaleButton.MouseButton1Click:Connect(function()
+        isScaledDown = not isScaledDown
+        if isScaledDown then
+            mainFrame.Size = smallSize
+        else
+            mainFrame.Size = normalSize
+        end
+    end))
+    
     local minimizeButton = Instance.new("TextButton", mainFrame)
     minimizeButton.Text = "—"
     minimizeButton.Font = Enum.Font.GothamBold
