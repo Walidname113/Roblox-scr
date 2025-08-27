@@ -214,7 +214,7 @@ function module.CreateUI(title)
     trackObject(minimizeButton)
 
     local scaleButton = Instance.new("ImageButton", mainFrame)
-    scaleButton.Image = "rbxassetid://116862158343030"
+    scaleButton.Image = "rbxassetid://74193136908711"
     scaleButton.Size = UDim2.new(0, 25, 0, 25)
     scaleButton.Position = UDim2.new(1, -95, 0, 5)
     scaleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
