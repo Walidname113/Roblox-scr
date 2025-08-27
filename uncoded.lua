@@ -12,7 +12,7 @@ Key points:
 - Educational copying (review, study, evaluation) allowed without modification.
 --]]
 
--- v13
+-- v14
 local module = {}
 
 local Players = game:GetService("Players")
@@ -215,7 +215,7 @@ function module.CreateUI(title)
 
     local isScaledDown = false
     local normalSize = UDim2.new(0, 600, 0, 400)
-    local smallSize = UDim2.new(0, 450, 0, 400)
+    local smallSize = UDim2.new(0, 600, 0, 200)
 
     trackConnection(scaleButton.MouseButton1Click:Connect(function()
         isScaledDown = not isScaledDown
