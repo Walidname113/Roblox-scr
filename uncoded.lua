@@ -202,6 +202,16 @@ function module.CreateUI(title)
     trackConnection(noBtn.MouseButton1Click:Connect(function()
         confirmFrame.Visible = false
     end))
+    
+    local minimizeButton = Instance.new("TextButton", mainFrame)
+    minimizeButton.Text = "—"
+    minimizeButton.Font = Enum.Font.GothamBold
+    minimizeButton.Size = UDim2.new(0, 25, 0, 25)
+    minimizeButton.Position = UDim2.new(1, -65, 0, 5)
+    minimizeButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    minimizeButton.TextColor3 = Color3.new(1, 1, 1)
+    Instance.new("UICorner", minimizeButton)
+    trackObject(minimizeButton)
 
     local scaleButton = Instance.new("TextButton", mainFrame)
     scaleButton.Text = "◯"
@@ -215,7 +225,7 @@ function module.CreateUI(title)
 
     local isScaledDown = false
     local normalSize = UDim2.new(0, 600, 0, 400)
-    local smallSize = UDim2.new(0, 600, 0, 300)
+    local smallSize = UDim2.new(0, 600, 0, 330)
 
     trackConnection(scaleButton.MouseButton1Click:Connect(function()
         isScaledDown = not isScaledDown
@@ -226,16 +236,6 @@ function module.CreateUI(title)
         end
     end))
     
-    local minimizeButton = Instance.new("TextButton", mainFrame)
-    minimizeButton.Text = "—"
-    minimizeButton.Font = Enum.Font.GothamBold
-    minimizeButton.Size = UDim2.new(0, 25, 0, 25)
-    minimizeButton.Position = UDim2.new(1, -65, 0, 5)
-    minimizeButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    minimizeButton.TextColor3 = Color3.new(1, 1, 1)
-    Instance.new("UICorner", minimizeButton)
-    trackObject(minimizeButton)
-
     local minimizedFrame
     if not module.MinimizedFrame or not module.MinimizedFrame.Parent then
         minimizedFrame = Instance.new("ImageButton")
