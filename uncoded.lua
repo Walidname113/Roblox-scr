@@ -12,7 +12,7 @@ Key points:
 - Educational copying (review, study, evaluation) allowed without modification.
 --]]
 
--- v15
+-- v16
 local module = {}
 
 local Players = game:GetService("Players")
@@ -207,17 +207,19 @@ function module.CreateUI(title)
     minimizeButton.Text = "—"
     minimizeButton.Font = Enum.Font.GothamBold
     minimizeButton.Size = UDim2.new(0, 25, 0, 25)
-    minimizeButton.Position = UDim2.new(1, -65, 0, 5)
+    minimizeButton.Position = UDim2.new(1, -95, 0, 5)
     minimizeButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     minimizeButton.TextColor3 = Color3.new(1, 1, 1)
     Instance.new("UICorner", minimizeButton)
     trackObject(minimizeButton)
 
-    local scaleButton = Instance.new("ImageButton", mainFrame)
-    scaleButton.Image = "rbxassetid://74193136908711"
+    local scaleButton = Instance.new("TextButton", mainFrame)
+    scaleButton.Text = "⤢"
+    scaleButton.Font = Enum.Font.GothamBold
     scaleButton.Size = UDim2.new(0, 25, 0, 25)
-    scaleButton.Position = UDim2.new(1, -95, 0, 5)
+    scaleButton.Position = UDim2.new(1, -65, 0, 5)
     scaleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    scaleButton.TextColor3 = Color3.new(1, 1, 1)
     Instance.new("UICorner", scaleButton).CornerRadius = UDim.new(0, 6)
     trackObject(scaleButton)
 
