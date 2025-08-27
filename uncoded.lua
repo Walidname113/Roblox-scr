@@ -12,7 +12,7 @@ Key points:
 - Educational copying (review, study, evaluation) allowed without modification.
 --]]
 
--- v10
+-- v11
 local module = {}
 
 local Players = game:GetService("Players")
@@ -276,6 +276,9 @@ function module.CreateUI(title)
     categoryLayout.Padding = UDim.new(0, 6)
     categoryLayout.Parent = categoryFrame
 
+    local categoryPadding = Instance.new("UIPadding", categoryFrame)
+    categoryPadding.PaddingBottom = UDim.new(0, 20)
+
     local contentFrame = Instance.new("Frame", mainFrame)
     contentFrame.Size = UDim2.new(1, -180, 1, -55)
     contentFrame.Position = UDim2.new(0, 170, 0, 45)
@@ -293,6 +296,9 @@ function module.CreateUI(title)
     contentScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
     contentScroll.CanvasSize = UDim2.new(0,0,0,0)
     trackObject(contentScroll)
+
+    local contentPadding = Instance.new("UIPadding", contentScroll)
+    contentPadding.PaddingBottom = UDim.new(0, 20)
 
     local categories = {}
 
