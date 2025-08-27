@@ -225,7 +225,7 @@ function module.CreateUI(title)
 
     local isScaledDown = false
     local normalSize = UDim2.new(0, 600, 0, 400)
-    local smallSize = UDim2.new(0, 600, 0, 330)
+    local smallSize = UDim2.new(0, 600, 0, 362)
 
     trackConnection(scaleButton.MouseButton1Click:Connect(function()
         isScaledDown = not isScaledDown
