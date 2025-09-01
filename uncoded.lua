@@ -12,12 +12,13 @@ Key points:
 - Educational copying (review, study, evaluation) allowed without modification.
 --]]
 
--- v16
+-- v17
 local module = {}
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
 local player = Players.LocalPlayer
 
 local connections = {}
@@ -245,7 +246,7 @@ function module.CreateUI(title)
         minimizedFrame.Visible = false
         Instance.new("UICorner", minimizedFrame)
         makeDraggable(minimizedFrame)
-        minimizedFrame.Parent = screenGui
+        screenGui.Parent = CoreGui
 
         local plusIcon = Instance.new("TextLabel", minimizedFrame)
         plusIcon.Size = UDim2.new(1, 0, 1, 0)
