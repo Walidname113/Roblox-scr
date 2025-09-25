@@ -210,6 +210,25 @@ tpButton.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
 tpButton.TextColor3 = Color3.new(1, 1, 1)
 tpButton.Parent = tpContainer
 
+local tickAssetId = "rbxassetid://84432700403581"
+local checkFrame = Instance.new("Frame")
+checkFrame.Size = UDim2.new(0, 22, 0, 22)
+checkFrame.Position = UDim2.new(0, 200, 0, 4)
+checkFrame.BackgroundColor3 = dropdownButton.BackgroundColor3
+checkFrame.BorderSizePixel = 0
+checkFrame.Parent = tpContainer
+Instance.new("UICorner", checkFrame).CornerRadius = UDim.new(0, 4)
+
+local checkBtn = Instance.new("ImageButton")
+checkBtn.Name = "AttachCheck"
+checkBtn.Size = UDim2.new(1, -4, 1, -4)
+checkBtn.Position = UDim2.new(0, 2, 0, 2)
+checkBtn.BackgroundTransparency = 1
+checkBtn.Image = tickAssetId
+checkBtn.ImageTransparency = 1
+checkBtn.Parent = checkFrame
+checkBtn.ScaleType = Enum.ScaleType.Fit
+
 local dropdownFrame = Instance.new("ScrollingFrame")
 dropdownFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 dropdownFrame.BorderSizePixel = 0
@@ -245,6 +264,8 @@ local function refreshPlayerList()
 			option.Text = plr.Name
 			option.ZIndex = 11
 			option.Parent = dropdownFrame
+			option.Font = Enum.Font.SourceSans
+			option.TextSize = 14
 
 			option.MouseButton1Click:Connect(function()
 				selectedPlayer = plr
@@ -268,12 +289,95 @@ dropdownButton.MouseButton1Click:Connect(function()
 	end
 end)
 
-tpButton.MouseButton1Click:Connect(function()
-	if selectedPlayer and selectedPlayer.Character and selectedPlayer.Character:FindFirstChild("HumanoidRootPart") then
-		local root = selectedPlayer.Character.HumanoidRootPart
-		if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-			player.Character.HumanoidRootPart.CFrame = root.CFrame + Vector3.new(0, 3, 0)
+local attachModeEnabled = false
+local attached = false
+local attachConnection = nil
+local currentTarget = nil
+local deathConn = nil
+
+local function detach()
+	if attachConnection then
+		attachConnection:Disconnect()
+		attachConnection = nil
+	end
+	attached = false
+	currentTarget = nil
+	if deathConn then
+		deathConn:Disconnect()
+		deathConn = nil
+	end
+end
+
+local function safeFindHRP(plr)
+	return plr and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+end
+
+checkBtn.MouseButton1Click:Connect(function()
+	attachModeEnabled = not attachModeEnabled
+	if attachModeEnabled then
+		checkBtn.ImageTransparency = 0
+	else
+		checkBtn.ImageTransparency = 1
+		if attached then
+			detach()
 		end
+	end
+end)
+
+local function singleTeleportTo(plr)
+	local root = safeFindHRP(plr)
+	local myRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if not root or not myRoot then return end
+	local targetPos = root.Position
+	local pos = targetPos - (root.CFrame.LookVector * 2) + Vector3.new(0, 1.5, 0)
+	local newCFrame = CFrame.lookAt(pos, targetPos)
+	myRoot.CFrame = newCFrame
+end
+
+local function startAttachTo(plr)
+	if not attachModeEnabled then return end
+	local root = safeFindHRP(plr)
+	local myRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if not root or not myRoot then return end
+
+	if attached and currentTarget == plr then return end
+
+	detach()
+	attached = true
+	currentTarget = plr
+
+	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		deathConn = humanoid.Died:Connect(function()
+			detach()
+		end)
+	end
+
+	attachConnection = RunService.Heartbeat:Connect(function()
+		local targetRoot = safeFindHRP(currentTarget)
+		local myRootNow = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if not targetRoot or not myRootNow or not attachModeEnabled then
+			detach()
+			return
+		end
+
+		local targetPos = targetRoot.Position
+		local pos = targetPos - (targetRoot.CFrame.LookVector * 2) + Vector3.new(0, 1.5, 0)
+		local newCFrame = CFrame.lookAt(pos, targetPos)
+		pcall(function()
+			myRootNow.CFrame = newCFrame
+		end)
+	end)
+end
+
+tpButton.MouseButton1Click:Connect(function()
+	if not selectedPlayer then return end
+	if not selectedPlayer.Character or not selectedPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+
+	if attachModeEnabled then
+		startAttachTo(selectedPlayer)
+	else
+		singleTeleportTo(selectedPlayer)
 	end
 end)
 
@@ -282,7 +386,7 @@ task.spawn(function()
 		if dropdownOpen then
 			refreshPlayerList()
 		end
-		task.wait(10)
+		task.wait(1)
 	end
 end)
 
