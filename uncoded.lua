@@ -12,7 +12,7 @@ Key points:
 - Educational copying (review, study, evaluation) allowed without modification.
 --]]
 
--- v16
+-- v17
 local module = {}
 
 local Players = game:GetService("Players")
@@ -501,108 +501,127 @@ function module.CreateUI(title)
 
     function module.CreatePlayerList(parentFrame)
         local selectedPlayer = "---"
+        local tracking = false
 
-        local container = Instance.new("Frame", parentFrame)
-        container.Size = UDim2.new(1, -10, 0, 35)
+        local container = Instance.new("Frame")
+        container.Size = UDim2.new(1, 0, 0, 44)
         container.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
         container.BorderSizePixel = 0
-        container.ClipsDescendants = false
         Instance.new("UICorner", container)
+        container.Parent = parentFrame
         trackObject(container)
 
+        local leftPadding = Instance.new("UIPadding", container)
+        leftPadding.PaddingLeft = UDim.new(0, 10)
+
+        -- кнопка-дропдаун
         local dropdownButton = Instance.new("TextButton", container)
-        dropdownButton.Size = UDim2.new(1, -35, 1, 0)
-        dropdownButton.Position = UDim2.new(0, 5, 0, 0)
+        dropdownButton.Size = UDim2.new(1, -140, 1, 0)
+        dropdownButton.Position = UDim2.new(0, 10, 0, 0)
         dropdownButton.Text = "Player: " .. selectedPlayer
         dropdownButton.TextColor3 = Color3.new(1, 1, 1)
         dropdownButton.Font = Enum.Font.Gotham
-        dropdownButton.TextSize = 14
+        dropdownButton.TextSize = 16
         dropdownButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
         dropdownButton.TextXAlignment = Enum.TextXAlignment.Left
         Instance.new("UICorner", dropdownButton)
         trackObject(dropdownButton)
 
-        local reloadButton = Instance.new("TextButton", container)
-        reloadButton.Size = UDim2.new(0, 25, 0, 25)
-        reloadButton.Position = UDim2.new(1, -30, 0, 5)
-        reloadButton.Text = "@"
-        reloadButton.TextColor3 = Color3.new(1, 1, 1)
-        reloadButton.Font = Enum.Font.Gotham
-        reloadButton.TextSize = 16
-        reloadButton.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
-        Instance.new("UICorner", reloadButton)
-        trackObject(reloadButton)
+        local checkbox = Instance.new("Frame", container)
+        checkbox.Size = UDim2.new(0, 24, 0, 24)
+        checkbox.Position = UDim2.new(1, -100, 0.5, -12)
+        checkbox.BackgroundColor3 = Color3.fromRGB(60,60,60)
+        checkbox.BorderSizePixel = 0
+        Instance.new("UICorner", checkbox).CornerRadius = UDim.new(0, 4)
+        trackObject(checkbox)
 
-        local listFrame = Instance.new("ScrollingFrame")
-        listFrame.Parent = parentFrame
-        listFrame.Size = UDim2.new(1, -20, 0, 120)
-        listFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-        listFrame.BorderSizePixel = 0
-        listFrame.ScrollBarThickness = 6
-        listFrame.Visible = false
-        listFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-        listFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-        Instance.new("UICorner", listFrame)
-        trackObject(listFrame)
+        local checkMark = Instance.new("ImageLabel", checkbox)
+        checkMark.Size = UDim2.new(1, -6, 1, -6)
+        checkMark.Position = UDim2.new(0,3,0,3)
+        checkMark.BackgroundColor3 = Color3.fromRGB(30,30,30) -- затемнённый фон под галочкой
+        checkMark.BorderSizePixel = 0
+        Instance.new("UICorner", checkMark).CornerRadius = UDim.new(0, 2)
+        checkMark.Image = ""
+        trackObject(checkMark)
 
-        local layout = Instance.new("UIListLayout", listFrame)
-        layout.SortOrder = Enum.SortOrder.LayoutOrder
-        layout.Padding = UDim.new(0, 4)
-        trackObject(layout)
+        local checkboxLabel = Instance.new("TextLabel", container)
+        checkboxLabel.Size = UDim2.new(0, 68, 1, 0)
+        checkboxLabel.Position = UDim2.new(1, -88, 0, 0)
+        checkboxLabel.BackgroundTransparency = 1
+        checkboxLabel.Text = "Track"
+        checkboxLabel.Font = Enum.Font.SourceSans
+        checkboxLabel.TextSize = 16
+        checkboxLabel.TextColor3 = Color3.new(1,1,1)
+        checkboxLabel.TextXAlignment = Enum.TextXAlignment.Left
+        trackObject(checkboxLabel)
 
-        local function updateListPosition()
-            local absPos = container.AbsolutePosition
-            listFrame.Position = UDim2.new(0, absPos.X, 0, absPos.Y + container.AbsoluteSize.Y)
-        end
+        local dropdownFrame = Instance.new("Frame", container)
+        dropdownFrame.Size = UDim2.new(1, -140, 0, 0)
+        dropdownFrame.Position = UDim2.new(0, 10, 1, 0)
+        dropdownFrame.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+        dropdownFrame.Visible = false
+        Instance.new("UICorner", dropdownFrame)
+        trackObject(dropdownFrame)
 
-        local function refreshList()
-            for _, child in ipairs(listFrame:GetChildren()) do
-                if child:IsA("TextButton") then
-                    child:Destroy()
-                end
+        local dropdownLayout = Instance.new("UIListLayout", dropdownFrame)
+        dropdownLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+        local function refreshPlayers()
+            for _, c in ipairs(dropdownFrame:GetChildren()) do
+                if c:IsA("TextButton") then c:Destroy() end
             end
-
-            selectedPlayer = "---"
-            dropdownButton.Text = "Player: " .. selectedPlayer
-
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= player then
-                    local nameBtn = Instance.new("TextButton", listFrame)
-                    nameBtn.Size = UDim2.new(1, 0, 0, 30)
-                    nameBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
-                    nameBtn.Text = p.Name
-                    nameBtn.TextColor3 = Color3.new(1, 1, 1)
-                    nameBtn.Font = Enum.Font.Gotham
-                    nameBtn.TextSize = 14
-                    Instance.new("UICorner", nameBtn)
-                    trackObject(nameBtn)
-
-                    trackConnection(nameBtn.MouseButton1Click:Connect(function()
-                        selectedPlayer = p.Name
+            for _, plr in ipairs(Players:GetPlayers()) do
+                if plr ~= player then
+                    local btn = Instance.new("TextButton")
+                    btn.Size = UDim2.new(1, 0, 0, 28)
+                    btn.Text = plr.Name
+                    btn.BackgroundColor3 = Color3.fromRGB(75, 75, 75)
+                    btn.TextColor3 = Color3.new(1, 1, 1)
+                    btn.Font = Enum.Font.SourceSans
+                    btn.TextSize = 14
+                    btn.Parent = dropdownFrame
+                    trackObject(btn)
+                    trackConnection(btn.MouseButton1Click:Connect(function()
+                        selectedPlayer = plr.Name
                         dropdownButton.Text = "Player: " .. selectedPlayer
-                        listFrame.Visible = false
+                        dropdownFrame.Visible = false
                     end))
                 end
             end
         end
 
         trackConnection(dropdownButton.MouseButton1Click:Connect(function()
-            listFrame.Visible = not listFrame.Visible
-            if listFrame.Visible then
-                updateListPosition()
+            refreshPlayers()
+            dropdownFrame.Visible = not dropdownFrame.Visible
+            dropdownFrame.Size = UDim2.new(1, -140, 0, dropdownLayout.AbsoluteContentSize.Y)
+        end))
+
+        local function updateCheck()
+            if tracking then
+                checkMark.Image = "rbxassetid://84432700403581"
+            else
+                checkMark.Image = ""
+            end
+        end
+
+        trackConnection(checkbox.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                tracking = not tracking
+                updateCheck()
             end
         end))
 
-        trackConnection(reloadButton.MouseButton1Click:Connect(refreshList))
-
-        refreshList()
-
-        return {
-            Container = container,
-            GetSelected = function()
-                return Players:FindFirstChild(selectedPlayer)
+        trackConnection(RunService.RenderStepped:Connect(function()
+            if tracking and selectedPlayer ~= "---" then
+                local target = Players:FindFirstChild(selectedPlayer)
+                if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    player.Character.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame * CFrame.new(0,0,-5)
+                end
             end
-        }
+        end))
+
+        updateCheck()
+        return container
     end
 
     makeUIAboveAll(screenGui)
