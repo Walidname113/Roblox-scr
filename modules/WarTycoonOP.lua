@@ -232,15 +232,15 @@ end)
 RunService.Heartbeat:Connect(function()
     local c, h, r = getCharacter()
     if noFallEnabled and r and c then
-        local velocity = r.Velocity
-        if velocity.Y < -50 then
-            local rayParams = RaycastParams.new()
-            rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-            rayParams.FilterDescendantsInstances = {c}
+        local vel = r.Velocity
+        if vel.Y < -50 then
+            local params = RaycastParams.new()
+            params.FilterType = Enum.RaycastFilterType.Blacklist
+            params.FilterDescendantsInstances = {c}
 
-            local result = Workspace:Raycast(r.Position, Vector3.new(0, -10, 0), rayParams)
-            if result and (r.Position.Y - result.Position.Y) <= 10 then
-                r.Velocity = Vector3.new(velocity.X, -50, velocity.Z)
+            local ray = Workspace:Raycast(r.Position, Vector3.new(0, -8, 0), params)
+            if ray and (r.Position.Y - ray.Position.Y) <= 8 then
+                r.Velocity = Vector3.zero
             end
         end
     end
