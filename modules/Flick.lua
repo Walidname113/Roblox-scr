@@ -18,7 +18,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.0 Public.")
+local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.1 Public.")
 ui.SetMinimizedImage("97837481633367")
 
 local RunService = game:GetService("RunService")
@@ -28,10 +28,14 @@ local camera = workspace.CurrentCamera
 
 local ESP_Settings = {
     Box = false,
-    BoxColor = Color3.fromRGB(255, 0, 0),
+    BoxColor = Color3.fromRGB(255, 255, 0),
     Names = false,
     NamesColor = Color3.fromRGB(255, 0, 0),
-    HP = false
+    HP = false,
+    Lines = false,
+    LinesColor = Color3.fromRGB(0, 255, 255),
+    Distance = false,
+    DistanceColor = Color3.fromRGB(255, 255, 255)
 }
 
 local PresetColors = {
@@ -41,14 +45,52 @@ local PresetColors = {
     {n = "Yellow", c = Color3.fromRGB(255, 255, 0)},
     {n = "Purple", c = Color3.fromRGB(170, 0, 255)},
     {n = "White", c = Color3.fromRGB(255, 255, 255)},
-    {n = "Orange", c = Color3.fromRGB(255, 120, 0)}
+    {n = "Orange", c = Color3.fromRGB(255, 120, 0)},
+    {n = "Cyan", c = Color3.fromRGB(0, 255, 255)}
 }
 
+-- Функция предупреждения
+local function ShowWarning(text)
+    local screenGui = ui.ScreenGui
+    local warnFrame = Instance.new("Frame")
+    warnFrame.Size = UDim2.new(0, 300, 0, 150)
+    warnFrame.Position = UDim2.new(0.5, -150, 0.5, -75)
+    warnFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    warnFrame.BorderSizePixel = 0
+    warnFrame.ZIndex = 10000
+    Instance.new("UICorner", warnFrame)
+    
+    local stroke = Instance.new("UIStroke", warnFrame)
+    stroke.Color = Color3.fromRGB(255, 0, 0)
+    stroke.Thickness = 2
+
+    local msg = Instance.new("TextLabel", warnFrame)
+    msg.Size = UDim2.new(1, -20, 0, 80)
+    msg.Position = UDim2.new(0, 10, 0, 10)
+    msg.BackgroundTransparency = 1
+    msg.Text = text
+    msg.TextColor3 = Color3.new(1,1,1)
+    msg.Font = Enum.Font.GothamBold
+    msg.TextSize = 16
+    msg.TextWrapped = true
+
+    local btn = Instance.new("TextButton", warnFrame)
+    btn.Size = UDim2.new(0, 120, 0, 35)
+    btn.Position = UDim2.new(0.5, -60, 0.75, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+    btn.Text = "Understood"
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.Font = Enum.Font.GothamBold
+    Instance.new("UICorner", btn)
+
+    warnFrame.Parent = screenGui
+    btn.MouseButton1Click:Connect(function() warnFrame:Destroy() end)
+end
+
+-- Исправленный выбор цвета (вынесен за пределы кнопок)
 local function AddColorPicker(container, defaultValue, callback)
     local label = container:FindFirstChildOfClass("TextLabel")
-    if label then
-        label.Size = UDim2.new(1, -110, 1, 0)
-    end
+    if label then label.Size = UDim2.new(1, -120, 1, 0) end
 
     local colorBtn = Instance.new("TextButton")
     colorBtn.Size = UDim2.new(0, 24, 0, 24)
@@ -57,30 +99,28 @@ local function AddColorPicker(container, defaultValue, callback)
     colorBtn.Text = ""
     colorBtn.BorderSizePixel = 1
     colorBtn.BorderColor3 = Color3.fromRGB(255,255,255)
-    colorBtn.ZIndex = 10
     Instance.new("UICorner", colorBtn).CornerRadius = UDim.new(0, 4)
     colorBtn.Parent = container
 
     local menu = Instance.new("ScrollingFrame")
-    menu.Size = UDim2.new(0, 100, 0, 150)
-    menu.Position = UDim2.new(1, 10, 0, -50)
-    menu.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    menu.Size = UDim2.new(0, 110, 0, 180)
+    -- Позиционирование меню ПРАВЕЕ основного окна GUI
+    menu.Position = UDim2.new(1, 190, 0, 0) 
+    menu.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
     menu.Visible = false
     menu.ZIndex = 5000
-    menu.CanvasSize = UDim2.new(0, 0, 0, #PresetColors * 30 + 35)
+    menu.CanvasSize = UDim2.new(0, 0, 0, #PresetColors * 32 + 40)
     menu.ScrollBarThickness = 4
-    menu.Active = true
     Instance.new("UICorner", menu)
-    menu.Parent = colorBtn
+    menu.Parent = ui.MainFrame -- Привязка к главному фрейму для фиксации положения
 
     local close = Instance.new("TextButton", menu)
-    close.Size = UDim2.new(0, 25, 0, 25)
-    close.Position = UDim2.new(1, -25, 0, 0)
+    close.Size = UDim2.new(0, 20, 0, 20)
+    close.Position = UDim2.new(1, -25, 0, 5)
     close.Text = "×"
-    close.TextColor3 = Color3.new(1, 1, 1)
-    close.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-    close.TextSize = 20
-    close.ZIndex = 5002
+    close.TextColor3 = Color3.new(1,1,1)
+    close.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+    close.ZIndex = 5001
     Instance.new("UICorner", close)
 
     local layout = Instance.new("UIListLayout", menu)
@@ -88,31 +128,28 @@ local function AddColorPicker(container, defaultValue, callback)
     layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
     layout.SortOrder = Enum.SortOrder.LayoutOrder
 
-    local headerSpacer = Instance.new("Frame", menu)
-    headerSpacer.Size = UDim2.new(1, 0, 0, 25)
-    headerSpacer.BackgroundTransparency = 1
-    headerSpacer.LayoutOrder = -1
+    local topSpacer = Instance.new("Frame", menu)
+    topSpacer.Size = UDim2.new(1,0,0,30)
+    topSpacer.BackgroundTransparency = 1
+    topSpacer.LayoutOrder = 0
 
     local isScrolling = false
     menu:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
         isScrolling = true
+        task.delay(0.1, function() isScrolling = false end)
     end)
 
     for i, data in ipairs(PresetColors) do
         local btn = Instance.new("TextButton", menu)
-        btn.Size = UDim2.new(0, 80, 0, 25)
+        btn.Size = UDim2.new(0, 90, 0, 25)
         btn.BackgroundColor3 = data.c
         btn.Text = ""
         btn.ZIndex = 5001
         btn.LayoutOrder = i
         Instance.new("UICorner", btn)
         
-        btn.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                if isScrolling then 
-                    isScrolling = false 
-                    return 
-                end
+        btn.MouseButton1Click:Connect(function()
+            if not isScrolling then
                 colorBtn.BackgroundColor3 = data.c
                 menu.Visible = false
                 callback(data.c)
@@ -120,110 +157,141 @@ local function AddColorPicker(container, defaultValue, callback)
         end)
     end
 
-    colorBtn.MouseButton1Click:Connect(function()
-        menu.Visible = not menu.Visible
-    end)
-    close.MouseButton1Click:Connect(function()
-        menu.Visible = false
-    end)
+    colorBtn.MouseButton1Click:Connect(function() menu.Visible = not menu.Visible end)
+    close.MouseButton1Click:Connect(function() menu.Visible = false end)
 end
 
 local espCategory = ui.CreateCategory("ESP Settings")
 
-local boxToggle = ui.CreateToggle("Box ESP", espCategory, function(state)
+-- Элементы управления
+local boxT = ui.CreateToggle("Box ESP", espCategory, function(state)
     ESP_Settings.Box = state
 end)
-AddColorPicker(boxToggle, ESP_Settings.BoxColor, function(c) ESP_Settings.BoxColor = c end)
+AddColorPicker(boxT, ESP_Settings.BoxColor, function(c) ESP_Settings.BoxColor = c end)
 
-local nameToggle = ui.CreateToggle("Names ESP", espCategory, function(state)
+local nameT = ui.CreateToggle("Names ESP", espCategory, function(state)
     ESP_Settings.Names = state
 end)
-AddColorPicker(nameToggle, ESP_Settings.NamesColor, function(c) ESP_Settings.NamesColor = c end)
+AddColorPicker(nameT, ESP_Settings.NamesColor, function(c) ESP_Settings.NamesColor = c end)
 
 ui.CreateToggle("HP ESP", espCategory, function(state)
     ESP_Settings.HP = state
 end)
 
+local lineT = ui.CreateToggle("Line ESP", espCategory, function(state)
+    if state and not ESP_Settings.Box then
+        ShowWarning("You must enable 'Box ESP' first to use 'Line ESP'!")
+        -- Здесь логика переключения тоггла обратно должна быть в модуле, 
+        -- но мы принудительно выключаем тех. часть:
+        ESP_Settings.Lines = false
+        return
+    end
+    ESP_Settings.Lines = state
+end)
+AddColorPicker(lineT, ESP_Settings.LinesColor, function(c) ESP_Settings.LinesColor = c end)
+
+local distT = ui.CreateToggle("Distance ESP", espCategory, function(state)
+    ESP_Settings.Distance = state
+end)
+AddColorPicker(distT, ESP_Settings.DistanceColor, function(c) ESP_Settings.DistanceColor = c end)
+
+-- Логика отрисовки
 local function CreateESP(plr)
     local highlight = Instance.new("Highlight")
     highlight.Enabled = false
     highlight.FillTransparency = 0.5
     highlight.OutlineTransparency = 0
-    highlight.OutlineColor = Color3.new(1,1,1)
-    highlight.Name = "ESP_Highlight"
+    highlight.Name = "ESP_H"
 
-    local nameTag = Instance.new("BillboardGui")
-    nameTag.Size = UDim2.new(0, 200, 0, 50)
-    nameTag.AlwaysOnTop = true
-    nameTag.Enabled = false
-    
-    local nameLabel = Instance.new("TextLabel", nameTag)
-    nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
-    nameLabel.Position = UDim2.new(0, 0, 0, 0)
-    nameLabel.BackgroundTransparency = 1
-    nameLabel.Font = Enum.Font.SourceSansBold
-    nameLabel.TextSize = 18
-    local nameStroke = Instance.new("UIStroke", nameLabel)
-    nameStroke.Color = Color3.new(1, 1, 1)
-    nameStroke.Thickness = 1
+    local billboard = Instance.new("BillboardGui")
+    billboard.Size = UDim2.new(0, 200, 0, 100)
+    billboard.AlwaysOnTop = true
+    billboard.Enabled = false
 
-    local hpLabel = Instance.new("TextLabel", nameTag)
-    hpLabel.Size = UDim2.new(1, 0, 0.5, 0)
-    hpLabel.Position = UDim2.new(0, 0, -0.4, 0)
-    hpLabel.BackgroundTransparency = 1
-    hpLabel.Font = Enum.Font.SourceSansBold
-    hpLabel.TextSize = 16
-    hpLabel.TextColor3 = Color3.new(0, 1, 0)
-    local hpStroke = Instance.new("UIStroke", hpLabel)
-    hpStroke.Color = Color3.new(1, 1, 1)
-    hpStroke.Thickness = 1
+    local nameL = Instance.new("TextLabel", billboard)
+    nameL.Size = UDim2.new(1, 0, 0.3, 0)
+    nameL.BackgroundTransparency = 1
+    nameL.Font = Enum.Font.SourceSansBold
+    nameL.TextSize = 18
+    Instance.new("UIStroke", nameL).Color = Color3.new(1,1,1)
 
-    local function updateElements()
-        if not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then 
+    local hpL = Instance.new("TextLabel", billboard)
+    hpL.Size = UDim2.new(1, 0, 0.3, 0)
+    hpL.Position = UDim2.new(0,0,-0.3,0)
+    hpL.BackgroundTransparency = 1
+    hpL.TextColor3 = Color3.new(0,1,0)
+    hpL.Font = Enum.Font.SourceSansBold
+    Instance.new("UIStroke", hpL).Color = Color3.new(1,1,1)
+
+    local distL = Instance.new("TextLabel", billboard)
+    distL.Size = UDim2.new(1, 0, 0.3, 0)
+    distL.Position = UDim2.new(0,0,0.8,0) -- Под ногами/снизу
+    distL.BackgroundTransparency = 1
+    distL.Font = Enum.Font.SourceSansBold
+    Instance.new("UIStroke", distL).Color = Color3.new(1,1,1)
+
+    local lineFrame = Instance.new("Frame", ui.ScreenGui)
+    lineFrame.BorderSizePixel = 0
+    lineFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    lineFrame.Visible = false
+
+    RunService.RenderStepped:Connect(function()
+        if not plr or not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then
             highlight.Enabled = false
-            nameTag.Enabled = false
-            return 
+            billboard.Enabled = false
+            lineFrame.Visible = false
+            return
         end
-        
+
         local char = plr.Character
+        local hrp = char.HumanoidRootPart
         local hum = char:FindFirstChildOfClass("Humanoid")
         
+        -- Box/Highlight
         highlight.Parent = char
         highlight.Enabled = ESP_Settings.Box
         highlight.FillColor = ESP_Settings.BoxColor
 
-        nameTag.Parent = char:FindFirstChild("Head") or char.HumanoidRootPart
-        nameTag.Adornee = char:FindFirstChild("Head") or char.HumanoidRootPart
-        nameTag.StudsOffset = Vector3.new(0, 2.5, 0)
-        nameTag.Enabled = (ESP_Settings.Names or ESP_Settings.HP)
+        -- Billboard (Names, HP, Distance)
+        billboard.Parent = char:FindFirstChild("Head") or hrp
+        billboard.Adornee = char:FindFirstChild("Head") or hrp
+        billboard.Enabled = true
+        
+        nameL.Visible = ESP_Settings.Names
+        nameL.Text = plr.Name
+        nameL.TextColor3 = ESP_Settings.NamesColor
 
-        nameLabel.Visible = ESP_Settings.Names
-        nameLabel.Text = plr.Name
-        nameLabel.TextColor3 = ESP_Settings.NamesColor
+        hpL.Visible = ESP_Settings.HP
+        hpL.Text = hum and "HP: "..math.floor(hum.Health) or ""
 
-        if hum then
-            hpLabel.Visible = ESP_Settings.HP
-            hpLabel.Text = "HP: " .. math.floor(hum.Health)
+        distL.Visible = ESP_Settings.Distance
+        distL.TextColor3 = ESP_Settings.DistanceColor
+        local dist = (localPlayer.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+        distL.Text = math.floor(dist).." studs"
+
+        -- Line ESP
+        if ESP_Settings.Lines and ESP_Settings.Box then
+            local pos, onScreen = camera:WorldToViewportPoint(hrp.Position)
+            if onScreen then
+                lineFrame.Visible = true
+                local startPos = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
+                local endPos = Vector2.new(pos.X, pos.Y)
+                local distance = (endPos - startPos).Magnitude
+                
+                lineFrame.Size = UDim2.new(0, distance, 0, 1)
+                lineFrame.Position = UDim2.new(0, (startPos.X + endPos.X) / 2, 0, (startPos.Y + endPos.Y) / 2)
+                lineFrame.Rotation = math.deg(math.atan2(endPos.Y - startPos.Y, endPos.X - startPos.X))
+                lineFrame.BackgroundColor3 = ESP_Settings.LinesColor
+            else
+                lineFrame.Visible = false
+            end
         else
-            hpLabel.Visible = false
+            lineFrame.Visible = false
         end
-    end
-
-    local conn = RunService.RenderStepped:Connect(function()
-        if not plr or not plr.Parent then
-            highlight:Destroy()
-            nameTag:Destroy()
-            return
-        end
-        updateElements()
     end)
 end
 
-for _, p in ipairs(Players:GetPlayers()) do
-    if p ~= localPlayer then CreateESP(p) end
-end
-Players.PlayerAdded:Connect(function(p)
-    if p ~= localPlayer then CreateESP(p) end
-end)
+for _, p in ipairs(Players:GetPlayers()) do if p ~= localPlayer then CreateESP(p) end end
+Players.PlayerAdded:Connect(function(p) if p ~= localPlayer then CreateESP(p) end end)
 
 ui.OpenFirstCategory()
