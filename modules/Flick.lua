@@ -18,7 +18,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.3 Public.")
+local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.0 Public.")
 ui.SetMinimizedImage("97837481633367")
 
 local RunService = game:GetService("RunService")
@@ -165,38 +165,32 @@ local function CreateESP(plr)
     highlight.OutlineTransparency = 0
     highlight.Parent = ui.ScreenGui
 
-    local headGui = Instance.new("BillboardGui")
-    headGui.Size = UDim2.new(0, 200, 0, 50)
-    headGui.AlwaysOnTop = true
-    headGui.Enabled = false
-    headGui.ExtentsOffset = Vector3.new(0, 1.5, 0)
-    headGui.Parent = ui.ScreenGui
+    local billboard = Instance.new("BillboardGui")
+    billboard.Size = UDim2.new(0, 200, 0, 70)
+    billboard.AlwaysOnTop = true
+    billboard.Enabled = false
+    billboard.MaxDistance = 5000
+    billboard.Parent = ui.ScreenGui
 
-    local nameL = Instance.new("TextLabel", headGui)
-    nameL.Size = UDim2.new(1, 0, 0.5, 0)
-    nameL.Position = UDim2.new(0, 0, 0.5, 0)
+    local nameL = Instance.new("TextLabel", billboard)
+    nameL.Size = UDim2.new(1, 0, 0, 20)
+    nameL.Position = UDim2.new(0, 0, 0, 0)
     nameL.BackgroundTransparency = 1
     nameL.Font = Enum.Font.SourceSansBold
     nameL.TextSize = 16
     Instance.new("UIStroke", nameL).Color = Color3.new(1,1,1)
 
-    local hpL = Instance.new("TextLabel", headGui)
-    hpL.Size = UDim2.new(1, 0, 0.5, 0)
-    hpL.Position = UDim2.new(0, 0, 0, 0)
+    local hpL = Instance.new("TextLabel", billboard)
+    hpL.Size = UDim2.new(1, 0, 0, 20)
+    hpL.Position = UDim2.new(0, 0, 0, -20)
     hpL.BackgroundTransparency = 1
     hpL.Font = Enum.Font.SourceSansBold
     hpL.TextSize = 14
     Instance.new("UIStroke", hpL).Color = Color3.new(1,1,1)
 
-    local footGui = Instance.new("BillboardGui")
-    footGui.Size = UDim2.new(0, 200, 0, 20)
-    footGui.AlwaysOnTop = true
-    footGui.Enabled = false
-    footGui.ExtentsOffset = Vector3.new(0, -3.5, 0)
-    footGui.Parent = ui.ScreenGui
-
-    local distL = Instance.new("TextLabel", footGui)
-    distL.Size = UDim2.new(1, 0, 1, 0)
+    local distL = Instance.new("TextLabel", billboard)
+    distL.Size = UDim2.new(1, 0, 0, 20)
+    distL.Position = UDim2.new(0, 0, 1, 0)
     distL.BackgroundTransparency = 1
     distL.Font = Enum.Font.SourceSansBold
     distL.TextSize = 14
@@ -211,23 +205,26 @@ local function CreateESP(plr)
     RunService.RenderStepped:Connect(function()
         if not plr or not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then
             highlight.Enabled = false
-            headGui.Enabled = false
-            footGui.Enabled = false
+            billboard.Enabled = false
             lineFrame.Visible = false
             return
         end
 
         local character = plr.Character
         local hrp = character.HumanoidRootPart
+        local head = character:FindFirstChild("Head")
         local hum = character:FindFirstChildOfClass("Humanoid")
         
         highlight.Adornee = character
         highlight.Enabled = ESP_Settings.Box
         highlight.FillColor = ESP_Settings.BoxColor
 
-        headGui.Adornee = character:FindFirstChild("Head") or hrp
-        headGui.Enabled = (ESP_Settings.Names or ESP_Settings.HP)
+        billboard.Adornee = hrp
+        billboard.Enabled = (ESP_Settings.Names or ESP_Settings.HP or ESP_Settings.Distance)
         
+        local sizeOffset = (character:GetExtentsSize().Y / 2)
+        billboard.StudsOffset = Vector3.new(0, sizeOffset + 1.5, 0)
+
         nameL.Visible = ESP_Settings.Names
         nameL.Text = plr.Name
         nameL.TextColor3 = ESP_Settings.NamesColor
@@ -238,16 +235,22 @@ local function CreateESP(plr)
             hpL.TextColor3 = Color3.fromHSV(math.clamp(hum.Health/hum.MaxHealth, 0, 1) * 0.3, 1, 1)
         end
 
-        footGui.Adornee = hrp
-        footGui.Enabled = ESP_Settings.Distance
+        distL.Visible = ESP_Settings.Distance
         distL.TextColor3 = ESP_Settings.DistanceColor
+        distL.Position = UDim2.new(0, 0, 0, (sizeOffset * 10) + 40)
+        distL.Position = UDim2.new(0, 0, 0, 60) 
+        
+        local charDist = 0
         if localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            local d = (localPlayer.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
-            distL.Text = math.floor(d) .. " studs"
+            charDist = (localPlayer.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+            distL.Text = math.floor(charDist) .. " studs"
         end
+        
+        billboard.Size = UDim2.new(0, 200, 0, 70)
+        distL.Position = UDim2.new(0, 0, 0, 100)
 
         if ESP_Settings.Lines and ESP_Settings.Box then
-            local bottomPos = hrp.Position - Vector3.new(0, 3, 0)
+            local bottomPos = hrp.Position - Vector3.new(0, sizeOffset, 0)
             local pos, onScreen = camera:WorldToViewportPoint(bottomPos)
             if onScreen then
                 lineFrame.Visible = true
