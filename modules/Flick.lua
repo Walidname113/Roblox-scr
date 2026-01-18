@@ -44,61 +44,79 @@ local PresetColors = {
     {n = "Orange", c = Color3.fromRGB(255, 120, 0)}
 }
 
-local function AddColorPicker(parent, defaultValue, callback)
+local function AddColorPicker(container, defaultValue, callback)
+    local label = container:FindFirstChildOfClass("TextLabel")
+    if label then
+        label.Size = UDim2.new(1, -110, 1, 0)
+    end
+
     local colorBtn = Instance.new("TextButton")
     colorBtn.Size = UDim2.new(0, 24, 0, 24)
-    colorBtn.Position = UDim2.new(1, -75, 0.5, -12)
+    colorBtn.Position = UDim2.new(1, -85, 0.5, -12)
     colorBtn.BackgroundColor3 = defaultValue
     colorBtn.Text = ""
     colorBtn.BorderSizePixel = 1
     colorBtn.BorderColor3 = Color3.fromRGB(255,255,255)
+    colorBtn.ZIndex = 10
     Instance.new("UICorner", colorBtn).CornerRadius = UDim.new(0, 4)
-    colorBtn.Parent = parent
+    colorBtn.Parent = container
 
     local menu = Instance.new("ScrollingFrame")
     menu.Size = UDim2.new(0, 100, 0, 150)
-    menu.Position = UDim2.new(1, 10, 0, 0)
+    menu.Position = UDim2.new(1, 10, 0, -50)
     menu.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     menu.Visible = false
     menu.ZIndex = 5000
-    menu.CanvasSize = UDim2.new(0, 0, 0, #PresetColors * 30 + 30)
+    menu.CanvasSize = UDim2.new(0, 0, 0, #PresetColors * 30 + 35)
     menu.ScrollBarThickness = 4
+    menu.Active = true
     Instance.new("UICorner", menu)
     menu.Parent = colorBtn
 
     local close = Instance.new("TextButton", menu)
-    close.Size = UDim2.new(0, 20, 0, 20)
-    close.Position = UDim2.new(1, -25, 0, 5)
+    close.Size = UDim2.new(0, 25, 0, 25)
+    close.Position = UDim2.new(1, -25, 0, 0)
     close.Text = "×"
-    close.TextColor3 = Color3.new(1,0,0)
-    close.BackgroundTransparency = 1
+    close.TextColor3 = Color3.new(1, 1, 1)
+    close.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
     close.TextSize = 20
-    close.ZIndex = 5001
+    close.ZIndex = 5002
+    Instance.new("UICorner", close)
 
     local layout = Instance.new("UIListLayout", menu)
-    layout.Padding = UDim.new(0, 2)
+    layout.Padding = UDim.new(0, 5)
     layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    local headerSpacer = Instance.new("Frame", menu)
+    headerSpacer.Size = UDim2.new(1, 0, 0, 25)
+    headerSpacer.BackgroundTransparency = 1
+    headerSpacer.LayoutOrder = -1
 
     local isScrolling = false
-    menu.CanvasPosition = Vector2.new(0,0)
     menu:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
         isScrolling = true
-        task.delay(0.1, function() isScrolling = false end)
     end)
 
-    for _, data in ipairs(PresetColors) do
+    for i, data in ipairs(PresetColors) do
         local btn = Instance.new("TextButton", menu)
         btn.Size = UDim2.new(0, 80, 0, 25)
         btn.BackgroundColor3 = data.c
         btn.Text = ""
         btn.ZIndex = 5001
+        btn.LayoutOrder = i
         Instance.new("UICorner", btn)
         
-        btn.MouseButton1Click:Connect(function()
-            if isScrolling then return end
-            colorBtn.BackgroundColor3 = data.c
-            menu.Visible = false
-            callback(data.c)
+        btn.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                if isScrolling then 
+                    isScrolling = false 
+                    return 
+                end
+                colorBtn.BackgroundColor3 = data.c
+                menu.Visible = false
+                callback(data.c)
+            end
         end)
     end
 
@@ -127,86 +145,77 @@ ui.CreateToggle("HP ESP", espCategory, function(state)
 end)
 
 local function CreateESP(plr)
-    local drawing = {}
-    
-    drawing.Box = Instance.new("Frame")
-    drawing.Box.BackgroundTransparency = 0.6
-    drawing.Box.BorderSizePixel = 1
-    drawing.Box.Visible = false
-    
-    drawing.NameTag = Instance.new("TextLabel")
-    drawing.NameTag.BackgroundTransparency = 1
-    drawing.NameTag.Font = Enum.Font.SourceSansBold
-    drawing.NameTag.TextSize = 16
-    drawing.NameTag.Visible = false
-    local stroke = Instance.new("UIStroke", drawing.NameTag)
-    stroke.Color = Color3.new(1,1,1)
-    stroke.Thickness = 1
-    
-    drawing.HPText = Instance.new("TextLabel")
-    drawing.HPText.BackgroundTransparency = 1
-    drawing.HPText.TextColor3 = Color3.fromRGB(0, 255, 0)
-    drawing.HPText.Font = Enum.Font.SourceSansBold
-    drawing.HPText.TextSize = 14
-    drawing.HPText.Visible = false
+    local highlight = Instance.new("Highlight")
+    highlight.Enabled = false
+    highlight.FillTransparency = 0.5
+    highlight.OutlineTransparency = 0
+    highlight.OutlineColor = Color3.new(1,1,1)
+    highlight.Name = "ESP_Highlight"
 
-    local screenGui = ui.ScreenGui
-    drawing.Box.Parent = screenGui
-    drawing.NameTag.Parent = screenGui
-    drawing.HPText.Parent = screenGui
+    local nameTag = Instance.new("BillboardGui")
+    nameTag.Size = UDim2.new(0, 200, 0, 50)
+    nameTag.AlwaysOnTop = true
+    nameTag.Enabled = false
+    
+    local nameLabel = Instance.new("TextLabel", nameTag)
+    nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    nameLabel.Position = UDim2.new(0, 0, 0, 0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Font = Enum.Font.SourceSansBold
+    nameLabel.TextSize = 18
+    local nameStroke = Instance.new("UIStroke", nameLabel)
+    nameStroke.Color = Color3.new(1, 1, 1)
+    nameStroke.Thickness = 1
 
-    local updater
-    updater = RunService.RenderStepped:Connect(function()
-        if not plr or not plr.Parent or not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then
-            drawing.Box.Visible = false
-            drawing.NameTag.Visible = false
-            drawing.HPText.Visible = false
-            if not plr or not plr.Parent then updater:Disconnect() end
+    local hpLabel = Instance.new("TextLabel", nameTag)
+    hpLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    hpLabel.Position = UDim2.new(0, 0, -0.4, 0)
+    hpLabel.BackgroundTransparency = 1
+    hpLabel.Font = Enum.Font.SourceSansBold
+    hpLabel.TextSize = 16
+    hpLabel.TextColor3 = Color3.new(0, 1, 0)
+    local hpStroke = Instance.new("UIStroke", hpLabel)
+    hpStroke.Color = Color3.new(1, 1, 1)
+    hpStroke.Thickness = 1
+
+    local function updateElements()
+        if not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then 
+            highlight.Enabled = false
+            nameTag.Enabled = false
+            return 
+        end
+        
+        local char = plr.Character
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        
+        highlight.Parent = char
+        highlight.Enabled = ESP_Settings.Box
+        highlight.FillColor = ESP_Settings.BoxColor
+
+        nameTag.Parent = char:FindFirstChild("Head") or char.HumanoidRootPart
+        nameTag.Adornee = char:FindFirstChild("Head") or char.HumanoidRootPart
+        nameTag.StudsOffset = Vector3.new(0, 2.5, 0)
+        nameTag.Enabled = (ESP_Settings.Names or ESP_Settings.HP)
+
+        nameLabel.Visible = ESP_Settings.Names
+        nameLabel.Text = plr.Name
+        nameLabel.TextColor3 = ESP_Settings.NamesColor
+
+        if hum then
+            hpLabel.Visible = ESP_Settings.HP
+            hpLabel.Text = "HP: " .. math.floor(hum.Health)
+        else
+            hpLabel.Visible = false
+        end
+    end
+
+    local conn = RunService.RenderStepped:Connect(function()
+        if not plr or not plr.Parent then
+            highlight:Destroy()
+            nameTag:Destroy()
             return
         end
-
-        local char = plr.Character
-        local hrp = char.HumanoidRootPart
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        local pos, onScreen = camera:WorldToViewportPoint(hrp.Position)
-
-        if onScreen then
-            local sizeX = 2000 / pos.Z
-            local sizeY = 3500 / pos.Z
-            
-            if ESP_Settings.Box then
-                drawing.Box.Visible = true
-                drawing.Box.Size = UDim2.new(0, sizeX, 0, sizeY)
-                drawing.Box.Position = UDim2.new(0, pos.X - sizeX/2, 0, pos.Y - sizeY/2)
-                drawing.Box.BackgroundColor3 = ESP_Settings.BoxColor
-                drawing.Box.BorderColor3 = Color3.new(1,1,1)
-            else
-                drawing.Box.Visible = false
-            end
-
-            if ESP_Settings.Names then
-                drawing.NameTag.Visible = true
-                drawing.NameTag.Text = plr.Name
-                drawing.NameTag.TextColor3 = ESP_Settings.NamesColor
-                drawing.NameTag.Position = UDim2.new(0, pos.X - 50, 0, pos.Y - (sizeY/2) - 25)
-                drawing.NameTag.Size = UDim2.new(0, 100, 0, 20)
-            else
-                drawing.NameTag.Visible = false
-            end
-        
-            if ESP_Settings.HP and hum then
-                drawing.HPText.Visible = true
-                drawing.HPText.Text = "HP: " .. math.floor(hum.Health)
-                drawing.HPText.Position = UDim2.new(0, pos.X - 50, 0, pos.Y - (sizeY/2) - 40)
-                drawing.HPText.Size = UDim2.new(0, 100, 0, 20)
-            else
-                drawing.HPText.Visible = false
-            end
-        else
-            drawing.Box.Visible = false
-            drawing.NameTag.Visible = false
-            drawing.HPText.Visible = false
-        end
+        updateElements()
     end)
 end
 
