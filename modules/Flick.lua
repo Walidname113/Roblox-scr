@@ -18,11 +18,12 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.1 Public.")
+local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.2 Public.")
 ui.SetMinimizedImage("97837481633367")
 
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local localPlayer = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
@@ -45,24 +46,17 @@ local PresetColors = {
     {n = "Yellow", c = Color3.fromRGB(255, 255, 0)},
     {n = "Purple", c = Color3.fromRGB(170, 0, 255)},
     {n = "White", c = Color3.fromRGB(255, 255, 255)},
-    {n = "Orange", c = Color3.fromRGB(255, 120, 0)},
     {n = "Cyan", c = Color3.fromRGB(0, 255, 255)}
 }
 
--- Функция предупреждения
 local function ShowWarning(text)
-    local screenGui = ui.ScreenGui
     local warnFrame = Instance.new("Frame")
     warnFrame.Size = UDim2.new(0, 300, 0, 150)
     warnFrame.Position = UDim2.new(0.5, -150, 0.5, -75)
     warnFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    warnFrame.BorderSizePixel = 0
-    warnFrame.ZIndex = 10000
+    warnFrame.ZIndex = 11000
     Instance.new("UICorner", warnFrame)
-    
-    local stroke = Instance.new("UIStroke", warnFrame)
-    stroke.Color = Color3.fromRGB(255, 0, 0)
-    stroke.Thickness = 2
+    Instance.new("UIStroke", warnFrame).Color = Color3.fromRGB(255, 0, 0)
 
     local msg = Instance.new("TextLabel", warnFrame)
     msg.Size = UDim2.new(1, -20, 0, 80)
@@ -76,137 +70,106 @@ local function ShowWarning(text)
 
     local btn = Instance.new("TextButton", warnFrame)
     btn.Size = UDim2.new(0, 120, 0, 35)
-    btn.Position = UDim2.new(0.5, -60, 0.75, 0)
+    btn.Position = UDim2.new(0.5, -60, 0.7, 0)
     btn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
     btn.Text = "Understood"
     btn.TextColor3 = Color3.new(1,1,1)
-    btn.Font = Enum.Font.GothamBold
     Instance.new("UICorner", btn)
 
-    warnFrame.Parent = screenGui
+    warnFrame.Parent = ui.ScreenGui
     btn.MouseButton1Click:Connect(function() warnFrame:Destroy() end)
 end
 
--- Исправленный выбор цвета (вынесен за пределы кнопок)
-local function AddColorPicker(container, defaultValue, callback)
-    local label = container:FindFirstChildOfClass("TextLabel")
-    if label then label.Size = UDim2.new(1, -120, 1, 0) end
+local function ForceDisableToggle(container)
+    local switch = container:FindFirstChild("switch") or container:FindFirstChildWhichIsA("Frame")
+    if switch then
+        local knob = switch:FindFirstChildWhichIsA("Frame")
+        TweenService:Create(switch, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(70, 70, 70)}):Play()
+        if knob then
+            TweenService:Create(knob, TweenInfo.new(0.3), {Position = UDim2.new(0, 1, 0.5, -9)}):Play()
+        end
+    end
+end
 
+local function AddColorPicker(container, defaultValue, callback)
     local colorBtn = Instance.new("TextButton")
     colorBtn.Size = UDim2.new(0, 24, 0, 24)
     colorBtn.Position = UDim2.new(1, -85, 0.5, -12)
     colorBtn.BackgroundColor3 = defaultValue
     colorBtn.Text = ""
-    colorBtn.BorderSizePixel = 1
-    colorBtn.BorderColor3 = Color3.fromRGB(255,255,255)
     Instance.new("UICorner", colorBtn).CornerRadius = UDim.new(0, 4)
+    Instance.new("UIStroke", colorBtn).Color = Color3.new(1,1,1)
     colorBtn.Parent = container
 
     local menu = Instance.new("ScrollingFrame")
     menu.Size = UDim2.new(0, 110, 0, 180)
-    -- Позиционирование меню ПРАВЕЕ основного окна GUI
-    menu.Position = UDim2.new(1, 190, 0, 0) 
     menu.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
     menu.Visible = false
-    menu.ZIndex = 5000
-    menu.CanvasSize = UDim2.new(0, 0, 0, #PresetColors * 32 + 40)
+    menu.ZIndex = 12000
+    menu.CanvasSize = UDim2.new(0, 0, 0, #PresetColors * 32 + 10)
     menu.ScrollBarThickness = 4
     Instance.new("UICorner", menu)
-    menu.Parent = ui.MainFrame -- Привязка к главному фрейму для фиксации положения
-
-    local close = Instance.new("TextButton", menu)
-    close.Size = UDim2.new(0, 20, 0, 20)
-    close.Position = UDim2.new(1, -25, 0, 5)
-    close.Text = "×"
-    close.TextColor3 = Color3.new(1,1,1)
-    close.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-    close.ZIndex = 5001
-    Instance.new("UICorner", close)
+    menu.Parent = ui.ScreenGui
 
     local layout = Instance.new("UIListLayout", menu)
     layout.Padding = UDim.new(0, 5)
     layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
 
-    local topSpacer = Instance.new("Frame", menu)
-    topSpacer.Size = UDim2.new(1,0,0,30)
-    topSpacer.BackgroundTransparency = 1
-    topSpacer.LayoutOrder = 0
-
-    local isScrolling = false
-    menu:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
-        isScrolling = true
-        task.delay(0.1, function() isScrolling = false end)
-    end)
-
-    for i, data in ipairs(PresetColors) do
+    for _, data in ipairs(PresetColors) do
         local btn = Instance.new("TextButton", menu)
         btn.Size = UDim2.new(0, 90, 0, 25)
         btn.BackgroundColor3 = data.c
         btn.Text = ""
-        btn.ZIndex = 5001
-        btn.LayoutOrder = i
         Instance.new("UICorner", btn)
-        
         btn.MouseButton1Click:Connect(function()
-            if not isScrolling then
-                colorBtn.BackgroundColor3 = data.c
-                menu.Visible = false
-                callback(data.c)
-            end
+            colorBtn.BackgroundColor3 = data.c
+            menu.Visible = false
+            callback(data.c)
         end)
     end
 
-    colorBtn.MouseButton1Click:Connect(function() menu.Visible = not menu.Visible end)
-    close.MouseButton1Click:Connect(function() menu.Visible = false end)
+    colorBtn.MouseButton1Click:Connect(function()
+        menu.Position = UDim2.new(0, colorBtn.AbsolutePosition.X + 35, 0, colorBtn.AbsolutePosition.Y)
+        menu.Visible = not menu.Visible
+    end)
 end
 
 local espCategory = ui.CreateCategory("ESP Settings")
 
--- Элементы управления
-local boxT = ui.CreateToggle("Box ESP", espCategory, function(state)
-    ESP_Settings.Box = state
-end)
+local boxT = ui.CreateToggle("Box ESP", espCategory, function(state) ESP_Settings.Box = state end)
 AddColorPicker(boxT, ESP_Settings.BoxColor, function(c) ESP_Settings.BoxColor = c end)
 
-local nameT = ui.CreateToggle("Names ESP", espCategory, function(state)
-    ESP_Settings.Names = state
-end)
+local nameT = ui.CreateToggle("Names ESP", espCategory, function(state) ESP_Settings.Names = state end)
 AddColorPicker(nameT, ESP_Settings.NamesColor, function(c) ESP_Settings.NamesColor = c end)
 
-ui.CreateToggle("HP ESP", espCategory, function(state)
-    ESP_Settings.HP = state
-end)
+local hpT = ui.CreateToggle("HP ESP", espCategory, function(state) ESP_Settings.HP = state end)
 
 local lineT = ui.CreateToggle("Line ESP", espCategory, function(state)
     if state and not ESP_Settings.Box then
-        ShowWarning("You must enable 'Box ESP' first to use 'Line ESP'!")
-        -- Здесь логика переключения тоггла обратно должна быть в модуле, 
-        -- но мы принудительно выключаем тех. часть:
+        ShowWarning("Enable 'Box ESP' first!")
         ESP_Settings.Lines = false
+        ForceDisableToggle(lineT)
         return
     end
     ESP_Settings.Lines = state
 end)
 AddColorPicker(lineT, ESP_Settings.LinesColor, function(c) ESP_Settings.LinesColor = c end)
 
-local distT = ui.CreateToggle("Distance ESP", espCategory, function(state)
-    ESP_Settings.Distance = state
-end)
+local distT = ui.CreateToggle("Distance ESP", espCategory, function(state) ESP_Settings.Distance = state end)
 AddColorPicker(distT, ESP_Settings.DistanceColor, function(c) ESP_Settings.DistanceColor = c end)
 
--- Логика отрисовки
 local function CreateESP(plr)
     local highlight = Instance.new("Highlight")
     highlight.Enabled = false
     highlight.FillTransparency = 0.5
     highlight.OutlineTransparency = 0
-    highlight.Name = "ESP_H"
+    highlight.Parent = game:GetService("CoreGui")
 
     local billboard = Instance.new("BillboardGui")
     billboard.Size = UDim2.new(0, 200, 0, 100)
     billboard.AlwaysOnTop = true
     billboard.Enabled = false
+    billboard.Parent = ui.ScreenGui
 
     local nameL = Instance.new("TextLabel", billboard)
     nameL.Size = UDim2.new(1, 0, 0.3, 0)
@@ -217,15 +180,15 @@ local function CreateESP(plr)
 
     local hpL = Instance.new("TextLabel", billboard)
     hpL.Size = UDim2.new(1, 0, 0.3, 0)
-    hpL.Position = UDim2.new(0,0,-0.3,0)
+    hpL.Position = UDim2.new(0, 0, -0.3, 0)
     hpL.BackgroundTransparency = 1
-    hpL.TextColor3 = Color3.new(0,1,0)
     hpL.Font = Enum.Font.SourceSansBold
+    hpL.TextSize = 16
     Instance.new("UIStroke", hpL).Color = Color3.new(1,1,1)
 
     local distL = Instance.new("TextLabel", billboard)
     distL.Size = UDim2.new(1, 0, 0.3, 0)
-    distL.Position = UDim2.new(0,0,0.8,0) -- Под ногами/снизу
+    distL.Position = UDim2.new(0, 0, 0.8, 0)
     distL.BackgroundTransparency = 1
     distL.Font = Enum.Font.SourceSansBold
     Instance.new("UIStroke", distL).Color = Color3.new(1,1,1)
@@ -247,13 +210,10 @@ local function CreateESP(plr)
         local hrp = char.HumanoidRootPart
         local hum = char:FindFirstChildOfClass("Humanoid")
         
-        -- Box/Highlight
-        highlight.Parent = char
+        highlight.Adornee = char
         highlight.Enabled = ESP_Settings.Box
         highlight.FillColor = ESP_Settings.BoxColor
 
-        -- Billboard (Names, HP, Distance)
-        billboard.Parent = char:FindFirstChild("Head") or hrp
         billboard.Adornee = char:FindFirstChild("Head") or hrp
         billboard.Enabled = true
         
@@ -262,25 +222,29 @@ local function CreateESP(plr)
         nameL.TextColor3 = ESP_Settings.NamesColor
 
         hpL.Visible = ESP_Settings.HP
-        hpL.Text = hum and "HP: "..math.floor(hum.Health) or ""
+        if hum then
+            hpL.Text = "HP: " .. math.floor(hum.Health)
+            hpL.TextColor3 = Color3.fromHSV(math.clamp(hum.Health/hum.MaxHealth, 0, 1) * 0.3, 1, 1)
+        end
 
         distL.Visible = ESP_Settings.Distance
         distL.TextColor3 = ESP_Settings.DistanceColor
-        local dist = (localPlayer.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
-        distL.Text = math.floor(dist).." studs"
+        if localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local d = (localPlayer.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+            distL.Text = math.floor(d) .. " studs"
+        end
 
-        -- Line ESP
         if ESP_Settings.Lines and ESP_Settings.Box then
-            local pos, onScreen = camera:WorldToViewportPoint(hrp.Position)
+            local footPos = hrp.Position - Vector3.new(0, 3, 0)
+            local pos, onScreen = camera:WorldToViewportPoint(footPos)
             if onScreen then
                 lineFrame.Visible = true
                 local startPos = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
                 local endPos = Vector2.new(pos.X, pos.Y)
-                local distance = (endPos - startPos).Magnitude
-                
-                lineFrame.Size = UDim2.new(0, distance, 0, 1)
+                local diff = endPos - startPos
+                lineFrame.Size = UDim2.new(0, diff.Magnitude, 0, 1)
                 lineFrame.Position = UDim2.new(0, (startPos.X + endPos.X) / 2, 0, (startPos.Y + endPos.Y) / 2)
-                lineFrame.Rotation = math.deg(math.atan2(endPos.Y - startPos.Y, endPos.X - startPos.X))
+                lineFrame.Rotation = math.deg(math.atan2(diff.Y, diff.X))
                 lineFrame.BackgroundColor3 = ESP_Settings.LinesColor
             else
                 lineFrame.Visible = false
