@@ -12,7 +12,7 @@ local moduleFunc = loadstring(source)
 if not moduleFunc then return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.0.1 Public.")
+local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.0.2 Public.")
 ui.SetMinimizedImage("130805202254686")
 
 local Players = game:GetService("Players")
@@ -39,37 +39,54 @@ local function cleanupPlayerEffects(player)
 end
 
 local function create966Billboard(player, character)
-	local head = character:WaitForChild("Head", 5)
-	if not head or billboards[player] then return end
+	local hrp = character:WaitForChild("HumanoidRootPart", 5)
+	if not hrp or billboards[player] then return end
 
 	local color = getSCPColor()
 	local gui = Instance.new("BillboardGui")
+	gui.Name = "SCP966ESP"
 	gui.Size = UDim2.new(4, 0, 6, 0)
 	gui.AlwaysOnTop = true
+	gui.LightInfluence = 0
 	gui.MaxDistance = 2000
-	gui.Parent = head
+	gui.Parent = hrp
 
 	local container = Instance.new("Frame", gui)
 	container.Size = UDim2.new(1, 0, 1, 0)
 	container.BackgroundTransparency = 1
 	container.BorderSizePixel = 0
 
-	local function drawPart(rx, ry, rw, rh, isLine)
-		local f = Instance.new("Frame", container)
-		f.AnchorPoint = Vector2.new(0.5, 0.5)
-		f.Position = UDim2.new(rx, 0, ry, 0)
-		f.Size = UDim2.new(rw, 0, rh, 0)
-		f.BackgroundColor3 = isLine and Color3.new(0,0,0) or color
-		f.BackgroundTransparency = isLine and 0.1 or 0.2
-		f.BorderSizePixel = 0
+	local function mkPart(name, u1, u2, u3, u4)
+		local p = Instance.new("Frame")
+		p.Name = name
+		p.BackgroundColor3 = color
+		p.BorderSizePixel = 0
+		p.BackgroundTransparency = 0.25
+		p.Size = UDim2.fromScale(u1, u2)
+		p.Position = UDim2.fromScale(u3, u4)
+		p.Parent = container
 	end
 
-	drawPart(0.5, 0.15, 0.25, 0.20, false)
-	drawPart(0.5, 0.45, 0.35, 0.40, false)
-	drawPart(0.15, 0.45, 0.15, 0.35, false)
-	drawPart(0.85, 0.45, 0.15, 0.35, false)
-	drawPart(0.40, 0.80, 0.20, 0.35, false)
-	drawPart(0.60, 0.80, 0.20, 0.35, false)
+	mkPart("Torso", 0.35, 0.50, 0.325, 0.25)
+	mkPart("Head", 0.25, 0.20, 0.375, 0.05)
+	mkPart("RightArm", 0.15, 0.45, 0.175, 0.275)
+	mkPart("LeftArm", 0.15, 0.45, 0.675, 0.275)
+	mkPart("RightLeg", 0.15, 0.50, 0.35, 0.55)
+	mkPart("LeftLeg", 0.15, 0.50, 0.50, 0.55)
+
+	local function line(x, y, w, h)
+		local l = Instance.new("Frame")
+		l.BackgroundColor3 = color
+		l.BorderSizePixel = 0
+		l.BackgroundTransparency = 0.10
+		l.Size = UDim2.fromScale(w, h)
+		l.Position = UDim2.fromScale(x, y)
+		l.Parent = container
+	end
+
+	line(0.325, 0.22, 0.35, 0.03)
+	line(0.35, 0.50, 0.30, 0.03)
+	line(0.425, 0.55, 0.05, 0.50)
 
 	billboards[player] = gui
 end
