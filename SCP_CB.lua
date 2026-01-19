@@ -12,7 +12,7 @@ local moduleFunc = loadstring(source)
 if not moduleFunc then return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.0.0 Public.")
+local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.0.1 Public.")
 ui.SetMinimizedImage("130805202254686")
 
 local Players = game:GetService("Players")
@@ -26,6 +26,7 @@ local UPDATE_INTERVAL = 0.2
 local highlights = {}
 local billboards = {}
 local teamSettings = {}
+local espAllEnabled = false
 
 local function getSCPColor()
 	local scp = Teams:FindFirstChild("SCP")
@@ -104,24 +105,20 @@ end
 
 local espCategory = ui.CreateCategory("ESP")
 
+ui.CreateToggle("ESP All (No Lobby)", espCategory, function(state)
+    espAllEnabled = state
+end)
+
 local targetTeams = {
-    "Serpents Hand", "Security Department", "Mobile Task Forces", 
+    "Chaos Insurgency", "Serpents Hand", "Security Department", "Mobile Task Forces", 
     "SCP", "Foundation Personnel", "Global Occult Coalition", 
     "Class-D", "FFA"
 }
 
 for _, teamName in ipairs(targetTeams) do
     teamSettings[teamName] = false
-    ui.CreateToggle("ESP [" .. teamName .. "] Team", espCategory, function(state)
+    ui.CreateToggle("ESP " .. teamName .. " Team", espCategory, function(state)
         teamSettings[teamName] = state
-        if not state then
-            for _, plr in ipairs(Players:GetPlayers()) do
-                if plr.Team and plr.Team.Name == teamName then
-                    if highlights[plr] then highlights[plr].Enabled = false end
-                    if billboards[plr] then billboards[plr].Enabled = false end
-                end
-            end
-        end
     end)
 end
 
@@ -155,7 +152,7 @@ task.spawn(function()
 		
 		for player, highlight in pairs(highlights) do
             local tName = player.Team and player.Team.Name or ""
-            local isEnabled = teamSettings[tName] or false
+            local isEnabled = (espAllEnabled or teamSettings[tName]) and tName ~= "Lobby"
 			local char = player.Character
 			local root = char and char:FindFirstChild("HumanoidRootPart")
 			if isEnabled and myRoot and root then
@@ -167,7 +164,7 @@ task.spawn(function()
 
 		for player, billboard in pairs(billboards) do
             local tName = player.Team and player.Team.Name or ""
-            local isEnabled = teamSettings[tName] or false
+            local isEnabled = (espAllEnabled or teamSettings[tName]) and tName ~= "Lobby"
 			local char = player.Character
 			local root = char and char:FindFirstChild("HumanoidRootPart")
 			if isEnabled and myRoot and root then
