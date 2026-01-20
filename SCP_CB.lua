@@ -12,7 +12,7 @@ local moduleFunc = loadstring(source)
 if not moduleFunc then return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.0.7 Public.")
+local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.0.8 Public.")
 ui.SetMinimizedImage("130805202254686")
 
 local Players = game:GetService("Players")
@@ -196,7 +196,7 @@ distanceInput.TextColor3 = Color3.new(1, 1, 1)
 distanceInput.Font = Enum.Font.SourceSans
 distanceInput.TextSize = 16
 distanceInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-Instance.new("UICorner", distanceInput).CornerRadius = BoxBlur
+Instance.new("UICorner", distanceInput).CornerRadius = UDim.new(0, 6)
 distanceInput.Parent = aimbotContainer
 
 distanceInput.FocusLost:Connect(function()
@@ -213,7 +213,7 @@ angleInput.TextColor3 = Color3.new(1, 1, 1)
 angleInput.Font = Enum.Font.SourceSans
 angleInput.TextSize = 16
 angleInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-Instance.new("UICorner", angleInput)
+Instance.new("UICorner", angleInput).CornerRadius = UDim.new(0, 6)
 angleInput.Parent = aimbotContainer
 
 angleInput.FocusLost:Connect(function()
