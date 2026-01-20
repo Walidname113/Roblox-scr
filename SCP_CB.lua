@@ -23,7 +23,7 @@ local UserInputService = game:GetService("UserInputService")
 local localPlayer = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 local MAX_DISTANCE = 1200
-local UPDATE_INTERVAL = 0.1
+local UPDATE_INTERVAL = 0.2
 
 local highlights = {}
 local billboards = {}
@@ -32,12 +32,12 @@ local teamSettings = {}
 local espAllEnabled = false
 local hpEspEnabled = false
 
--- Aimbot Vars
+-- Aimbot Variables
 local aimbotEnabled = false
 local aimWallCheck = false
 local aimTeamCheck = false
 local aimDegreeProcess = false
-local aimDegreeValue = 10
+local aimDegreeValue = 10 
 
 local function getHealthColor(perc)
 	if perc >= 70 then
@@ -52,13 +52,13 @@ local function getHealthColor(perc)
 end
 
 local function isVisible(part)
-	local origin = camera.CFrame.Position
-	local direction = part.Position - origin
-	local rayParams = RaycastParams.new()
-	rayParams.FilterDescendantsInstances = {localPlayer.Character, camera}
-	rayParams.FilterType = Enum.RaycastFilterType.Exclude
-	local result = workspace:Raycast(origin, direction, rayParams)
-	return not result or result.Instance:IsDescendantOf(part.Parent)
+    local origin = camera.CFrame.Position
+    local direction = part.Position - origin
+    local rayParams = RaycastParams.new()
+    rayParams.FilterDescendantsInstances = {localPlayer.Character, camera}
+    rayParams.FilterType = Enum.RaycastFilterType.Exclude
+    local result = workspace:Raycast(origin, direction, rayParams)
+    return not result or result.Instance:IsDescendantOf(part.Parent)
 end
 
 local function cleanupPlayerEffects(player)
@@ -68,7 +68,7 @@ local function cleanupPlayerEffects(player)
 end
 
 local function createHealthESP(player, character)
-	local head = character:WaitForChild("Head", 10) -- Агрессивное ожидание
+	local head = character:WaitForChild("Head", 10)
     local hum = character:WaitForChild("Humanoid", 10)
 	if not head or not hum or healthGuis[player] then return end
 
@@ -166,24 +166,29 @@ local function setupVisuals(player)
 	local character = player.Character
 	if not character then return end
 	
-	createHealthESP(player, character)
-	local role = player:GetAttribute("Role")
-	if role == "SCP-966" then
-		create966Billboard(player, character)
-	else
-		createHighlight(player, character)
-	end
+    task.spawn(function()
+	    createHealthESP(player, character)
+	    local role = player:GetAttribute("Role")
+	    if role == "SCP-966" then
+		    create966Billboard(player, character)
+	    else
+		    createHighlight(player, character)
+	    end
+    end)
 end
 
--- UI Setup
+-- UI
 local mainCategory = ui.CreateCategory("Main")
 ui.CreateToggle("Aimbot", mainCategory, function(state) aimbotEnabled = state end)
-ui.CreateToggle("  > Wall Check", mainCategory, function(state) aimWallCheck = state end)
-ui.CreateToggle("  > Team Check", mainCategory, function(state) aimTeamCheck = state end)
-ui.CreateToggle("  > Degree Process", mainCategory, function(state) aimDegreeProcess = state end)
-ui.CreateTextBox("Degree Value", mainCategory, "10", function(val)
-    local n = tonumber(val)
-    if n then aimDegreeValue = n end
+ui.CreateToggle("  > Wall check", mainCategory, function(state) aimWallCheck = state end)
+ui.CreateToggle("  > Team check", mainCategory, function(state) aimTeamCheck = state end)
+ui.CreateToggle("  > Degree process", mainCategory, function(state) aimDegreeProcess = state end)
+
+local degreeBtn = ui.CreateButton("Degree: 10", mainCategory, function()
+    aimDegreeValue = aimDegreeValue + 5
+    if aimDegreeValue > 100 then aimDegreeValue = 5 end
+    -- Мы не можем динамически менять текст кнопки в этой UI, но переменная обновится
+    print("Aimbot Degree set to: " .. aimDegreeValue)
 end)
 
 local espCategory = ui.CreateCategory("ESP")
@@ -198,7 +203,6 @@ end
 
 ui.OpenFirstCategory()
 
--- Player Logic
 local function onPlayerAdded(player)
 	player.CharacterAdded:Connect(function()
 		task.wait(0.5)
@@ -239,11 +243,13 @@ RunService.RenderStepped:Connect(function()
         local mag = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
         
         if aimDegreeProcess then
-            if mag <= (aimDegreeValue * 10) and mag < dist then
+            -- Проверка по градусам (fov)
+            if mag <= (aimDegreeValue * 8) and mag < dist then
                 dist = mag
                 target = hrp
             end
         else
+            -- Обычный выбор ближайшего
             local worldDist = (camera.CFrame.Position - hrp.Position).Magnitude
             if worldDist < dist then
                 dist = worldDist
@@ -257,16 +263,15 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Visual Update Loop
 task.spawn(function()
 	while true do
 		local myChar = localPlayer.Character
 		local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
 		
-        -- Глобальная проверка игроков (чтобы никто не пропустился)
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= localPlayer and player.Character then
-                if not healthGuis[player] then createHealthESP(player, player.Character) end
+        -- Исправление прогрузки: проверяем всех игроков на наличие GUI
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= localPlayer and p.Character and not healthGuis[p] then
+                setupVisuals(p)
             end
         end
 
@@ -277,8 +282,8 @@ task.spawn(function()
 			local tName = player.Team and player.Team.Name or ""
 			
 			if hpEspEnabled and tName ~= "Lobby" and myRoot and root and hum then
-				local d = (myRoot.Position - root.Position).Magnitude
-				if d <= MAX_DISTANCE then
+				local dist = (myRoot.Position - root.Position).Magnitude
+				if dist <= MAX_DISTANCE then
 					local perc = math.clamp(math.floor((hum.Health / hum.MaxHealth) * 100), 0, 100)
 					local label = gui:FindFirstChildWhichIsA("TextLabel")
 					if label then
