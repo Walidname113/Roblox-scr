@@ -39,6 +39,28 @@ local currentTarget = nil
 local studs = 100
 local switchAngle = 10
 
+local teamRelations = {
+    ["Class-D"] = {["Class-D"] = true, ["Chaos Insurgency"] = true},
+    ["Foundation Personnel"] = {["Foundation Personnel"] = true, ["Security Department"] = true, ["Mobile Task Forces"] = true},
+    ["Security Department"] = {["Foundation Personnel"] = true, ["Security Department"] = true, ["Mobile Task Forces"] = true},
+    ["Mobile Task Forces"] = {["Foundation Personnel"] = true, ["Security Department"] = true, ["Mobile Task Forces"] = true},
+    ["Chaos Insurgency"] = {["Class-D"] = true, ["Chaos Insurgency"] = true},
+    ["Global Occult Coalition"] = {["Global Occult Coalition"] = true},
+    ["Serpents Hand"] = {["Serpents Hand"] = true, ["SCP"] = true},
+    ["SCP"] = {["Serpents Hand"] = true, ["SCP"] = true}
+}
+
+local function isAlly(player)
+    if not localPlayer.Team or not player.Team then return false end
+    local myTeamName = localPlayer.Team.Name
+    local targetTeamName = player.Team.Name
+    
+    if teamRelations[myTeamName] and teamRelations[myTeamName][targetTeamName] then
+        return true
+    end
+    return false
+end
+
 local function getCharacter()
     local c = localPlayer.Character
     if not c then return nil end
@@ -267,14 +289,16 @@ RunService.RenderStepped:Connect(function()
     if currentTarget and (not currentTarget.Parent or not currentTarget.Parent:FindFirstChild("Humanoid") 
         or currentTarget.Parent.Humanoid.Health <= 0 
         or (currentTarget.Position - r.Position).Magnitude > studs 
-        or (aimWallCheck and not isVisible(currentTarget))) then
+        or (aimWallCheck and not isVisible(currentTarget))
+        or (aimTeamCheck and isAlly(Players:GetPlayerFromCharacter(currentTarget.Parent)))) then
         currentTarget = nil
     end
 
     local best, bestAngle = nil, math.rad(switchAngle)
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= localPlayer and plr.Character then
-            if aimTeamCheck and plr.Team == localPlayer.Team then continue end
+            -- Интегрированный Team Check на основе таблицы
+            if aimTeamCheck and isAlly(plr) then continue end
             
             local head = plr.Character:FindFirstChild("Head")
             local hum = plr.Character:FindFirstChild("Humanoid")
