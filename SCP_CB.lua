@@ -12,7 +12,7 @@ local moduleFunc = loadstring(source)
 if not moduleFunc then return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.0.3 Public.")
+local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.0.4 Public.")
 ui.SetMinimizedImage("130805202254686")
 
 local Players = game:GetService("Players")
@@ -28,6 +28,7 @@ local billboards = {}
 local healthGuis = {}
 local teamSettings = {}
 local espAllEnabled = false
+local hpEspEnabled = false
 
 local function getHealthColor(perc)
 	if perc >= 70 then
@@ -37,7 +38,7 @@ local function getHealthColor(perc)
 	elseif perc >= 1 then
 		return Color3.fromRGB(255, 80, 80):Lerp(Color3.fromRGB(139, 0, 0), (45 - perc) / 44)
 	else
-		return Color3.fromRGB(139, 0, 0):Lerp(Color3.fromRGB(0, 0, 0), 1 - perc)
+		return Color3.fromRGB(139, 0, 0):Lerp(Color3.fromRGB(0, 0, 0), 1 - (perc/1))
 	end
 end
 
@@ -67,7 +68,7 @@ local function createHealthESP(player, character)
 	label.FontFace = Font.new("rbxasset://fonts/families/PressStart2P.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
 	label.TextSize = 8
 	label.TextStrokeTransparency = 0
-	label.Text = "HP: 100%"
+	label.Text = ""
 	
 	healthGuis[player] = gui
 end
@@ -160,6 +161,10 @@ ui.CreateToggle("ESP All (No Lobby)", espCategory, function(state)
     espAllEnabled = state
 end)
 
+ui.CreateToggle("HP ESP", espCategory, function(state)
+    hpEspEnabled = state
+end)
+
 local targetTeams = {
     "Chaos Insurgency", "Serpents Hand", "Security Department", "Mobile Task Forces", 
     "SCP", "Foundation Personnel", "Global Occult Coalition", "Class-D"
@@ -201,9 +206,8 @@ task.spawn(function()
 			local hum = char and char:FindFirstChild("Humanoid")
 			local root = char and char:FindFirstChild("HumanoidRootPart")
 			local tName = player.Team and player.Team.Name or ""
-			local isEnabled = (espAllEnabled or teamSettings[tName]) and tName ~= "Lobby"
 			
-			if isEnabled and myRoot and root and hum then
+			if hpEspEnabled and tName ~= "Lobby" and myRoot and root and hum then
 				local dist = (myRoot.Position - root.Position).Magnitude
 				if dist <= MAX_DISTANCE then
 					local perc = math.clamp(math.floor((hum.Health / hum.MaxHealth) * 100), 0, 100)
