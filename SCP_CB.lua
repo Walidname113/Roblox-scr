@@ -12,7 +12,7 @@ local moduleFunc = loadstring(source)
 if not moduleFunc then return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.0.6 Public.")
+local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.0.7 Public.")
 ui.SetMinimizedImage("130805202254686")
 
 local Players = game:GetService("Players")
@@ -21,7 +21,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local localPlayer = Players.LocalPlayer
-local camera = workspace.CurrentCamera
+local cam = workspace.CurrentCamera
 local MAX_DISTANCE = 1200
 local UPDATE_INTERVAL = 0.1
 
@@ -35,8 +35,15 @@ local hpEspEnabled = false
 local aimbotEnabled = false
 local aimWallCheck = false
 local aimTeamCheck = false
-local aimDegreeProcess = false
-local aimDegreeValue = 10 
+local currentTarget = nil
+local studs = 100
+local switchAngle = 10
+
+local function getCharacter()
+    local c = localPlayer.Character
+    if not c then return nil end
+    return c, c:FindFirstChild("Humanoid"), c:FindFirstChild("HumanoidRootPart")
+end
 
 local function getHealthColor(perc)
 	if perc >= 70 then
@@ -51,10 +58,10 @@ local function getHealthColor(perc)
 end
 
 local function isVisible(part)
-    local origin = camera.CFrame.Position
+    local origin = cam.CFrame.Position
     local direction = part.Position - origin
     local rayParams = RaycastParams.new()
-    rayParams.FilterDescendantsInstances = {localPlayer.Character, camera}
+    rayParams.FilterDescendantsInstances = {localPlayer.Character, cam}
     rayParams.FilterType = Enum.RaycastFilterType.Exclude
     local result = workspace:Raycast(origin, direction, rayParams)
     return not result or result.Instance:IsDescendantOf(part.Parent)
@@ -95,10 +102,8 @@ end
 local function create966Billboard(player, character)
 	local hrp = character:WaitForChild("HumanoidRootPart", 5)
 	if not hrp or billboards[player] then return end
-
 	local scpTeam = Teams:FindFirstChild("SCP")
 	local color = scpTeam and scpTeam.TeamColor.Color or Color3.new(1, 0, 0)
-	
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "SCP966ESP"
 	gui.Size = UDim2.new(4, 0, 6, 0)
@@ -106,12 +111,10 @@ local function create966Billboard(player, character)
 	gui.LightInfluence = 0
 	gui.MaxDistance = 2000
 	gui.Parent = hrp
-
 	local container = Instance.new("Frame", gui)
 	container.Size = UDim2.new(1, 0, 1, 0)
 	container.BackgroundTransparency = 1
 	container.BorderSizePixel = 0
-
 	local function mkPart(name, u1, u2, u3, u4)
 		local p = Instance.new("Frame", container)
 		p.Name = name
@@ -121,14 +124,12 @@ local function create966Billboard(player, character)
 		p.Size = UDim2.fromScale(u1, u2)
 		p.Position = UDim2.fromScale(u3, u4)
 	end
-
 	mkPart("Torso", 0.35, 0.50, 0.325, 0.25)
 	mkPart("Head", 0.25, 0.20, 0.375, 0.05)
 	mkPart("RightArm", 0.15, 0.45, 0.175, 0.275)
 	mkPart("LeftArm", 0.15, 0.45, 0.675, 0.275)
 	mkPart("RightLeg", 0.15, 0.50, 0.35, 0.55)
 	mkPart("LeftLeg", 0.15, 0.50, 0.50, 0.55)
-
 	local function line(x, y, w, h)
 		local l = Instance.new("Frame", container)
 		l.BackgroundColor3 = color
@@ -137,11 +138,9 @@ local function create966Billboard(player, character)
 		l.Size = UDim2.fromScale(w, h)
 		l.Position = UDim2.fromScale(x, y)
 	end
-
 	line(0.325, 0.22, 0.35, 0.03)
 	line(0.35, 0.50, 0.30, 0.03)
 	line(0.425, 0.55, 0.05, 0.50)
-
 	billboards[player] = gui
 end
 
@@ -164,7 +163,6 @@ local function setupVisuals(player)
 	if player.Team and player.Team.Name == "Lobby" then return end
 	local character = player.Character
 	if not character then return end
-	
     task.spawn(function()
 	    createHealthESP(player, character)
 	    local role = player:GetAttribute("Role")
@@ -177,16 +175,54 @@ local function setupVisuals(player)
 end
 
 local mainCategory = ui.CreateCategory("Main")
-ui.CreateToggle("Aimbot", mainCategory, function(state) aimbotEnabled = state end)
-ui.CreateToggle("  > Wall check", mainCategory, function(state) aimWallCheck = state end)
-ui.CreateToggle("  > Team check", mainCategory, function(state) aimTeamCheck = state end)
-ui.CreateToggle("  > Degree process", mainCategory, function(state) aimDegreeProcess = state end)
 
-local degreeBtn = ui.CreateButton("Degree: 10", mainCategory, function()
-    aimDegreeValue = aimDegreeValue + 5
-    if aimDegreeValue > 100 then aimDegreeValue = 5 end
-    print("Aimbot Degree set to: " .. aimDegreeValue)
+local aimbotContainer = Instance.new("Frame")
+aimbotContainer.Size = UDim2.new(1, -10, 0, 40)
+aimbotContainer.BackgroundTransparency = 1
+aimbotContainer.Parent = mainCategory
+
+local aimbotToggle = uiModule.CreateToggle("Aimbot", aimbotContainer, function(state)
+    aimbotEnabled = state
+    if not state then currentTarget = nil end
 end)
+aimbotToggle.Size = UDim2.new(1, -140, 1, 0)
+
+local distanceInput = Instance.new("TextBox")
+distanceInput.Size = UDim2.new(0, 60, 0, 30)
+distanceInput.Position = UDim2.new(1, -130, 0.5, -15)
+distanceInput.Text = ""
+distanceInput.PlaceholderText = "100 studs"
+distanceInput.TextColor3 = Color3.new(1, 1, 1)
+distanceInput.Font = Enum.Font.SourceSans
+distanceInput.TextSize = 16
+distanceInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+Instance.new("UICorner", distanceInput).CornerRadius = BoxBlur
+distanceInput.Parent = aimbotContainer
+
+distanceInput.FocusLost:Connect(function()
+    local val = tonumber(distanceInput.Text)
+    if val then studs = val else studs = 100 distanceInput.Text = "" end
+end)
+
+local angleInput = Instance.new("TextBox")
+angleInput.Size = UDim2.new(0, 60, 0, 30)
+angleInput.Position = UDim2.new(1, -65, 0.5, -15)
+angleInput.Text = ""
+angleInput.PlaceholderText = "10°"
+angleInput.TextColor3 = Color3.new(1, 1, 1)
+angleInput.Font = Enum.Font.SourceSans
+angleInput.TextSize = 16
+angleInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+Instance.new("UICorner", angleInput)
+angleInput.Parent = aimbotContainer
+
+angleInput.FocusLost:Connect(function()
+    local val = tonumber(angleInput.Text)
+    if val then switchAngle = val else switchAngle = 10 angleInput.Text = "" end
+end)
+
+ui.CreateToggle("Wall check", mainCategory, function(state) aimWallCheck = state end)
+ui.CreateToggle("Team check", mainCategory, function(state) aimTeamCheck = state end)
 
 local espCategory = ui.CreateCategory("ESP")
 ui.CreateToggle("ESP All (No Lobby)", espCategory, function(state) espAllEnabled = state end)
@@ -218,50 +254,59 @@ end
 Players.PlayerRemoving:Connect(cleanupPlayerEffects)
 
 RunService.RenderStepped:Connect(function()
-    if not aimbotEnabled or not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then return end
-    
-    local target = nil
-    local dist = math.huge
-    local mousePos = UserInputService:GetMouseLocation()
+    if not aimbotEnabled then return end
 
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p == localPlayer or not p.Character then continue end
-        
-        if aimTeamCheck and p.Team == localPlayer.Team then continue end
-        
-        local head = p.Character:FindFirstChild("Head")
-        local hum = p.Character:FindFirstChild("Humanoid")
-        if not head or not hum or hum.Health <= 0 then continue end
+    local c, h, r = getCharacter()
+    if not c or not r then return end
 
-        local screenPos, onScreen = camera:WorldToViewportPoint(head.Position)
-        if not onScreen then continue end
-        
-        if aimWallCheck and not isVisible(head) then continue end
+    local camCFrame = cam and cam.CFrame
+    if not camCFrame then return end
+    local camDir = camCFrame.LookVector
+    local camPos = camCFrame.Position
 
-        local mag = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-        
-        if aimDegreeProcess then
-            if mag <= (aimDegreeValue * 8) and mag < dist then
-                dist = mag
-                target = head
-            end
-        else
-            if mag < dist then
-                dist = mag
-                target = head
+    if currentTarget and (not currentTarget.Parent or not currentTarget.Parent:FindFirstChild("Humanoid") 
+        or currentTarget.Parent.Humanoid.Health <= 0 
+        or (currentTarget.Position - r.Position).Magnitude > studs 
+        or (aimWallCheck and not isVisible(currentTarget))) then
+        currentTarget = nil
+    end
+
+    local best, bestAngle = nil, math.rad(switchAngle)
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= localPlayer and plr.Character then
+            if aimTeamCheck and plr.Team == localPlayer.Team then continue end
+            
+            local head = plr.Character:FindFirstChild("Head")
+            local hum = plr.Character:FindFirstChild("Humanoid")
+            if head and hum and hum.Health > 0 then
+                local dist = (head.Position - r.Position).Magnitude
+                if dist < studs then
+                    if aimWallCheck and not isVisible(head) then continue end
+                    
+                    local dir = (head.Position - camPos).Unit
+                    local angle = math.acos(math.clamp(camDir:Dot(dir), -1, 1))
+                    
+                    if angle < bestAngle then
+                        best = head
+                        bestAngle = angle
+                    end
+                end
             end
         end
     end
 
-    if target then
-        camera.CFrame = CFrame.new(camera.CFrame.Position, target.Position)
+    if best and best ~= currentTarget then
+        currentTarget = best
+    end
+
+    if currentTarget then
+        cam.CFrame = CFrame.new(cam.CFrame.Position, currentTarget.Position)
     end
 end)
 
 task.spawn(function()
 	while true do
-		local myChar = localPlayer.Character
-		local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+		local myChar, _, myRoot = getCharacter()
 		
         for _, p in ipairs(Players:GetPlayers()) do
             if p ~= localPlayer and p.Character and not healthGuis[p] then
