@@ -12,7 +12,7 @@ local moduleFunc = loadstring(source)
 if not moduleFunc then return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.0.8 Public.")
+local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.0.9 Public.")
 ui.SetMinimizedImage("130805202254686")
 
 local Players = game:GetService("Players")
@@ -297,7 +297,6 @@ RunService.RenderStepped:Connect(function()
     local best, bestAngle = nil, math.rad(switchAngle)
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= localPlayer and plr.Character then
-            -- Интегрированный Team Check на основе таблицы
             if aimTeamCheck and isAlly(plr) then continue end
             
             local head = plr.Character:FindFirstChild("Head")
@@ -352,12 +351,23 @@ task.spawn(function()
 					if label then
 						label.Text = "HP: " .. perc .. "%"
 						label.TextColor3 = getHealthColor(perc)
+						label.Visible = true
 					end
 					gui.Enabled = true
 				else
+					local label = gui:FindFirstChildWhichIsA("TextLabel")
+					if label then
+						label.Visible = false
+						label.Text = ""
+					end
 					gui.Enabled = false
 				end
 			else
+				local label = gui:FindFirstChildWhichIsA("TextLabel")
+				if label then
+					label.Visible = false
+					label.Text = ""
+				end
 				gui.Enabled = false
 			end
 		end
