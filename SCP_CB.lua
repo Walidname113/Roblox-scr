@@ -12,7 +12,7 @@ local moduleFunc = loadstring(source)
 if not moduleFunc then return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.0.9 Public.")
+local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.0.10 Public.")
 ui.SetMinimizedImage("130805202254686")
 
 local Players = game:GetService("Players")
@@ -342,35 +342,34 @@ task.spawn(function()
 			local hum = char and char:FindFirstChild("Humanoid")
 			local root = char and char:FindFirstChild("HumanoidRootPart")
 			local tName = player.Team and player.Team.Name or ""
-			
-			if hpEspEnabled and tName ~= "Lobby" and myRoot and root and hum then
-				local d = (myRoot.Position - root.Position).Magnitude
-				if d <= MAX_DISTANCE then
-					local perc = math.clamp(math.floor((hum.Health / hum.MaxHealth) * 100), 0, 100)
-					local label = gui:FindFirstChildWhichIsA("TextLabel")
-					if label then
-						label.Text = "HP: " .. perc .. "%"
-						label.TextColor3 = getHealthColor(perc)
-						label.Visible = true
-					end
-					gui.Enabled = true
-				else
-					local label = gui:FindFirstChildWhichIsA("TextLabel")
-					if label then
-						label.Visible = false
-						label.Text = ""
-					end
-					gui.Enabled = false
-				end
-			else
-				local label = gui:FindFirstChildWhichIsA("TextLabel")
-				if label then
-					label.Visible = false
-					label.Text = ""
-				end
-				gui.Enabled = false
+            if hpEspEnabled and tName ~= "Lobby" and myRoot and root and hum then
+                local d = (myRoot.Position - root.Position).Magnitude
+                if d <= MAX_DISTANCE then
+                    local perc = math.clamp(math.floor((hum.Health / hum.MaxHealth) * 100), 0, 100)
+                    local label = gui:FindFirstChildWhichIsA("TextLabel")
+                    if label then
+                        label.Text = "HP: " .. perc .. "%"
+                        label.TextColor3 = getHealthColor(perc)
+                        label.Visible = true
+                    end
+                    gui.Enabled = true
+                else
+                    local label = gui:FindFirstChildWhichIsA("TextLabel")
+                    if label then
+                        label.Visible = false
+                        label.Text = ""
+                    end
+                    gui.Enabled = false
+                end
+            else
+                local label = gui:FindFirstChildWhichIsA("TextLabel")
+                if label then
+                    label.Visible = false
+                    label.Text = ""
+                end
+                gui.Enabled = false
+            end
 			end
-		end
 
 		for player, highlight in pairs(highlights) do
             local tName = player.Team and player.Team.Name or ""
