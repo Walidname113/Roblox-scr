@@ -11,7 +11,7 @@ local moduleFunc = loadstring(source)
 if not moduleFunc then return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.3.0 Public.")
+local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.3.1 Public.")
 ui.SetMinimizedImage("130805202254686")
 
 local Players = game:GetService("Players")
@@ -37,6 +37,7 @@ local aimTeamCheck = false
 local currentTarget = nil
 local studs = 100
 local switchAngle = 10
+local MIN_AIM_DISTANCE = 5
 
 local teamRelations = {
     ["Class-D"] = {["Class-D"] = true, ["Chaos Insurgency"] = true},
@@ -170,12 +171,13 @@ local function createHighlight(player, character)
     local h = Instance.new("Highlight")
     h.FillTransparency = 0.5
     h.OutlineTransparency = 0
+    h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     h.Enabled = false
     local teamColor = player.Team and player.Team.TeamColor.Color or Color3.new(1, 1, 1)
     h.FillColor = teamColor
     h.OutlineColor = teamColor
     h.Parent = character
-    h.Adornee = nil
+    h.Adornee = character
     highlights[player] = h
 end
 
@@ -278,35 +280,37 @@ RunService.RenderStepped:Connect(function()
     if not aimbotEnabled then return end
     local c, h, r = getCharacter()
     if not c or not r then return end
-    local camCFrame = cam and cam.CFrame
-    if not camCFrame then return end
+    local camCFrame = cam.CFrame
     local camDir = camCFrame.LookVector
     local camPos = camCFrame.Position
 
-    if currentTarget and (not currentTarget.Parent or not currentTarget.Parent:FindFirstChild("Humanoid") 
-        or currentTarget.Parent.Humanoid.Health <= 0 
-        or (currentTarget.Position - r.Position).Magnitude > studs 
-        or (aimWallCheck and not isVisible(currentTarget))
-        or (aimTeamCheck and (isAlly(Players:GetPlayerFromCharacter(currentTarget.Parent)) or (Players:GetPlayerFromCharacter(currentTarget.Parent).Team and Players:GetPlayerFromCharacter(currentTarget.Parent).Team.Name == "Lobby")))) then
-        currentTarget = nil
+    if currentTarget then
+        local targetDist = (currentTarget.Position - r.Position).Magnitude
+        if not currentTarget.Parent or not currentTarget.Parent:FindFirstChild("Humanoid") 
+            or currentTarget.Parent.Humanoid.Health <= 0 
+            or targetDist > studs 
+            or targetDist < MIN_AIM_DISTANCE
+            or (aimWallCheck and not isVisible(currentTarget))
+            or (aimTeamCheck and (isAlly(Players:GetPlayerFromCharacter(currentTarget.Parent)) or (Players:GetPlayerFromCharacter(currentTarget.Parent).Team and Players:GetPlayerFromCharacter(currentTarget.Parent).Team.Name == "Lobby"))) then
+            currentTarget = nil
+        end
     end
 
     local best, bestAngle = nil, math.rad(switchAngle)
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= localPlayer and plr.Character then
-            if aimTeamCheck then
-                local plrTeam = plr.Team and plr.Team.Name
-                local myTeam = localPlayer.Team and localPlayer.Team.Name
-                if plrTeam == "Lobby" or plrTeam == myTeam or isAlly(plr) then
-                    continue
-                end
-            end
-
             local head = plr.Character:FindFirstChild("Head")
             local hum = plr.Character:FindFirstChild("Humanoid")
             if head and hum and hum.Health > 0 then
                 local dist = (head.Position - r.Position).Magnitude
-                if dist < studs then
+                if dist < studs and dist > MIN_AIM_DISTANCE then
+                    if aimTeamCheck then
+                        local plrTeam = plr.Team and plr.Team.Name
+                        local myTeam = localPlayer.Team and localPlayer.Team.Name
+                        if plrTeam == "Lobby" or plrTeam == myTeam or isAlly(plr) then
+                            continue
+                        end
+                    end
                     if aimWallCheck and not isVisible(head) then continue end
                     local dir = (head.Position - camPos).Unit
                     local angle = math.acos(math.clamp(camDir:Dot(dir), -1, 1))
