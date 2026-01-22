@@ -11,7 +11,7 @@ local moduleFunc = loadstring(source)
 if not moduleFunc then return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.3.1 Public.")
+local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.3.2 Public.")
 ui.SetMinimizedImage("130805202254686")
 
 local Players = game:GetService("Players")
@@ -95,8 +95,8 @@ local function cleanupPlayerEffects(player)
 end
 
 local function createHealthESP(player, character)
-    local head = character:WaitForChild("Head", 10)
-    local hum = character:WaitForChild("Humanoid", 10)
+    local head = character:FindFirstChild("Head")
+    local hum = character:FindFirstChild("Humanoid")
     if not head or not hum or healthGuis[player] then return end
 
     local gui = Instance.new("BillboardGui")
@@ -122,7 +122,7 @@ local function createHealthESP(player, character)
 end
 
 local function create966Billboard(player, character)
-    local hrp = character:WaitForChild("HumanoidRootPart", 5)
+    local hrp = character:FindFirstChild("HumanoidRootPart")
     if not hrp or billboards[player] then return end
     local scpTeam = Teams:FindFirstChild("SCP")
     local color = scpTeam and scpTeam.TeamColor.Color or Color3.new(1, 0, 0)
@@ -167,7 +167,9 @@ local function create966Billboard(player, character)
 end
 
 local function createHighlight(player, character)
-    if highlights[player] then return end
+    if highlights[player] and highlights[player].Parent == character then return end
+    if highlights[player] then highlights[player]:Destroy() end
+    
     local h = Instance.new("Highlight")
     h.FillTransparency = 0.5
     h.OutlineTransparency = 0
@@ -182,19 +184,19 @@ local function createHighlight(player, character)
 end
 
 local function setupVisuals(player)
-    cleanupPlayerEffects(player)
-    if player.Team and player.Team.Name == "Lobby" then return end
     local character = player.Character
-    if not character then return end
-    task.spawn(function()
-        createHealthESP(player, character)
-        local role = player:GetAttribute("Role")
-        if role == "SCP-966" then
-            create966Billboard(player, character)
-        else
-            createHighlight(player, character)
-        end
-    end)
+    if not character or (player.Team and player.Team.Name == "Lobby") then 
+        cleanupPlayerEffects(player)
+        return 
+    end
+    
+    createHealthESP(player, character)
+    local role = player:GetAttribute("Role")
+    if role == "SCP-966" then
+        create966Billboard(player, character)
+    else
+        createHighlight(player, character)
+    end
 end
 
 local mainCategory = ui.CreateCategory("Main")
@@ -237,7 +239,7 @@ angleInput.Font = Enum.Font.SourceSans
 angleInput.TextSize = 16
 angleInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 Instance.new("UICorner", angleInput).CornerRadius = UDim.new(0, 6)
-angleInput.Parent = aimbotContainer
+angleInput.Parent = angleInput.Parent or aimbotContainer
 
 angleInput.FocusLost:Connect(function()
     local val = tonumber(angleInput.Text)
@@ -298,7 +300,7 @@ RunService.RenderStepped:Connect(function()
 
     local best, bestAngle = nil, math.rad(switchAngle)
     for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= localPlayer and plr.Character then
+        if plr ~= localPlayer and plr.Character and plr.Team and plr.Team.Name ~= "Lobby" then
             local head = plr.Character:FindFirstChild("Head")
             local hum = plr.Character:FindFirstChild("Humanoid")
             if head and hum and hum.Health > 0 then
@@ -307,7 +309,7 @@ RunService.RenderStepped:Connect(function()
                     if aimTeamCheck then
                         local plrTeam = plr.Team and plr.Team.Name
                         local myTeam = localPlayer.Team and localPlayer.Team.Name
-                        if plrTeam == "Lobby" or plrTeam == myTeam or isAlly(plr) then
+                        if plrTeam == myTeam or isAlly(plr) then
                             continue
                         end
                     end
@@ -323,7 +325,7 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    if best and best ~= currentTarget then
+    if best then
         currentTarget = best
     end
     if currentTarget then
@@ -333,71 +335,46 @@ end)
 
 task.spawn(function()
     while true do
-        local myChar, _, myRoot = getCharacter()
+        local _, _, myRoot = getCharacter()
         for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= localPlayer and p.Character and not healthGuis[p] then
+            if p ~= localPlayer then
                 setupVisuals(p)
-            end
-        end
-
-        for player, gui in pairs(healthGuis) do
-            local char = player.Character
-            local hum = char and char:FindFirstChild("Humanoid")
-            local root = char and char:FindFirstChild("HumanoidRootPart")
-            local tName = player.Team and player.Team.Name or ""
-            if hpEspEnabled and tName ~= "Lobby" and myRoot and root and hum then
-                local d = (myRoot.Position - root.Position).Magnitude
-                if d <= MAX_DISTANCE then
-                    local perc = math.clamp(math.floor((hum.Health / hum.MaxHealth) * 100), 0, 100)
-                    local label = gui:FindFirstChildWhichIsA("TextLabel")
-                    if label then
-                        label.Text = "HP: " .. perc .. "%"
-                        label.TextColor3 = getHealthColor(perc)
-                        label.Visible = true
-                    end
-                    gui.Enabled = true
-                else
-                    gui.Enabled = false
-                    local label = gui:FindFirstChildWhichIsA("TextLabel")
-                    if label then
-                        label.Visible = false
-                        label.Text = ""
+                local char = p.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                local hum = char and char:FindFirstChild("Humanoid")
+                local tName = p.Team and p.Team.Name or ""
+                
+                local isEspOn = (espAllEnabled or teamSettings[tName]) and tName ~= "Lobby"
+                
+                if highlights[p] then
+                    highlights[p].Enabled = isEspOn and myRoot and root and (myRoot.Position - root.Position).Magnitude <= MAX_DISTANCE or false
+                    if highlights[p].Enabled then
+                        highlights[p].Adornee = char
+                        local teamColor = p.Team and p.Team.TeamColor.Color or Color3.new(1, 1, 1)
+                        highlights[p].FillColor = teamColor
+                        highlights[p].OutlineColor = teamColor
                     end
                 end
-            else
-                gui.Enabled = false
-                local label = gui:FindFirstChildWhichIsA("TextLabel")
-                if label then
-                    label.Visible = false
-                    label.Text = ""
+
+                if billboards[p] then
+                    billboards[p].Enabled = isEspOn and myRoot and root and (myRoot.Position - root.Position).Magnitude <= MAX_DISTANCE or false
+                end
+
+                if healthGuis[p] then
+                    local label = healthGuis[p]:FindFirstChildWhichIsA("TextLabel")
+                    if hpEspEnabled and isEspOn and myRoot and root and hum and (myRoot.Position - root.Position).Magnitude <= MAX_DISTANCE then
+                        local perc = math.clamp(math.floor((hum.Health / hum.MaxHealth) * 100), 0, 100)
+                        if label then
+                            label.Text = "HP: " .. perc .. "%"
+                            label.TextColor3 = getHealthColor(perc)
+                        end
+                        healthGuis[p].Enabled = true
+                    else
+                        healthGuis[p].Enabled = false
+                    end
                 end
             end
         end
-
-        for player, highlight in pairs(highlights) do
-            local tName = player.Team and player.Team.Name or ""
-            local isEnabled = (espAllEnabled or teamSettings[tName]) and tName ~= "Lobby"
-            local char = player.Character
-            local root = char and char:FindFirstChild("HumanoidRootPart")
-            if isEnabled and myRoot and root then
-                highlight.Enabled = (myRoot.Position - root.Position).Magnitude <= MAX_DISTANCE
-            else
-                highlight.Enabled = false
-            end
-        end
-
-        for player, billboard in pairs(billboards) do
-            local tName = player.Team and player.Team.Name or ""
-            local isEnabled = (espAllEnabled or teamSettings[tName]) and tName ~= "Lobby"
-            local char = player.Character
-            local root = char and char:FindFirstChild("HumanoidRootPart")
-            if isEnabled and myRoot and root then
-                billboard.Enabled = (myRoot.Position - root.Position).Magnitude <= MAX_DISTANCE
-            else
-                billboard.Enabled = false
-            end
-        end
-
         task.wait(UPDATE_INTERVAL)
     end
 end)
