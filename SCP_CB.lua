@@ -11,7 +11,7 @@ local moduleFunc = loadstring(source)
 if not moduleFunc then return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.3.3 Public.")
+local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.3.4 Public.")
 ui.SetMinimizedImage("130805202254686")
 
 local Players = game:GetService("Players")
@@ -95,9 +95,15 @@ local function cleanupPlayerEffects(player)
 end
 
 local function createHealthESP(player, character)
-    local head = character:FindFirstChild("Head")
-    local hum = character:FindFirstChild("Humanoid")
-    if not head or not hum or healthGuis[player] then return end
+    if healthGuis[player] then 
+        healthGuis[player]:Destroy() 
+        healthGuis[player] = nil 
+    end
+
+    local head = character:WaitForChild("Head", 5)
+    local hum = character:WaitForChild("Humanoid", 5)
+    
+    if not head or not hum then return end
 
     local gui = Instance.new("BillboardGui")
     gui.Name = "HealthESP"
@@ -122,8 +128,11 @@ local function createHealthESP(player, character)
 end
 
 local function create966Billboard(player, character)
-    local hrp = character:FindFirstChild("HumanoidRootPart")
+    local hrp = character:WaitForChild("HumanoidRootPart", 5)
     if not hrp or billboards[player] then return end
+    
+    if billboards[player] then billboards[player]:Destroy() end
+
     local scpTeam = Teams:FindFirstChild("SCP")
     local color = scpTeam and scpTeam.TeamColor.Color or Color3.new(1, 0, 0)
     local gui = Instance.new("BillboardGui")
@@ -173,7 +182,6 @@ local function createHighlight(player, character)
     h.Name = "PlayerHighlight"
     h.FillTransparency = 0.5
     h.OutlineTransparency = 0
-    -- AlwaysOnTop гарантирует видимость сквозь стены
     h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop 
     h.Enabled = false
     
@@ -187,19 +195,22 @@ local function createHighlight(player, character)
 end
 
 local function setupVisuals(player)
-    local character = player.Character
-    if not character or (player.Team and player.Team.Name == "Lobby") then 
-        cleanupPlayerEffects(player)
-        return 
-    end
-    
-    createHealthESP(player, character)
-    local role = player:GetAttribute("Role")
-    if role == "SCP-966" then
-        create966Billboard(player, character)
-    else
-        createHighlight(player, character)
-    end
+    task.spawn(function()
+        local character = player.Character
+        if not character or (player.Team and player.Team.Name == "Lobby") then 
+            cleanupPlayerEffects(player)
+            return 
+        end
+        
+        createHealthESP(player, character)
+        
+        local role = player:GetAttribute("Role")
+        if role == "SCP-966" then
+            create966Billboard(player, character)
+        else
+            createHighlight(player, character)
+        end
+    end)
 end
 
 local mainCategory = ui.CreateCategory("Main")
@@ -266,7 +277,7 @@ ui.OpenFirstCategory()
 
 local function onPlayerAdded(player)
     player.CharacterAdded:Connect(function(char)
-        task.wait(0.5)
+        task.wait(1)
         setupVisuals(player)
     end)
     player:GetPropertyChangedSignal("Team"):Connect(function()
@@ -342,14 +353,13 @@ task.spawn(function()
         for _, p in ipairs(Players:GetPlayers()) do
             if p ~= localPlayer then
                 local char = p.Character
-                local root = char and char:FindFirstChild("HumanoidRootPart")
-                local hum = char and char:FindFirstChild("Humanoid")
-                
-                -- Если персонаж пересоздался, обновляем объекты
-                if char and not (highlights[p] or billboards[p] or healthGuis[p]) then
+                if char and (not highlights[p] or not healthGuis[p]) then
                     setupVisuals(p)
                 end
 
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                local hum = char and char:FindFirstChild("Humanoid")
+                
                 local tName = p.Team and p.Team.Name or ""
                 local isEspOn = (espAllEnabled or teamSettings[tName]) and tName ~= "Lobby"
                 local inRange = myRoot and root and (myRoot.Position - root.Position).Magnitude <= MAX_DISTANCE
@@ -378,6 +388,10 @@ task.spawn(function()
                             label.TextColor3 = getHealthColor(perc)
                         end
                         healthGuis[p].Enabled = true
+                        if char:FindFirstChild("Head") and healthGuis[p].Adornee ~= char.Head then
+                             healthGuis[p].Adornee = char.Head
+                             healthGuis[p].Parent = char.Head
+                        end
                     else
                         healthGuis[p].Enabled = false
                     end
