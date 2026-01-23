@@ -11,22 +11,25 @@ local moduleFunc = loadstring(source)
 if not moduleFunc then return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.4.0 Beta")
+local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.5.0 Safe")
 ui.SetMinimizedImage("130805202254686")
 
 local Players = game:GetService("Players")
 local Teams = game:GetService("Teams")
 local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local Workspace = game:GetService("Workspace")
 
 local localPlayer = Players.LocalPlayer
-local cam = workspace.CurrentCamera
+local cam = Workspace.CurrentCamera
 local MAX_DISTANCE = 1200
 local UPDATE_INTERVAL = 0.1
 
-local highlights = {}
-local billboards = {}
-local infoGuis = {}
+local SafeContainer = Instance.new("Folder")
+SafeContainer.Name = "EspContainer_" .. math.random(1000,9999)
+SafeContainer.Parent = CoreGui
 
+local VisualsCache = {}
 local teamSettings = {}
 local espAllEnabled = false
 local hpEspEnabled = false
@@ -93,145 +96,105 @@ local function isVisible(part)
     local rayParams = RaycastParams.new()
     rayParams.FilterDescendantsInstances = {localPlayer.Character, cam}
     rayParams.FilterType = Enum.RaycastFilterType.Exclude
-    local result = workspace:Raycast(origin, direction, rayParams)
+    local result = Workspace:Raycast(origin, direction, rayParams)
     return not result or result.Instance:IsDescendantOf(part.Parent)
 end
 
-local function cleanupPlayerEffects(player)
-    if highlights[player] then highlights[player]:Destroy(); highlights[player] = nil end
-    if billboards[player] then billboards[player]:Destroy(); billboards[player] = nil end
-    if infoGuis[player] then infoGuis[player]:Destroy(); infoGuis[player] = nil end
-end
+local function GetPlayerVisuals(player)
+    if VisualsCache[player] then return VisualsCache[player] end
 
-local function createInfoESP(player, character)
-    if infoGuis[player] then infoGuis[player]:Destroy() end
-    
-    local adorneePart = getBestPart(character)
-    if not adorneePart then return end
+    local visuals = {
+        Highlight = nil,
+        InfoGui = nil,
+        SkeletonGui = nil,
+        Labels = {}
+    }
 
-    local gui = Instance.new("BillboardGui")
-    gui.Name = "InfoESP"
-    gui.Adornee = adorneePart
-    gui.Size = UDim2.new(0, 100, 0, 50)
-    gui.StudsOffset = Vector3.new(0, 2.5, 0)
-    gui.AlwaysOnTop = true
-    gui.MaxDistance = MAX_DISTANCE
-    gui.Parent = adorneePart
+    local h = Instance.new("Highlight")
+    h.Name = "H_" .. player.Name
+    h.FillTransparency = 0.5
+    h.OutlineTransparency = 0
+    h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    h.Enabled = false
+    h.Parent = SafeContainer
+    visuals.Highlight = h
+
+    local infoGui = Instance.new("BillboardGui")
+    infoGui.Name = "I_" .. player.Name
+    infoGui.Size = UDim2.new(0, 100, 0, 50)
+    infoGui.StudsOffset = Vector3.new(0, 3, 0)
+    infoGui.AlwaysOnTop = true
+    infoGui.Enabled = false
+    infoGui.Parent = SafeContainer
 
     local container = Instance.new("Frame")
     container.Size = UDim2.new(1, 0, 1, 0)
     container.BackgroundTransparency = 1
-    container.Parent = gui
+    container.Parent = infoGui
 
     local layout = Instance.new("UIListLayout")
     layout.Parent = container
     layout.SortOrder = Enum.SortOrder.LayoutOrder
     layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
     layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
-    
+
     local distLabel = Instance.new("TextLabel")
-    distLabel.Name = "DistanceLabel"
-    distLabel.Parent = container
     distLabel.BackgroundTransparency = 1
     distLabel.Size = UDim2.new(1, 0, 0, 15)
-    distLabel.Font = Enum.Font.Unknown
-    distLabel.FontFace = Font.new("rbxasset://fonts/families/PressStart2P.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
-    distLabel.TextSize = 8
+    distLabel.Font = Enum.Font.Code
+    distLabel.TextSize = 10
     distLabel.TextColor3 = Color3.new(1, 1, 1)
-    distLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
     distLabel.TextStrokeTransparency = 0
-    distLabel.Text = ""
     distLabel.LayoutOrder = 1
-    distLabel.Visible = false
+    distLabel.Parent = container
+    visuals.Labels.Dist = distLabel
 
     local hpLabel = Instance.new("TextLabel")
-    hpLabel.Name = "HPLabel"
-    hpLabel.Parent = container
     hpLabel.BackgroundTransparency = 1
     hpLabel.Size = UDim2.new(1, 0, 0, 15)
-    hpLabel.Font = Enum.Font.Unknown
-    hpLabel.FontFace = Font.new("rbxasset://fonts/families/PressStart2P.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
-    hpLabel.TextSize = 8
+    hpLabel.Font = Enum.Font.Code
+    hpLabel.TextSize = 10
     hpLabel.TextStrokeTransparency = 0
-    hpLabel.Text = ""
     hpLabel.LayoutOrder = 2
-    hpLabel.Visible = false
+    hpLabel.Parent = container
+    visuals.Labels.HP = hpLabel
     
-    infoGuis[player] = gui
+    visuals.InfoGui = infoGui
+
+    local skelGui = Instance.new("BillboardGui")
+    skelGui.Name = "S_" .. player.Name
+    skelGui.Size = UDim2.new(4, 0, 6, 0)
+    skelGui.AlwaysOnTop = true
+    skelGui.Enabled = false
+    skelGui.Parent = SafeContainer
+    
+    local skelContainer = Instance.new("Frame", skelGui)
+    skelContainer.Size = UDim2.new(1, 0, 1, 0)
+    skelContainer.BackgroundTransparency = 1
+    
+    local p = Instance.new("Frame", skelContainer)
+    p.BackgroundTransparency = 0.5
+    p.BorderSizePixel = 0
+    p.Size = UDim2.fromScale(0.5, 0.5)
+    p.Position = UDim2.fromScale(0.25, 0.25)
+    
+    visuals.SkeletonGui = skelGui
+    visuals.SkeletonPart = p
+
+    VisualsCache[player] = visuals
+    return visuals
 end
 
-local function create966Billboard(player, character)
-    local hrp = getBestPart(character)
-    if not hrp or billboards[player] then return end
-    
-    local scpTeam = Teams:FindFirstChild("SCP")
-    local color = scpTeam and scpTeam.TeamColor.Color or Color3.new(1, 0, 0)
-    local gui = Instance.new("BillboardGui")
-    gui.Name = "SCP966ESP"
-    gui.Size = UDim2.new(4, 0, 6, 0)
-    gui.AlwaysOnTop = true
-    gui.LightInfluence = 0
-    gui.MaxDistance = 1200
-    gui.Parent = hrp
-    local container = Instance.new("Frame", gui)
-    container.Size = UDim2.new(1, 0, 1, 0)
-    container.BackgroundTransparency = 1
-    billboards[player] = gui
-    
-    local function mkPart(u1, u2, u3, u4)
-        local p = Instance.new("Frame", container)
-        p.BackgroundColor3 = color
-        p.BorderSizePixel = 0
-        p.BackgroundTransparency = 0.5
-        p.Size = UDim2.fromScale(u1, u2)
-        p.Position = UDim2.fromScale(u3, u4)
+local function ClearVisuals(player)
+    if VisualsCache[player] then
+        local v = VisualsCache[player]
+        if v.Highlight then v.Highlight:Destroy() end
+        if v.InfoGui then v.InfoGui:Destroy() end
+        if v.SkeletonGui then v.SkeletonGui:Destroy() end
+        VisualsCache[player] = nil
     end
-    mkPart(0.5, 0.5, 0.25, 0.25)
 end
 
-local function createHighlight(player, character)
-    if highlights[player] then highlights[player]:Destroy() end
-    
-    local h = Instance.new("Highlight")
-    h.Name = "PlayerHighlight"
-    h.FillTransparency = 0.5
-    h.OutlineTransparency = 0
-    h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    h.Enabled = false
-    
-    local teamColor = player.Team and player.Team.TeamColor.Color or Color3.new(1, 1, 1)
-    h.FillColor = teamColor
-    h.OutlineColor = teamColor
-    
-    h.Adornee = character
-    h.Parent = character
-    highlights[player] = h
-end
-
-local function setupVisuals(player)
-    task.spawn(function()
-        local character = player.Character
-        if not character or (player.Team and player.Team.Name == "Lobby") then 
-            cleanupPlayerEffects(player)
-            return 
-        end
-        
-        if not getBestPart(character) then
-            task.wait(1)
-        end
-        
-        createInfoESP(player, character)
-        
-        local role = player:GetAttribute("Role")
-        if role == "SCP-966" then
-            create966Billboard(player, character)
-        else
-            createHighlight(player, character)
-        end
-    end)
-end
-
--- UI Construction
 local mainCategory = ui.CreateCategory("Main")
 
 local aimbotContainer = Instance.new("Frame")
@@ -287,23 +250,17 @@ end
 
 ui.OpenFirstCategory()
 
--- Logic Handlers
-local function onPlayerAdded(player)
-    player.CharacterAdded:Connect(function()
-        task.wait(1)
-        setupVisuals(player)
-    end)
-    player:GetPropertyChangedSignal("Team"):Connect(function() setupVisuals(player) end)
-    if player.Character then setupVisuals(player) end
-end
+Players.PlayerAdded:Connect(function(player)
+    player:GetPropertyChangedSignal("Team"):Connect(function() end)
+end)
 
-Players.PlayerAdded:Connect(onPlayerAdded)
 for _, p in ipairs(Players:GetPlayers()) do
-    if p ~= localPlayer then onPlayerAdded(p) end
+    if p ~= localPlayer then 
+        GetPlayerVisuals(p)
+    end
 end
-Players.PlayerRemoving:Connect(cleanupPlayerEffects)
+Players.PlayerRemoving:Connect(ClearVisuals)
 
--- Aimbot Loop
 RunService.RenderStepped:Connect(function()
     if not aimbotEnabled then return end
     local c, h, r = getCharacter()
@@ -353,77 +310,69 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ESP Loop
 task.spawn(function()
     while true do
         local _, _, myRoot = getCharacter()
         for _, p in ipairs(Players:GetPlayers()) do
             if p ~= localPlayer then
                 local char = p.Character
-                if char and (not highlights[p] or not infoGuis[p]) then
-                    setupVisuals(p)
+                local visuals = GetPlayerVisuals(p)
+                
+                local root = char and getBestPart(char)
+                local hum = char and char:FindFirstChild("Humanoid")
+                
+                local tName = p.Team and p.Team.Name or ""
+                local isEspOn = (espAllEnabled or teamSettings[tName]) and tName ~= "Lobby"
+                
+                local dist = (myRoot and root) and (myRoot.Position - root.Position).Magnitude or 99999
+                local inRange = dist <= MAX_DISTANCE
+                local shouldShow = isEspOn and inRange and root and hum and hum.Health > 0
+
+                local hl = visuals.Highlight
+                if hl then
+                    hl.Enabled = shouldShow
+                    if shouldShow then
+                        if hl.Adornee ~= char then hl.Adornee = char end
+                        local teamColor = p.Team and p.Team.TeamColor.Color or Color3.new(1, 1, 1)
+                        hl.FillColor = teamColor
+                        hl.OutlineColor = teamColor
+                    end
                 end
 
-                if char then
-                    local root = getBestPart(char)
-                    local hum = char:FindFirstChild("Humanoid")
-                    
-                    local tName = p.Team and p.Team.Name or ""
-                    local isEspOn = (espAllEnabled or teamSettings[tName]) and tName ~= "Lobby"
-                    
-                    local dist = (myRoot and root) and (myRoot.Position - root.Position).Magnitude or 99999
-                    local inRange = dist <= MAX_DISTANCE
-                    
-                    local shouldShow = isEspOn and inRange and root
+                local info = visuals.InfoGui
+                if info then
+                    info.Enabled = shouldShow and (hpEspEnabled or distEspEnabled)
+                    if info.Enabled then
+                        if info.Adornee ~= root then info.Adornee = root end
+                        
+                        if hpEspEnabled then
+                            local perc = math.clamp(math.floor((hum.Health / hum.MaxHealth) * 100), 0, 100)
+                            visuals.Labels.HP.Text = "HP: " .. perc .. "%"
+                            visuals.Labels.HP.TextColor3 = getHealthColor(perc)
+                            visuals.Labels.HP.Visible = true
+                        else
+                            visuals.Labels.HP.Visible = false
+                        end
 
-                    -- Highlight Logic
-                    if highlights[p] then
-                        local h = highlights[p]
-                        h.Enabled = shouldShow
-                        if shouldShow then
-                            if h.Adornee ~= char then h.Adornee = char end
-                            local teamColor = p.Team and p.Team.TeamColor.Color or Color3.new(1, 1, 1)
-                            h.FillColor = teamColor
-                            h.OutlineColor = teamColor
+                        if distEspEnabled then
+                            visuals.Labels.Dist.Text = "Dist: " .. math.floor(dist)
+                            visuals.Labels.Dist.Visible = true
+                        else
+                            visuals.Labels.Dist.Visible = false
                         end
                     end
+                end
 
-                    -- Info Logic (HP + Distance)
-                    if infoGuis[p] then
-                        local gui = infoGuis[p]
-                        local hpLabel = gui:FindFirstChild("Frame") and gui.Frame:FindFirstChild("HPLabel")
-                        local distLabel = gui:FindFirstChild("Frame") and gui.Frame:FindFirstChild("DistanceLabel")
-                        
-                        gui.Enabled = shouldShow and (hpEspEnabled or distEspEnabled)
-                        
-                        if gui.Enabled and hum and root then
-                            -- HP update
-                            if hpEspEnabled then
-                                local perc = math.clamp(math.floor((hum.Health / hum.MaxHealth) * 100), 0, 100)
-                                hpLabel.Text = "HP: " .. perc .. "%"
-                                hpLabel.TextColor3 = getHealthColor(perc)
-                                hpLabel.Visible = true
-                            else
-                                hpLabel.Visible = false
-                            end
-
-                            if distEspEnabled then
-                                distLabel.Text = "Distance: " .. math.floor(dist) .. " studs"
-                                distLabel.Visible = true
-                            else
-                                distLabel.Visible = false
-                            end
-                            
-                            if gui.Adornee ~= root then
-                                gui.Adornee = root
-                                gui.Parent = root
-                            end
-                        end
-                    end
-                    
-                    -- 966 Logic
-                    if billboards[p] then
-                        billboards[p].Enabled = shouldShow
+                local role = p:GetAttribute("Role")
+                local skel = visuals.SkeletonGui
+                if skel then
+                    if role == "SCP-966" and shouldShow then
+                        skel.Enabled = true
+                        if skel.Adornee ~= root then skel.Adornee = root end
+                        local scpColor = Teams["SCP"] and Teams["SCP"].TeamColor.Color or Color3.new(1,0,0)
+                        visuals.SkeletonPart.BackgroundColor3 = scpColor
+                    else
+                        skel.Enabled = false
                     end
                 end
             end
