@@ -11,7 +11,7 @@ local moduleFunc = loadstring(source)
 if not moduleFunc then return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.3.2 Public.")
+local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.3.3 Public.")
 ui.SetMinimizedImage("130805202254686")
 
 local Players = game:GetService("Players")
@@ -167,19 +167,22 @@ local function create966Billboard(player, character)
 end
 
 local function createHighlight(player, character)
-    if highlights[player] and highlights[player].Parent == character then return end
     if highlights[player] then highlights[player]:Destroy() end
     
     local h = Instance.new("Highlight")
+    h.Name = "PlayerHighlight"
     h.FillTransparency = 0.5
     h.OutlineTransparency = 0
-    h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    -- AlwaysOnTop гарантирует видимость сквозь стены
+    h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop 
     h.Enabled = false
+    
     local teamColor = player.Team and player.Team.TeamColor.Color or Color3.new(1, 1, 1)
     h.FillColor = teamColor
     h.OutlineColor = teamColor
-    h.Parent = character
+    
     h.Adornee = character
+    h.Parent = character
     highlights[player] = h
 end
 
@@ -262,7 +265,7 @@ end
 ui.OpenFirstCategory()
 
 local function onPlayerAdded(player)
-    player.CharacterAdded:Connect(function()
+    player.CharacterAdded:Connect(function(char)
         task.wait(0.5)
         setupVisuals(player)
     end)
@@ -338,31 +341,37 @@ task.spawn(function()
         local _, _, myRoot = getCharacter()
         for _, p in ipairs(Players:GetPlayers()) do
             if p ~= localPlayer then
-                setupVisuals(p)
                 local char = p.Character
                 local root = char and char:FindFirstChild("HumanoidRootPart")
                 local hum = char and char:FindFirstChild("Humanoid")
+                
+                -- Если персонаж пересоздался, обновляем объекты
+                if char and not (highlights[p] or billboards[p] or healthGuis[p]) then
+                    setupVisuals(p)
+                end
+
                 local tName = p.Team and p.Team.Name or ""
-                
                 local isEspOn = (espAllEnabled or teamSettings[tName]) and tName ~= "Lobby"
-                
+                local inRange = myRoot and root and (myRoot.Position - root.Position).Magnitude <= MAX_DISTANCE
+
                 if highlights[p] then
-                    highlights[p].Enabled = isEspOn and myRoot and root and (myRoot.Position - root.Position).Magnitude <= MAX_DISTANCE or false
-                    if highlights[p].Enabled then
-                        highlights[p].Adornee = char
+                    local h = highlights[p]
+                    h.Enabled = isEspOn and inRange
+                    if h.Enabled then
+                        if h.Adornee ~= char then h.Adornee = char end
                         local teamColor = p.Team and p.Team.TeamColor.Color or Color3.new(1, 1, 1)
-                        highlights[p].FillColor = teamColor
-                        highlights[p].OutlineColor = teamColor
+                        h.FillColor = teamColor
+                        h.OutlineColor = teamColor
                     end
                 end
 
                 if billboards[p] then
-                    billboards[p].Enabled = isEspOn and myRoot and root and (myRoot.Position - root.Position).Magnitude <= MAX_DISTANCE or false
+                    billboards[p].Enabled = isEspOn and inRange
                 end
 
                 if healthGuis[p] then
                     local label = healthGuis[p]:FindFirstChildWhichIsA("TextLabel")
-                    if hpEspEnabled and isEspOn and myRoot and root and hum and (myRoot.Position - root.Position).Magnitude <= MAX_DISTANCE then
+                    if hpEspEnabled and isEspOn and inRange and hum then
                         local perc = math.clamp(math.floor((hum.Health / hum.MaxHealth) * 100), 0, 100)
                         if label then
                             label.Text = "HP: " .. perc .. "%"
