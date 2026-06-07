@@ -12,7 +12,7 @@ if oldGui then oldGui:Destroy() end
 local currentLang = "EN"
 local locales = {
 	EN = {
-		title = "RigType Checker v1.0.1:",
+		title = "RigType Checker v1.0.3:",
 		notifText = "Player: <b>%s</b>\nRig: <font color='#0078FF'><b>%s</b></font>",
 		notNotResponded = "Not spawned, wait until this player spawned.",
 		systemNotifText = "This place only supports <font color='#0078FF'><b>%s</b></font> rigs.",
@@ -21,7 +21,7 @@ local locales = {
 		confirmNo = "No"
 	},
 	RU = {
-		title = "Чекер RigType v1.0.1:",
+		title = "Чекер RigType v1.0.3:",
 		notifText = "Игрок: <b>%s</b>\nТело: <font color='#0078FF'><b>%s</b></font>",
 		notNotResponded = "Игрок мёртв (тело не найдено), подождите его возрождения.",
 		systemNotifText = "Этот плейс поддерживает только <font color='#0078FF'><b>%s</b></font> скелеты.",
@@ -69,6 +69,7 @@ line.Size = UDim2.new(1, 0, 0, 2)
 line.Position = UDim2.new(0, 0, 0, 40)
 line.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
 line.BorderSizePixel = 0
+line.ZIndex = 2
 line.Parent = mainFrame
 
 local toggleButton = Instance.new("TextButton")
@@ -224,10 +225,12 @@ local uiChangedConn = UserInputService.InputChanged:Connect(function(input)
 end)
 
 local isCollapsed = false
+local isConfirming = false
 local originalHeight = 350
 local wasCollapsedBeforeClose = false
 
 local toggleConn = toggleButton.MouseButton1Click:Connect(function()
+	if isConfirming then return end
 	isCollapsed = not isCollapsed
 	if isCollapsed then
 		scrollingFrame.Visible = false
@@ -468,6 +471,7 @@ local function updatePlayerList()
 		pCorner.Parent = playBtn
 
 		local conn = playBtn.MouseButton1Click:Connect(function()
+			if isConfirming then return end
 			showNotification(player.Name, getRigType(player))
 		end)
 		table.insert(playButtonsConnections, conn)
@@ -476,6 +480,7 @@ local function updatePlayerList()
 end
 
 local langConn = langButton.MouseButton1Click:Connect(function()
+	if isConfirming then return end
 	currentLang = (currentLang == "EN") and "RU" or "EN"
 	langButton.Text = currentLang
 	titleLabel.Text = locales[currentLang].title
@@ -517,6 +522,8 @@ local function closeGuiWithAnimation()
 end
 
 local closeConn = closeButton.MouseButton1Click:Connect(function()
+	if isConfirming then return end
+	isConfirming = true
 	wasCollapsedBeforeClose = isCollapsed
 	if isCollapsed then
 		isCollapsed = false
@@ -539,17 +546,16 @@ local noConn = noButton.MouseButton1Click:Connect(function()
 	local hideOverlay = TweenService:Create(confirmOverlay, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(0, 0, 1, 0)})
 	hideOverlay:Play()
 	
-	if wasCollapsedBeforeClose then
-		hideOverlay.Completed:Connect(function()
-			if not isCollapsed and wasCollapsedBeforeClose then
-				isCollapsed = true
-				toggleButton.Text = "+"
-				scrollingFrame.Visible = false
-				line.Visible = false
-				TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Size = UDim2.new(0, mainFrame.Size.X.Offset, 0, 40)}):Play()
-			end
-		end)
-	end
+	hideOverlay.Completed:Connect(function()
+		isConfirming = false
+		if wasCollapsedBeforeClose then
+			isCollapsed = true
+			toggleButton.Text = "+"
+			scrollingFrame.Visible = false
+			line.Visible = false
+			TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Size = UDim2.new(0, mainFrame.Size.X.Offset, 0, 40)}):Play()
+		end
+	end)
 end)
 
 local yesHoverE = yesButton.MouseEnter:Connect(function() TweenService:Create(yesButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(240, 70, 70)}):Play() end)
