@@ -157,8 +157,8 @@ function module.CreateUI(title)
     end
 
     local minimizeButton = createControlBtn("—", 0, Color3.fromRGB(234, 179, 8))
-    local scaleButton = createControlBtn("⤢", 30, Theme.AccentGlow)
-    local closeButton = createControlBtn("✕", 60, Theme.Danger)
+    local scaleButton = createControlBtn("~", 30, Theme.AccentGlow)
+    local closeButton = createControlBtn("×", 60, Theme.Danger)
 
     local confirmFrame = Instance.new("Frame", screenGui)
     confirmFrame.Size = UDim2.new(0, 320, 0, 140)
@@ -174,7 +174,7 @@ function module.CreateUI(title)
     local confirmText = Instance.new("TextLabel", confirmFrame)
     confirmText.Size = UDim2.new(1, -40, 0, 60)
     confirmText.Position = UDim2.new(0, 20, 0, 15)
-    confirmText.Text = "Вы уверены, что хотите закрыть интерфейс?"
+    confirmText.Text = "Are you sure?"
     confirmText.TextColor3 = Theme.TextMain
     confirmText.BackgroundTransparency = 1
     confirmText.Font = Theme.FontMain
@@ -194,8 +194,8 @@ function module.CreateUI(title)
         return btn
     end
 
-    local yesBtn = createModalBtn("Да", 20, Theme.Danger, Theme.TextMain)
-    local noBtn = createModalBtn("Отмена", 170, Color3.fromRGB(39, 39, 42), Theme.TextMain)
+    local yesBtn = createModalBtn("Yes", 20, Theme.Danger, Theme.TextMain)
+    local noBtn = createModalBtn("No", 170, Color3.fromRGB(39, 39, 42), Theme.TextMain)
 
     local function animateModal(show)
         if show then
