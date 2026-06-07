@@ -18,7 +18,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.1 Public.")
+local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.2 Public.")
 ui.SetMinimizedImage("97837481633367")
 
 local RunService = game:GetService("RunService")
@@ -26,6 +26,7 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local localPlayer = Players.LocalPlayer
 local camera = workspace.CurrentCamera
+local mouse = localPlayer:GetMouse()
 
 local scriptRunning = true
 local connections = {}
@@ -51,9 +52,10 @@ local Aim_Settings = {
     TargetPart = "Head",
     MaxDistance = 100,
     WallCheck = false,
-    Smoothness = 0.15,
+    Smoothness = 0.08,
     HitboxActive = false,
-    HitboxSize = 3
+    HitboxSize = 3,
+    SilentAim = true
 }
 
 local PresetColors = {
@@ -225,7 +227,8 @@ local distanceContainer = Instance.new("Frame")
 distanceContainer.Size = UDim2.new(1, -4, 0, 42)
 distanceContainer.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
 Instance.new("UICorner", distanceContainer).CornerRadius = UDim.new(0, 8)
-Instance.new("UIStroke", distanceContainer).Color = Color3.fromRGB(39, 39, 42)
+distanceContainer.UIStroke = Instance.new("UIStroke", distanceContainer)
+distanceContainer.UIStroke.Color = Color3.fromRGB(39, 39, 42)
 distanceContainer.Parent = aimCategory
 
 local distanceLabel = Instance.new("TextLabel", distanceContainer)
@@ -485,6 +488,40 @@ end))
 trackConnection(Players.PlayerRemoving:Connect(function(p)
     originalHeadSizes[p] = nil
 end))
+
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+    
+    if scriptRunning and Aim_Settings.Enabled and Aim_Settings.SilentAim and (method == "FindPartOnRayWithIgnoreList" or method == "FindPartOnRay" or method == "Raycast") then
+        local targetPlr, targetPart = getClosestPlayerToCursor()
+        if targetPart then
+            if method == "Raycast" then
+                args[2] = (targetPart.Position - args[1]).Unit * 9999
+            else
+                args[1] = Ray.new(camera.CFrame.Position, (targetPart.Position - camera.CFrame.Position).Unit * 9999)
+            end
+            return oldNamecall(self, unpack(args))
+        end
+    end
+    return oldNamecall(self, ...)
+end)
+
+local oldIndex
+oldIndex = hookmetamethod(game, "__index", function(self, key)
+    if scriptRunning and Aim_Settings.Enabled and Aim_Settings.SilentAim and self == mouse and (key == "Hit" or key == "Target") then
+        local targetPlr, targetPart = getClosestPlayerToCursor()
+        if targetPart then
+            if key == "Hit" then
+                return targetPart.CFrame
+            elseif key == "Target" then
+                return targetPart
+            end
+        end
+    end
+    return oldIndex(self, key)
+end)
 
 local aimConnection
 aimConnection = RunService.RenderStepped:Connect(function()
