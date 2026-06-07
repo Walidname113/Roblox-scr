@@ -18,7 +18,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.5 Public.")
+local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.6 Public.")
 ui.SetMinimizedImage("97837481633367")
 
 local RunService = game:GetService("RunService")
@@ -55,7 +55,8 @@ local Aim_Settings = {
     WallCheck = false,
     Smoothness = 0.12,
     HitboxActive = false,
-    HitboxSize = 3
+    HitboxSize = 3,
+    Triggerbot = false
 }
 
 local PresetColors = {
@@ -156,10 +157,14 @@ local function AddColorPicker(container, defaultValue, callback)
     end)
 end
 
-local aimCategory = ui.CreateCategory("Aim Settings")
+local miscCategory = ui.CreateCategory("Misc")
 
-ui.CreateToggle("Aimbot", aimCategory, function(state)
+ui.CreateToggle("Aimbot", miscCategory, function(state)
     Aim_Settings.Enabled = state
+end)
+
+ui.CreateToggle("Triggerbot", miscCategory, function(state)
+    Aim_Settings.Triggerbot = state
 end)
 
 local boneContainer = Instance.new("Frame")
@@ -167,7 +172,7 @@ boneContainer.Size = UDim2.new(1, -4, 0, 42)
 boneContainer.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
 Instance.new("UICorner", boneContainer).CornerRadius = UDim.new(0, 8)
 Instance.new("UIStroke", boneContainer).Color = Color3.fromRGB(39, 39, 42)
-boneContainer.Parent = aimCategory
+boneContainer.Parent = miscCategory
 
 local boneLabel = Instance.new("TextLabel", boneContainer)
 boneLabel.Size = UDim2.new(0, 120, 1, 0)
@@ -229,7 +234,7 @@ distanceContainer.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
 Instance.new("UICorner", distanceContainer).CornerRadius = UDim.new(0, 8)
 local distContStroke = Instance.new("UIStroke", distanceContainer)
 distContStroke.Color = Color3.fromRGB(39, 39, 42)
-distanceContainer.Parent = aimCategory
+distanceContainer.Parent = miscCategory
 
 local distanceLabel = Instance.new("TextLabel", distanceContainer)
 distanceLabel.Size = UDim2.new(0, 150, 1, 0)
@@ -262,11 +267,13 @@ distanceInput.FocusLost:Connect(function()
     end
 end)
 
-ui.CreateToggle("Wall Check", aimCategory, function(state)
+ui.CreateToggle("Wall Check", miscCategory, function(state)
     Aim_Settings.WallCheck = state
 end)
 
-ui.CreateToggle("Head Hitbox Expander", aimCategory, function(state)
+local hitboxCategory = ui.CreateCategory("Hitboxes")
+
+ui.CreateToggle("Head Hitbox Expander", hitboxCategory, function(state)
     Aim_Settings.HitboxActive = state
 end)
 
@@ -494,27 +501,49 @@ aimConnection = RunService.RenderStepped:Connect(function()
         return
     end
 
-    if not Aim_Settings.Enabled then return end
+    if Aim_Settings.Enabled then
+        local targetPlr, targetPart = getClosestPlayerToCursor()
+        if targetPart then
+            local targetPos = targetPart.Position
+            local targetChar = targetPlr.Character
+            local targetRoot = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
+            if targetRoot then
+                targetPos = targetPos + (targetRoot.AssemblyLinearVelocity * 0.015)
+            end
+            
+            local targetCFrame = CFrame.new(camera.CFrame.Position, targetPos)
+            local mouseDelta = UserInputService:GetMouseDelta()
+            local handResistance = mouseDelta.Magnitude
+            local adaptiveSmoothness = Aim_Settings.Smoothness
+            
+            if handResistance > 0 then
+                adaptiveSmoothness = math.clamp(Aim_Settings.Smoothness + (handResistance * 0.02), Aim_Settings.Smoothness, 0.85)
+            end
+            
+            camera.CFrame = camera.CFrame:Lerp(targetCFrame, adaptiveSmoothness)
+        end
+    end
 
-    local targetPlr, targetPart = getClosestPlayerToCursor()
-    if targetPart then
-        local targetPos = targetPart.Position
-        local targetChar = targetPlr.Character
-        local targetRoot = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
-        if targetRoot then
-            targetPos = targetPos + (targetRoot.AssemblyLinearVelocity * 0.015)
+    if Aim_Settings.Triggerbot then
+        local centerRay = camera:ViewportPointToRay(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterDescendantsInstances = {localPlayer.Character, camera}
+        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+
+        local raycastResult = workspace:Raycast(centerRay.Origin, centerRay.Direction * 1000, raycastParams)
+        if raycastResult and raycastResult.Instance then
+            local hitInstance = raycastResult.Instance
+            local model = hitInstance:FindFirstAncestorOfClass("Model")
+            if model then
+                local player = Players:GetPlayerFromCharacter(model)
+                if player and player ~= localPlayer then
+                    local humanoid = model:FindFirstChildOfClass("Humanoid")
+                    if humanoid and humanoid.Health > 0 then
+                        mouse1click()
+                    end
+                end
+            end
         end
-        
-        local targetCFrame = CFrame.new(camera.CFrame.Position, targetPos)
-        local mouseDelta = UserInputService:GetMouseDelta()
-        local handResistance = mouseDelta.Magnitude
-        local adaptiveSmoothness = Aim_Settings.Smoothness
-        
-        if handResistance > 0 then
-            adaptiveSmoothness = math.clamp(Aim_Settings.Smoothness + (handResistance * 0.02), Aim_Settings.Smoothness, 0.85)
-        end
-        
-        camera.CFrame = camera.CFrame:Lerp(targetCFrame, adaptiveSmoothness)
     end
 end)
 trackConnection(aimConnection)
@@ -525,6 +554,7 @@ ui.OnClose(function()
     scriptRunning = false
     
     Aim_Settings.Enabled = false
+    Aim_Settings.Triggerbot = false
     Aim_Settings.HitboxActive = false
     for k in pairs(ESP_Settings) do ESP_Settings[k] = false end
 
