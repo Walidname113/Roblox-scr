@@ -18,7 +18,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.2 Public.")
+local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.3 Public.")
 ui.SetMinimizedImage("97837481633367")
 
 local RunService = game:GetService("RunService")
@@ -227,8 +227,8 @@ local distanceContainer = Instance.new("Frame")
 distanceContainer.Size = UDim2.new(1, -4, 0, 42)
 distanceContainer.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
 Instance.new("UICorner", distanceContainer).CornerRadius = UDim.new(0, 8)
-distanceContainer.UIStroke = Instance.new("UIStroke", distanceContainer)
-distanceContainer.UIStroke.Color = Color3.fromRGB(39, 39, 42)
+local distContStroke = Instance.new("UIStroke", distanceContainer)
+distContStroke.Color = Color3.fromRGB(39, 39, 42)
 distanceContainer.Parent = aimCategory
 
 local distanceLabel = Instance.new("TextLabel", distanceContainer)
