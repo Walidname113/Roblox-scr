@@ -59,7 +59,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: 1.2.2 Optimization Update.")
+local ui = uiModule.CreateUI("War Tycoon by Kiyatsuka | Version: SCRIPT DEPRECATED")
 ui.SetMinimizedImage("108856686741748")
 
 local mainCategory = uiModule.CreateCategory("Main")
