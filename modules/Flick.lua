@@ -18,12 +18,13 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.4 Stable.")
+local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.5 Public.")
 ui.SetMinimizedImage("97837481633367")
 
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local localPlayer = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 local mouse = localPlayer:GetMouse()
@@ -52,10 +53,9 @@ local Aim_Settings = {
     TargetPart = "Head",
     MaxDistance = 100,
     WallCheck = false,
-    Smoothness = 0.08,
+    Smoothness = 0.12,
     HitboxActive = false,
-    HitboxSize = 3,
-    SilentAim = true
+    HitboxSize = 3
 }
 
 local PresetColors = {
@@ -308,7 +308,6 @@ end
 local function getClosestPlayerToCursor()
     local targetPlr, targetPart = nil, nil
     local shortestDistance = math.huge
-    local mousePos = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
 
     local myChar = localPlayer.Character
     local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
@@ -325,11 +324,10 @@ local function getClosestPlayerToCursor()
                 if distToTarget <= Aim_Settings.MaxDistance then
                     if Aim_Settings.WallCheck and not isTargetVisible(part, char) then continue end
 
-                    local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
+                    local _, onScreen = camera:WorldToViewportPoint(part.Position)
                     if onScreen then
-                        local mag = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-                        if mag < shortestDistance then
-                            shortestDistance = mag
+                        if distToTarget < shortestDistance then
+                            shortestDistance = distToTarget
                             targetPlr = p
                             targetPart = part
                         end
@@ -489,54 +487,6 @@ trackConnection(Players.PlayerRemoving:Connect(function(p)
     originalHeadSizes[p] = nil
 end))
 
-local oldRaycast
-oldRaycast = hookfunction(workspace.Raycast, function(self, origin, direction, params)
-    if scriptRunning and Aim_Settings.Enabled and Aim_Settings.SilentAim then
-        local targetPlr, targetPart = getClosestPlayerToCursor()
-        if targetPart then
-            direction = (targetPart.Position - origin).Unit * direction.Magnitude
-        end
-    end
-    return oldRaycast(self, origin, direction, params)
-end)
-
-local oldFindPartOnRay
-oldFindPartOnRay = hookfunction(workspace.FindPartOnRay, function(self, ray, ignoreList, terrainCellsAreCubes, nonZeroVelocityConsideredMethod)
-    if scriptRunning and Aim_Settings.Enabled and Aim_Settings.SilentAim then
-        local targetPlr, targetPart = getClosestPlayerToCursor()
-        if targetPart then
-            ray = Ray.new(ray.Origin, (targetPart.Position - ray.Origin).Unit * ray.Direction.Magnitude)
-        end
-    end
-    return oldFindPartOnRay(self, ray, ignoreList, terrainCellsAreCubes, nonZeroVelocityConsideredMethod)
-end)
-
-local oldFindPartOnRayWithIgnoreList
-oldFindPartOnRayWithIgnoreList = hookfunction(workspace.FindPartOnRayWithIgnoreList, function(self, ray, ignoreList, terrainCellsAreCubes, nonZeroVelocityConsideredMethod)
-    if scriptRunning and Aim_Settings.Enabled and Aim_Settings.SilentAim then
-        local targetPlr, targetPart = getClosestPlayerToCursor()
-        if targetPart then
-            ray = Ray.new(ray.Origin, (targetPart.Position - ray.Origin).Unit * ray.Direction.Magnitude)
-        end
-    end
-    return oldFindPartOnRayWithIgnoreList(self, ray, ignoreList, terrainCellsAreCubes, nonZeroVelocityConsideredMethod)
-end)
-
-local oldIndex
-oldIndex = hookmetamethod(game, "__index", function(self, key)
-    if scriptRunning and Aim_Settings.Enabled and Aim_Settings.SilentAim and self == mouse and (key == "Hit" or key == "Target") then
-        local targetPlr, targetPart = getClosestPlayerToCursor()
-        if targetPart then
-            if key == "Hit" then
-                return targetPart.CFrame
-            elseif key == "Target" then
-                return targetPart
-            end
-        end
-    end
-    return oldIndex(self, key)
-end)
-
 local aimConnection
 aimConnection = RunService.RenderStepped:Connect(function()
     if not scriptRunning then
@@ -548,8 +498,23 @@ aimConnection = RunService.RenderStepped:Connect(function()
 
     local targetPlr, targetPart = getClosestPlayerToCursor()
     if targetPart then
-        local targetCFrame = CFrame.new(camera.CFrame.Position, targetPart.Position)
-        camera.CFrame = camera.CFrame:Lerp(targetCFrame, Aim_Settings.Smoothness)
+        local targetPos = targetPart.Position
+        local targetChar = targetPlr.Character
+        local targetRoot = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
+        if targetRoot then
+            targetPos = targetPos + (targetRoot.AssemblyLinearVelocity * 0.015)
+        end
+        
+        local targetCFrame = CFrame.new(camera.CFrame.Position, targetPos)
+        local mouseDelta = UserInputService:GetMouseDelta()
+        local handResistance = mouseDelta.Magnitude
+        local adaptiveSmoothness = Aim_Settings.Smoothness
+        
+        if handResistance > 0 then
+            adaptiveSmoothness = math.clamp(Aim_Settings.Smoothness + (handResistance * 0.02), Aim_Settings.Smoothness, 0.85)
+        end
+        
+        camera.CFrame = camera.CFrame:Lerp(targetCFrame, adaptiveSmoothness)
     end
 end)
 trackConnection(aimConnection)
@@ -571,4 +536,18 @@ ui.OnClose(function()
     table.clear(connections)
 
     for p, data in pairs(originalHeadSizes) do
-        if p and p.Character
+        if p and p.Character then
+            local head = p.Character:FindFirstChild("Head")
+            if head then
+                head.Size = data.Size
+                head.Transparency = 0
+                head.CanCollide = data.CanCollide
+            end
+        end
+    end
+    table.clear(originalHeadSizes)
+
+    if listFrame then listFrame:Destroy() end
+
+    print("Flick Script completely deactivated and memory freed!")
+end)
