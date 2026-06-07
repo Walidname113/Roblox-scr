@@ -12,7 +12,7 @@ Key points:
 - Educational copying (review, study, evaluation) allowed without modification.
 --]]
 
--- v19 --
+-- v20 --
 local module = {}
 
 local Players = game:GetService("Players")
@@ -23,6 +23,7 @@ local player = Players.LocalPlayer
 
 local connections = {}
 local trackedObjects = {}
+local onCloseCallback = nil
 
 local Theme = {
     Background = Color3.fromRGB(15, 15, 18),
@@ -45,6 +46,11 @@ local function disconnectAll()
         local conn = connections[i]
         if conn and conn.Connected then conn:Disconnect() end
         connections[i] = nil
+    end
+    if onCloseCallback then
+        local success, err = pcall(onCloseCallback)
+        if not success then warn("Error executing OnClose callback: " .. tostring(err)) end
+        onCloseCallback = nil
     end
 end
 
@@ -603,7 +609,7 @@ function module.CreateUI(title)
         end
     end
 
-    return {
+    local uiData = {
         ScreenGui = screenGui,
         MainFrame = mainFrame,
         MinimizedFrame = minimizedFrame,
@@ -618,8 +624,10 @@ function module.CreateUI(title)
         OpenFirstCategory = openFirstCategory,
         Categories = categories,
         Hide = function() toggleMinimize(true) end,
-        Show = function() toggleMinimize(false) end
+        Show = function() toggleMinimize(false) end,
+        OnClose = function(callback) onCloseCallback = callback end
     }
+    return uiData
 end
 
 return module
