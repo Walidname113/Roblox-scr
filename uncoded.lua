@@ -12,7 +12,7 @@ Key points:
 - Educational copying (review, study, evaluation) allowed without modification.
 --]]
 
--- v18 --
+-- v19 --
 local module = {}
 
 local Players = game:GetService("Players")
@@ -41,13 +41,19 @@ local function trackConnection(conn) table.insert(connections, conn) end
 local function trackObject(obj) table.insert(trackedObjects, obj) end
 
 local function disconnectAll()
-    for _, conn in ipairs(connections) do if conn.Connected then conn:Disconnect() end end
-    connections = {}
+    for i = #connections, 1, -1 do
+        local conn = connections[i]
+        if conn and conn.Connected then conn:Disconnect() end
+        connections[i] = nil
+    end
 end
 
 local function destroyAll()
-    for _, obj in ipairs(trackedObjects) do if obj and obj.Parent then obj:Destroy() end end
-    trackedObjects = {}
+    for i = #trackedObjects, 1, -1 do
+        local obj = trackedObjects[i]
+        if obj and obj.Parent then obj:Destroy() end
+        trackedObjects[i] = nil
+    end
 end
 
 local function makeDraggable(frame)
@@ -58,9 +64,14 @@ local function makeDraggable(frame)
             dragStart = input.Position
             startPos = frame.Position
             
-            trackConnection(input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then dragging = false end
-            end))
+            local endConn
+            endConn = input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then 
+                    dragging = false 
+                    if endConn.Connected then endConn:Disconnect() end
+                end
+            end)
+            trackConnection(endConn)
         end
     end))
     trackConnection(frame.InputChanged:Connect(function(input)
@@ -95,7 +106,7 @@ function module.CreateUI(title)
     mainFrame.BackgroundColor3 = Theme.Background
     mainFrame.BorderSizePixel = 0
     mainFrame.Active = true
-    mainFrame.ClipsDescendants = false
+    mainFrame.ClipsDescendants = true
     mainFrame.Parent = screenGui
     Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 14)
     makeDraggable(mainFrame)
@@ -257,19 +268,25 @@ function module.CreateUI(title)
 
     local function toggleMinimize(minimize)
         if minimize then
-            TweenService:Create(mainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Size = UDim2.new(0,0,0,0), BackgroundTransparency = 1}):Play()
-            task.delay(0.2, function()
+            local t = TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1})
+            t:Play()
+            local c
+            c = t.Completed:Connect(function()
+                c:Disconnect()
                 mainFrame.Visible = false
                 minimizedFrame.Visible = true
-                minimizedFrame.Size = UDim2.new(0,0,0,0)
-                TweenService:Create(minimizedFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {Size = UDim2.new(0, 48, 0, 48)}):Play()
+                minimizedFrame.Size = UDim2.new(0, 0, 0, 0)
+                TweenService:Create(minimizedFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back), {Size = UDim2.new(0, 48, 0, 48)}):Play()
             end)
         else
-            TweenService:Create(minimizedFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Size = UDim2.new(0,0,0,0)}):Play()
-            task.delay(0.15, function()
+            local t = TweenService:Create(minimizedFrame, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {Size = UDim2.new(0, 0, 0, 0)})
+            t:Play()
+            local c
+            c = t.Completed:Connect(function()
+                c:Disconnect()
                 minimizedFrame.Visible = false
                 mainFrame.Visible = true
-                TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {Size = isScaledDown and smallSize or normalSize, BackgroundTransparency = 0}):Play()
+                TweenService:Create(mainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back), {Size = isScaledDown and smallSize or normalSize, BackgroundTransparency = 0}):Play()
             end)
         end
     end
@@ -317,7 +334,7 @@ function module.CreateUI(title)
     function module.CreateCategory(name)
         local button = Instance.new("TextButton", categoryFrame)
         button.Size = UDim2.new(1, -5, 0, 38)
-        button.Text = "  " .. name
+        button.Text = "    " .. name
         button.BackgroundColor3 = Color3.fromRGB(24, 24, 27)
         button.TextColor3 = Theme.TextMuted
         button.Font = Theme.FontMain
@@ -345,10 +362,11 @@ function module.CreateUI(title)
         layout.SortOrder = Enum.SortOrder.LayoutOrder
         layout.Padding = UDim.new(0, 8)
 
-        layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        local cSig = layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
             holder.Size = UDim2.new(1, 0, 0, layout.AbsoluteContentSize.Y)
             if holder.Visible then contentScroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y) end
         end)
+        trackConnection(cSig)
 
         trackConnection(button.MouseButton1Click:Connect(function()
             for _, cat in ipairs(categories) do
@@ -411,11 +429,24 @@ function module.CreateUI(title)
             end
         end
 
+        local touchPos
         trackConnection(container.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                enabled = not enabled
-                updateVisual(true)
-                if callback then callback(enabled) end
+                touchPos = input.Position
+            end
+        end))
+
+        trackConnection(container.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                if touchPos then
+                    local delta = (input.Position - touchPos).Magnitude
+                    touchPos = nil
+                    if delta < 8 then
+                        enabled = not enabled
+                        updateVisual(true)
+                        if callback then callback(enabled) end
+                    end
+                end
             end
         end))
 
@@ -449,7 +480,11 @@ function module.CreateUI(title)
             local bounceDown = TweenService:Create(button, TweenInfo.new(0.08, Enum.EasingStyle.Quad), {Size = UDim2.new(1, -12, 0, 36)})
             local bounceUp = TweenService:Create(button, TweenInfo.new(0.12, Enum.EasingStyle.Back), {Size = UDim2.new(1, -4, 0, 40)})
             bounceDown:Play()
-            bounceDown.Completed:Connect(function() bounceUp:Play() end)
+            local bConn
+            bConn = bounceDown.Completed:Connect(function() 
+                bConn:Disconnect()
+                bounceUp:Play() 
+            end)
             if callback then callback() end
         end))
 
