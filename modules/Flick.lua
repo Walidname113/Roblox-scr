@@ -18,7 +18,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.0 Public.")
+local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.1 Public.")
 ui.SetMinimizedImage("97837481633367")
 
 local RunService = game:GetService("RunService")
@@ -26,6 +26,13 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local localPlayer = Players.LocalPlayer
 local camera = workspace.CurrentCamera
+
+local scriptRunning = true
+local connections = {}
+
+local function trackConnection(conn)
+    table.insert(connections, conn)
+end
 
 local ESP_Settings = {
     Box = false,
@@ -39,6 +46,16 @@ local ESP_Settings = {
     DistanceColor = Color3.fromRGB(255, 255, 255)
 }
 
+local Aim_Settings = {
+    Enabled = false,
+    TargetPart = "Head",
+    MaxDistance = 100,
+    WallCheck = false,
+    Smoothness = 0.15,
+    HitboxActive = false,
+    HitboxSize = 3
+}
+
 local PresetColors = {
     {n = "Red", c = Color3.fromRGB(255, 0, 0)},
     {n = "Green", c = Color3.fromRGB(0, 255, 0)},
@@ -49,7 +66,10 @@ local PresetColors = {
     {n = "Cyan", c = Color3.fromRGB(0, 255, 255)}
 }
 
+local originalHeadSizes = {}
+
 local function ShowWarning(text)
+    if not ui.ScreenGui then return end
     local warnFrame = Instance.new("Frame")
     warnFrame.Size = UDim2.new(0, 300, 0, 150)
     warnFrame.Position = UDim2.new(0.5, -150, 0.5, -75)
@@ -134,6 +154,119 @@ local function AddColorPicker(container, defaultValue, callback)
     end)
 end
 
+local aimCategory = ui.CreateCategory("Aim Settings")
+
+ui.CreateToggle("Aimbot", aimCategory, function(state)
+    Aim_Settings.Enabled = state
+end)
+
+local boneContainer = Instance.new("Frame")
+boneContainer.Size = UDim2.new(1, -4, 0, 42)
+boneContainer.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+Instance.new("UICorner", boneContainer).CornerRadius = UDim.new(0, 8)
+Instance.new("UIStroke", boneContainer).Color = Color3.fromRGB(39, 39, 42)
+boneContainer.Parent = aimCategory
+
+local boneLabel = Instance.new("TextLabel", boneContainer)
+boneLabel.Size = UDim2.new(0, 120, 1, 0)
+boneLabel.Position = UDim2.new(0, 14, 0, 0)
+boneLabel.BackgroundTransparency = 1
+boneLabel.Text = "Target Bone"
+boneLabel.Font = Enum.Font.Gotham
+boneLabel.TextSize = 13
+boneLabel.TextColor3 = Color3.fromRGB(243, 244, 246)
+boneLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local dropdownBtn = Instance.new("TextButton", boneContainer)
+dropdownBtn.Size = UDim2.new(0, 120, 0, 28)
+dropdownBtn.Position = UDim2.new(1, -134, 0.5, -14)
+dropdownBtn.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
+dropdownBtn.Text = "Head ▼"
+dropdownBtn.Font = Enum.Font.GothamBold
+dropdownBtn.TextColor3 = Color3.fromRGB(243, 244, 246)
+dropdownBtn.TextSize = 12
+Instance.new("UICorner", dropdownBtn).CornerRadius = UDim.new(0, 6)
+Instance.new("UIStroke", dropdownBtn).Color = Color3.fromRGB(39, 39, 42)
+
+local listFrame = Instance.new("Frame", ui.ScreenGui)
+listFrame.Size = UDim2.new(0, 120, 0, 64)
+listFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
+listFrame.Visible = false
+listFrame.ZIndex = 15000
+Instance.new("UICorner", listFrame).CornerRadius = UDim.new(0, 6)
+Instance.new("UIStroke", listFrame).Color = Color3.fromRGB(168, 85, 247)
+
+local listLayout = Instance.new("UIListLayout", listFrame)
+
+local function makeDropdownItem(name, value)
+    local b = Instance.new("TextButton", listFrame)
+    b.Size = UDim2.new(1, 0, 0, 32)
+    b.BackgroundTransparency = 1
+    b.Text = name
+    b.Font = Enum.Font.Gotham
+    b.TextColor3 = Color3.fromRGB(156, 163, 175)
+    b.TextSize = 12
+    
+    b.MouseButton1Click:Connect(function()
+        Aim_Settings.TargetPart = value
+        dropdownBtn.Text = name .. " ▼"
+        listFrame.Visible = false
+    end)
+end
+makeDropdownItem("Head", "Head")
+makeDropdownItem("Torso", "HumanoidRootPart")
+
+dropdownBtn.MouseButton1Click:Connect(function()
+    listFrame.Position = UDim2.new(0, dropdownBtn.AbsolutePosition.X, 0, dropdownBtn.AbsolutePosition.Y + 32)
+    listFrame.Visible = not listFrame.Visible
+end)
+
+local distanceContainer = Instance.new("Frame")
+distanceContainer.Size = UDim2.new(1, -4, 0, 42)
+distanceContainer.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+Instance.new("UICorner", distanceContainer).CornerRadius = UDim.new(0, 8)
+Instance.new("UIStroke", distanceContainer).Color = Color3.fromRGB(39, 39, 42)
+distanceContainer.Parent = aimCategory
+
+local distanceLabel = Instance.new("TextLabel", distanceContainer)
+distanceLabel.Size = UDim2.new(0, 150, 1, 0)
+distanceLabel.Position = UDim2.new(0, 14, 0, 0)
+distanceLabel.BackgroundTransparency = 1
+distanceLabel.Text = "Aimbot Distance (Studs)"
+distanceLabel.Font = Enum.Font.Gotham
+distanceLabel.TextSize = 13
+distanceLabel.TextColor3 = Color3.fromRGB(243, 244, 246)
+distanceLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local distanceInput = Instance.new("TextBox", distanceContainer)
+distanceInput.Size = UDim2.new(0, 70, 0, 28)
+distanceInput.Position = UDim2.new(1, -84, 0.5, -14)
+distanceInput.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
+distanceInput.Text = tostring(Aim_Settings.MaxDistance)
+distanceInput.PlaceholderText = "100"
+distanceInput.Font = Enum.Font.GothamBold
+distanceInput.TextColor3 = Color3.fromRGB(243, 244, 246)
+distanceInput.TextSize = 12
+Instance.new("UICorner", distanceInput).CornerRadius = UDim.new(0, 6)
+Instance.new("UIStroke", distanceInput).Color = Color3.fromRGB(39, 39, 42)
+
+distanceInput.FocusLost:Connect(function()
+    local val = tonumber(distanceInput.Text)
+    if val then
+        Aim_Settings.MaxDistance = val
+    else
+        distanceInput.Text = tostring(Aim_Settings.MaxDistance)
+    end
+end)
+
+ui.CreateToggle("Wall Check", aimCategory, function(state)
+    Aim_Settings.WallCheck = state
+end)
+
+ui.CreateToggle("Head Hitbox Expander", aimCategory, function(state)
+    Aim_Settings.HitboxActive = state
+end)
+
 local espCategory = ui.CreateCategory("ESP Settings")
 
 local boxT = ui.CreateToggle("Box ESP", espCategory, function(state) ESP_Settings.Box = state end)
@@ -158,6 +291,53 @@ AddColorPicker(lineT, ESP_Settings.LinesColor, function(c) ESP_Settings.LinesCol
 local distT = ui.CreateToggle("Distance ESP", espCategory, function(state) ESP_Settings.Distance = state end)
 AddColorPicker(distT, ESP_Settings.DistanceColor, function(c) ESP_Settings.DistanceColor = c end)
 
+local function isTargetVisible(part, char)
+    local origin = camera.CFrame.Position
+    local direction = part.Position - origin
+    local params = RaycastParams.new()
+    params.FilterDescendantsInstances = {localPlayer.Character, camera}
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    
+    local result = workspace:Raycast(origin, direction, params)
+    return not result or result.Instance:IsDescendantOf(char)
+end
+
+local function getClosestPlayerToCursor()
+    local targetPlr, targetPart = nil, nil
+    local shortestDistance = math.huge
+    local mousePos = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+
+    local myChar = localPlayer.Character
+    local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    if not myHrp then return nil, nil end
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= localPlayer and p.Character then
+            local char = p.Character
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            local part = char:FindFirstChild(Aim_Settings.TargetPart)
+
+            if part and hum and hum.Health > 0 then
+                local distToTarget = (myHrp.Position - part.Position).Magnitude
+                if distToTarget <= Aim_Settings.MaxDistance then
+                    if Aim_Settings.WallCheck and not isTargetVisible(part, char) then continue end
+
+                    local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
+                    if onScreen then
+                        local mag = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                        if mag < shortestDistance then
+                            shortestDistance = mag
+                            targetPlr = p
+                            targetPart = part
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return targetPlr, targetPart
+end
+
 local function CreateESP(plr)
     local highlight = Instance.new("Highlight")
     highlight.Enabled = false
@@ -174,7 +354,6 @@ local function CreateESP(plr)
 
     local nameL = Instance.new("TextLabel", billboard)
     nameL.Size = UDim2.new(1, 0, 0, 20)
-    nameL.Position = UDim2.new(0, 0, 0, 0)
     nameL.BackgroundTransparency = 1
     nameL.Font = Enum.Font.SourceSansBold
     nameL.TextSize = 16
@@ -190,7 +369,6 @@ local function CreateESP(plr)
 
     local distL = Instance.new("TextLabel", billboard)
     distL.Size = UDim2.new(1, 0, 0, 20)
-    distL.Position = UDim2.new(0, 0, 1, 0)
     distL.BackgroundTransparency = 1
     distL.Font = Enum.Font.SourceSansBold
     distL.TextSize = 14
@@ -202,8 +380,14 @@ local function CreateESP(plr)
     lineFrame.ZIndex = 0
     lineFrame.Visible = false
 
-    RunService.RenderStepped:Connect(function()
-        if not plr or not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then
+    local renderConnection
+    renderConnection = RunService.RenderStepped:Connect(function()
+        if not scriptRunning then
+            renderConnection:Disconnect()
+            return
+        end
+
+        if not plr or not plr.Parent or not plr.Character then
             highlight.Enabled = false
             billboard.Enabled = false
             lineFrame.Visible = false
@@ -211,10 +395,33 @@ local function CreateESP(plr)
         end
 
         local character = plr.Character
-        local hrp = character.HumanoidRootPart
+        local hrp = character:FindFirstChild("HumanoidRootPart")
         local head = character:FindFirstChild("Head")
         local hum = character:FindFirstChildOfClass("Humanoid")
         
+        if head and head:IsA("BasePart") then
+            if not originalHeadSizes[plr] then
+                originalHeadSizes[plr] = {Size = head.Size, CanCollide = head.CanCollide}
+            end
+            
+            if Aim_Settings.HitboxActive then
+                head.Size = Vector3.new(Aim_Settings.HitboxSize, Aim_Settings.HitboxSize, Aim_Settings.HitboxSize)
+                head.Transparency = 0.5
+                head.CanCollide = false
+            else
+                head.Size = originalHeadSizes[plr].Size
+                head.Transparency = 0
+                head.CanCollide = originalHeadSizes[plr].CanCollide
+            end
+        end
+
+        if not hrp or not hum or hum.Health <= 0 then
+            highlight.Enabled = false
+            billboard.Enabled = false
+            lineFrame.Visible = false
+            return
+        end
+
         highlight.Adornee = character
         highlight.Enabled = ESP_Settings.Box
         highlight.FillColor = ESP_Settings.BoxColor
@@ -230,24 +437,20 @@ local function CreateESP(plr)
         nameL.TextColor3 = ESP_Settings.NamesColor
 
         hpL.Visible = ESP_Settings.HP
-        if hum then
-            hpL.Text = "HP: " .. math.floor(hum.Health)
-            hpL.TextColor3 = Color3.fromHSV(math.clamp(hum.Health/hum.MaxHealth, 0, 1) * 0.3, 1, 1)
-        end
+        hpL.Text = "HP: " .. math.floor(hum.Health)
+        hpL.TextColor3 = Color3.fromHSV(math.clamp(hum.Health/hum.MaxHealth, 0, 1) * 0.3, 1, 1)
 
         distL.Visible = ESP_Settings.Distance
         distL.TextColor3 = ESP_Settings.DistanceColor
-        distL.Position = UDim2.new(0, 0, 0, (sizeOffset * 10) + 40)
         distL.Position = UDim2.new(0, 0, 0, 60) 
         
         local charDist = 0
-        if localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            charDist = (localPlayer.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+        local myChar = localPlayer.Character
+        local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
+        if myHrp then
+            charDist = (myHrp.Position - hrp.Position).Magnitude
             distL.Text = math.floor(charDist) .. " studs"
         end
-        
-        billboard.Size = UDim2.new(0, 200, 0, 70)
-        distL.Position = UDim2.new(0, 0, 0, 100)
 
         if ESP_Settings.Lines and ESP_Settings.Box then
             local bottomPos = hrp.Position - Vector3.new(0, sizeOffset, 0)
@@ -268,9 +471,67 @@ local function CreateESP(plr)
             lineFrame.Visible = false
         end
     end)
+    trackConnection(renderConnection)
 end
 
-for _, p in ipairs(Players:GetPlayers()) do if p ~= localPlayer then CreateESP(p) end end
-Players.PlayerAdded:Connect(function(p) if p ~= localPlayer then CreateESP(p) end end)
+for _, p in ipairs(Players:GetPlayers()) do 
+    if p ~= localPlayer then CreateESP(p) end 
+end
+
+trackConnection(Players.PlayerAdded:Connect(function(p) 
+    if p ~= localPlayer then CreateESP(p) end 
+end))
+
+trackConnection(Players.PlayerRemoving:Connect(function(p)
+    originalHeadSizes[p] = nil
+end))
+
+local aimConnection
+aimConnection = RunService.RenderStepped:Connect(function()
+    if not scriptRunning then
+        aimConnection:Disconnect()
+        return
+    end
+
+    if not Aim_Settings.Enabled then return end
+
+    local targetPlr, targetPart = getClosestPlayerToCursor()
+    if targetPart then
+        local targetCFrame = CFrame.new(camera.CFrame.Position, targetPart.Position)
+        camera.CFrame = camera.CFrame:Lerp(targetCFrame, Aim_Settings.Smoothness)
+    end
+end)
+trackConnection(aimConnection)
 
 ui.OpenFirstCategory()
+
+ui.OnClose(function()
+    scriptRunning = false
+    
+    Aim_Settings.Enabled = false
+    Aim_Settings.HitboxActive = false
+    for k in pairs(ESP_Settings) do ESP_Settings[k] = false end
+
+    for _, conn in ipairs(connections) do
+        if conn and conn.Connected then
+            conn:Disconnect()
+        end
+    end
+    table.clear(connections)
+
+    for p, data in pairs(originalHeadSizes) do
+        if p and p.Character then
+            local head = p.Character:FindFirstChild("Head")
+            if head then
+                head.Size = data.Size
+                head.Transparency = 0
+                head.CanCollide = data.CanCollide
+            end
+        end
+    end
+    table.clear(originalHeadSizes)
+
+    if listFrame then listFrame:Destroy() end
+
+    print("Flick Script completely deactivated and memory freed!")
+end)
