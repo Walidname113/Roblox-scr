@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
+local TextService = game:GetService("TextService")
 
 local localPlayer = Players.LocalPlayer
 
@@ -11,19 +12,28 @@ if oldGui then oldGui:Destroy() end
 local currentLang = "EN"
 local locales = {
 	EN = {
-		title = "RigType Checker:",
+		title = "RigType Checker v1.0.0:",
 		notifText = "Player: <b>%s</b>\nRig: <font color='#0078FF'><b>%s</b></font>",
 		notNotResponded = "Not spawned, wait until this player spawned.",
+		systemNotifText = "This place only supports <font color='#0078FF'><b>%s</b></font> rigs.",
+		confirmTitle = "Are you sure?",
+		confirmYes = "Yes",
+		confirmNo = "No"
 	},
 	RU = {
-		title = "Чекер RigType:",
+		title = "Чекер RigType v1.0.0:",
 		notifText = "Игрок: <b>%s</b>\nТело: <font color='#0078FF'><b>%s</b></font>",
 		notNotResponded = "Игрок мёртв (тело не найдено), подождите его возрождения.",
+		systemNotifText = "Этот плейс поддерживает только <font color='#0078FF'><b>%s</b></font> скелеты.",
+		confirmTitle = "Вы уверены?",
+		confirmYes = "Да",
+		confirmNo = "Нет"
 	}
 }
 
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "AdminRigCheckerGui"
+screenGui.IgnoreGuiInset = true
 screenGui.Parent = CoreGui
 
 local mainFrame = Instance.new("Frame")
@@ -32,6 +42,7 @@ mainFrame.Position = UDim2.new(0.05, 0, 0.4, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
+mainFrame.ClipsDescendants = true
 mainFrame.Parent = screenGui
 
 local mainCorner = Instance.new("UICorner")
@@ -44,7 +55,6 @@ dragHeader.BackgroundTransparency = 1
 dragHeader.Parent = mainFrame
 
 local titleLabel = Instance.new("TextLabel")
-titleLabel.Size = UDim2.new(1, -110, 1, 0)
 titleLabel.Position = UDim2.new(0, 10, 0, 0)
 titleLabel.BackgroundTransparency = 1
 titleLabel.Text = locales[currentLang].title
@@ -117,6 +127,66 @@ listLayout.Padding = UDim.new(0, 6)
 listLayout.SortOrder = Enum.SortOrder.LayoutOrder
 listLayout.Parent = scrollingFrame
 
+local confirmOverlay = Instance.new("Frame")
+confirmOverlay.Size = UDim2.new(1, 0, 1, 0)
+confirmOverlay.Position = UDim2.new(0, 0, 1, 0)
+confirmOverlay.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+confirmOverlay.BorderSizePixel = 0
+confirmOverlay.ZIndex = 5
+confirmOverlay.Parent = mainFrame
+
+Instance.new("UICorner", confirmOverlay).CornerRadius = UDim.new(0, 8)
+
+local confirmTitle = Instance.new("TextLabel")
+confirmTitle.Size = UDim2.new(1, -20, 0, 40)
+confirmTitle.Position = UDim2.new(0, 10, 0, 30)
+confirmTitle.BackgroundTransparency = 1
+confirmTitle.Text = locales[currentLang].confirmTitle
+confirmTitle.TextColor3 = Color3.fromRGB(240, 240, 240)
+confirmTitle.Font = Enum.Font.GothamBold
+confirmTitle.TextSize = 18
+confirmTitle.ZIndex = 6
+confirmTitle.Parent = confirmOverlay
+
+local yesButton = Instance.new("TextButton")
+yesButton.Size = UDim2.new(0, 90, 0, 35)
+yesButton.Position = UDim2.new(0.5, -100, 0.5, 0)
+yesButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+yesButton.Text = locales[currentLang].confirmYes
+yesButton.TextColor3 = Color3.fromRGB(240, 240, 240)
+yesButton.Font = Enum.Font.GothamBold
+yesButton.TextSize = 14
+yesButton.ZIndex = 6
+yesButton.Parent = confirmOverlay
+Instance.new("UICorner", yesButton).CornerRadius = UDim.new(0, 6)
+
+local noButton = Instance.new("TextButton")
+noButton.Size = UDim2.new(0, 90, 0, 35)
+noButton.Position = UDim2.new(0.5, 10, 0.5, 0)
+noButton.BackgroundColor3 = Color3.fromRGB(55, 55, 60)
+noButton.Text = locales[currentLang].confirmNo
+noButton.TextColor3 = Color3.fromRGB(240, 240, 240)
+noButton.Font = Enum.Font.GothamBold
+noButton.TextSize = 14
+noButton.ZIndex = 6
+noButton.Parent = confirmOverlay
+Instance.new("UICorner", noButton).CornerRadius = UDim.new(0, 6)
+
+local function updateHeaderStretch()
+	local text = locales[currentLang].title
+	local font = Enum.Font.GothamBold
+	local size = 15
+	local baseBounds = TextService:GetTextSize(text, size, font, Vector2.new(1000, 40))
+	
+	local neededWidth = baseBounds.X + 130
+	local currentWidth = math.max(250, neededWidth)
+	
+	mainFrame.Size = UDim2.new(0, currentWidth, mainFrame.Size.Y.Scale, mainFrame.Size.Y.Offset)
+	titleLabel.Size = UDim2.new(1, -110, 1, 0)
+end
+
+updateHeaderStretch()
+
 local dragging, dragInput, dragStart, startPos
 
 local function update(input)
@@ -124,47 +194,53 @@ local function update(input)
 	mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 end
 
-dragHeader.InputBegan:Connect(function(input)
+local dragBeganConn = dragHeader.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 		dragging = true
 		dragStart = input.Position
 		startPos = mainFrame.Position
 
-		input.Changed:Connect(function()
+		local moveConn
+		moveConn = input.Changed:Connect(function()
 			if input.UserInputState == Enum.UserInputState.End then
 				dragging = false
+				if moveConn then moveConn:Disconnect() end
 			end
 		end)
 	end
 end)
 
-dragHeader.InputChanged:Connect(function(input)
+local dragChangedConn = dragHeader.InputChanged:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
 		dragInput = input
 	end
 end)
 
-UserInputService.InputChanged:Connect(function(input)
+local uiChangedConn = UserInputService.InputChanged:Connect(function(input)
 	if input == dragInput and dragging then
 		update(input)
 	end
 end)
 
 local isCollapsed = false
-local originalSize = mainFrame.Size
+local originalHeight = 350
 
-toggleButton.MouseButton1Click:Connect(function()
+local toggleConn = toggleButton.MouseButton1Click:Connect(function()
 	isCollapsed = not isCollapsed
 	if isCollapsed then
 		scrollingFrame.Visible = false
 		line.Visible = false
 		toggleButton.Text = "+"
-		TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Size = UDim2.new(0, 250, 0, 40)}):Play()
+		TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Size = UDim2.new(0, mainFrame.Size.X.Offset, 0, 40)}):Play()
 	else
-		TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Size = originalSize}):Play()
-		task.wait(0.15)
-		scrollingFrame.Visible = true
-		line.Visible = true
+		local tween = TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Size = UDim2.new(0, mainFrame.Size.X.Offset, 0, originalHeight)})
+		tween:Play()
+		tween.Completed:Connect(function()
+			if not isCollapsed then
+				scrollingFrame.Visible = true
+				line.Visible = true
+			end
+		end)
 		toggleButton.Text = "−"
 	end
 end)
@@ -172,14 +248,38 @@ end)
 local activeNotifications = {}
 local NOTIF_WIDTH = 250
 local NOTIF_HEIGHT = 60
-local NOTIF_SPACING = 8
-local SCREEN_PADDING = 15
+local NOTIF_SPACING = 5
+local SCREEN_PADDING = 10
+local systemNotifLabel = nil
+local currentRigRestriction = "Both"
 
 local function rearrangeNotifications()
+	local currentYOffset = -SCREEN_PADDING
+	local tInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	for index, notif in ipairs(activeNotifications) do
-		local targetYOffset = -SCREEN_PADDING - (index * (NOTIF_HEIGHT + NOTIF_SPACING)) + NOTIF_SPACING
-		local targetPos = UDim2.new(1, -NOTIF_WIDTH - SCREEN_PADDING, 1, targetYOffset)
-		TweenService:Create(notif, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = targetPos}):Play()
+		local targetPos = UDim2.new(1, -NOTIF_WIDTH - SCREEN_PADDING, 1, currentYOffset - NOTIF_HEIGHT)
+		TweenService:Create(notif, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = targetPos}):Play()
+		currentYOffset = currentYOffset - (NOTIF_HEIGHT + NOTIF_SPACING)
+	end
+end
+
+local function removeNotification(notifFrame, textLabel, sideLine)
+	for i = 1, #activeNotifications do
+		if activeNotifications[i] == notifFrame then
+			table.remove(activeNotifications, i)
+			break
+		end
+	end
+	if notifFrame and notifFrame.Parent then
+		local targetPos = UDim2.new(1.2, 0, notifFrame.Position.Y.Scale, notifFrame.Position.Y.Offset)
+		local tween = TweenService:Create(notifFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = targetPos, BackgroundTransparency = 1})
+		if textLabel then TweenService:Create(textLabel, TweenInfo.new(0.1), {TextTransparency = 1}):Play() end
+		if sideLine then TweenService:Create(sideLine, TweenInfo.new(0.1), {BackgroundTransparency = 1}):Play() end
+		tween:Play()
+		tween.Completed:Connect(function()
+			notifFrame:Destroy()
+		end)
+		rearrangeNotifications()
 	end
 end
 
@@ -196,6 +296,7 @@ local function showNotification(playerName, rigType)
 	nCorner.Parent = notifFrame
 
 	local sideLine = Instance.new("Frame")
+	sideLine.Name = "SideLine"
 	sideLine.Size = UDim2.new(0, 4, 1, 0)
 	sideLine.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
 	sideLine.BorderSizePixel = 0
@@ -215,40 +316,135 @@ local function showNotification(playerName, rigType)
 	textLabel.TextXAlignment = Enum.TextXAlignment.Left
 	textLabel.Parent = notifFrame
 
-	table.insert(activeNotifications, 1, notifFrame)
+	if #activeNotifications > 0 and systemNotifLabel then
+		table.insert(activeNotifications, 2, notifFrame)
+	else
+		table.insert(activeNotifications, 1, notifFrame)
+	end
+	
 	rearrangeNotifications()
 
-	task.delay(4, function()
-		for i, v in ipairs(activeNotifications) do
-			if v == notifFrame then
-				table.remove(activeNotifications, i)
+	local screenHeight = screenGui.AbsoluteSize.Y
+	local maxAllowedHeight = screenHeight - 5 
+	local currentTotalHeight = #activeNotifications * (NOTIF_HEIGHT + NOTIF_SPACING) + SCREEN_PADDING
+
+	if currentTotalHeight > maxAllowedHeight then
+		local oldestNormalNotif = nil
+		for i = #activeNotifications, 1, -1 do
+			local target = activeNotifications[i]
+			if target and (not systemNotifLabel or target:FindFirstChildOfClass("TextLabel") ~= systemNotifLabel) then
+				oldestNormalNotif = target
 				break
 			end
 		end
-		local targetPos = UDim2.new(1.2, 0, notifFrame.Position.Y.Scale, notifFrame.Position.Y.Offset)
-		local tween = TweenService:Create(notifFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = targetPos, BackgroundTransparency = 1})
-		TweenService:Create(textLabel, TweenInfo.new(0.1), {TextTransparency = 1}):Play()
-		TweenService:Create(sideLine, TweenInfo.new(0.1), {BackgroundTransparency = 1}):Play()
-		tween:Play()
-		tween.Completed:Connect(function()
-			notifFrame:Destroy()
-		end)
-		rearrangeNotifications()
+		if oldestNormalNotif then
+			removeNotification(oldestNormalNotif, oldestNormalNotif:FindFirstChildOfClass("TextLabel"), oldestNormalNotif:FindFirstChild("SideLine"))
+		end
+	end
+
+	task.delay(4, function()
+		if notifFrame and notifFrame.Parent then
+			removeNotification(notifFrame, textLabel, sideLine)
+		end
 	end)
+end
+
+local function showSystemNotification(rigRestriction)
+	currentRigRestriction = rigRestriction
+
+	local notifFrame = Instance.new("Frame")
+	notifFrame.Size = UDim2.new(0, NOTIF_WIDTH, 0, NOTIF_HEIGHT)
+	notifFrame.Position = UDim2.new(1.2, 0, 1, -NOTIF_HEIGHT - SCREEN_PADDING)
+	notifFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+	notifFrame.BorderSizePixel = 0
+	notifFrame.Parent = screenGui
+
+	local nCorner = Instance.new("UICorner")
+	nCorner.CornerRadius = UDim.new(0, 6)
+	nCorner.Parent = notifFrame
+
+	local sideLine = Instance.new("Frame")
+	sideLine.Name = "SideLine"
+	sideLine.Size = UDim2.new(0, 4, 1, 0)
+	sideLine.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+	sideLine.BorderSizePixel = 0
+	sideLine.Parent = notifFrame
+	Instance.new("UICorner", sideLine).CornerRadius = UDim.new(0, 4)
+
+	local textLabel = Instance.new("TextLabel")
+	textLabel.Size = UDim2.new(1, -40, 1, 0)
+	textLabel.Position = UDim2.new(0, 12, 0, 0)
+	textLabel.BackgroundTransparency = 1
+	textLabel.Text = string.format(locales[currentLang].systemNotifText, rigRestriction)
+	textLabel.RichText = true
+	textLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+	textLabel.Font = Enum.Font.GothamMedium
+	textLabel.TextSize = 13
+	textLabel.TextWrapped = true
+	textLabel.TextXAlignment = Enum.TextXAlignment.Left
+	textLabel.Parent = notifFrame
+	systemNotifLabel = textLabel
+
+	local customClose = Instance.new("TextButton")
+	customClose.Size = UDim2.new(0, 20, 0, 20)
+	customClose.Position = UDim2.new(1, -24, 0, 6)
+	customClose.BackgroundTransparency = 1
+	customClose.Text = "×"
+	customClose.TextColor3 = Color3.fromRGB(150, 150, 150)
+	customClose.Font = Enum.Font.GothamBold
+	customClose.TextSize = 16
+	customClose.Parent = notifFrame
+
+	local enterConn = customClose.MouseEnter:Connect(function() customClose.TextColor3 = Color3.fromRGB(240, 240, 240) end)
+	local leaveConn = customClose.MouseLeave:Connect(function() customClose.TextColor3 = Color3.fromRGB(150, 150, 150) end)
+
+	local clickConn
+	clickConn = customClose.MouseButton1Click:Connect(function()
+		systemNotifLabel = nil
+		enterConn:Disconnect()
+		leaveConn:Disconnect()
+		clickConn:Disconnect()
+		removeNotification(notifFrame, textLabel, sideLine)
+	end)
+
+	table.insert(activeNotifications, 1, notifFrame)
+	rearrangeNotifications()
+end
+
+local function checkPlaceRigType()
+	local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+	local humanoid = char:WaitForChild("Humanoid", 10)
+	if not humanoid then return end
+	local myRig = humanoid.RigType.Name
+	
+	local animateService = game:FindFirstChild("Animate")
+	local hasGlobalR15 = animateService and animateService:FindFirstChild("R15ArtistIntent") ~= nil
+	
+	if myRig == "R6" then
+		if not hasGlobalR15 then showSystemNotification("R6") end
+	elseif myRig == "R15" then
+		local r15Script = workspace:FindFirstChild("R15Anim") or workspace:FindFirstChild("R15ArtistIntent")
+		local animScript = char:FindFirstChild("Animate")
+		local isLockedR15 = animScript and animScript:FindFirstChild("Content") == nil
+		if r15Script or isLockedR15 then showSystemNotification("R15") end
+	end
 end
 
 local function getRigType(player)
 	local char = player.Character
 	if char then
 		local humanoid = char:FindFirstChildOfClass("Humanoid")
-		if humanoid then
-			return humanoid.RigType.Name
-		end
+		if humanoid then return humanoid.RigType.Name end
 	end
 	return locales[currentLang].notNotResponded
 end
 
+local playButtonsConnections = {}
+
 local function updatePlayerList()
+	for _, conn in ipairs(playButtonsConnections) do conn:Disconnect() end
+	table.clear(playButtonsConnections)
+
 	for _, child in ipairs(scrollingFrame:GetChildren()) do
 		if child:IsA("TextButton") then child:Destroy() end
 	end
@@ -269,29 +465,80 @@ local function updatePlayerList()
 		pCorner.CornerRadius = UDim.new(0, 4)
 		pCorner.Parent = playBtn
 
-		playBtn.MouseButton1Click:Connect(function()
+		local conn = playBtn.MouseButton1Click:Connect(function()
 			showNotification(player.Name, getRigType(player))
 		end)
+		table.insert(playButtonsConnections, conn)
 	end
 	scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y)
 end
 
-langButton.MouseButton1Click:Connect(function()
+local langConn = langButton.MouseButton1Click:Connect(function()
 	currentLang = (currentLang == "EN") and "RU" or "EN"
 	langButton.Text = currentLang
 	titleLabel.Text = locales[currentLang].title
+	confirmTitle.Text = locales[currentLang].confirmTitle
+	yesButton.Text = locales[currentLang].confirmYes
+	noButton.Text = locales[currentLang].confirmNo
+	if systemNotifLabel then
+		systemNotifLabel.Text = string.format(locales[currentLang].systemNotifText, currentRigRestriction)
+	end
+	updateHeaderStretch()
 	updatePlayerList()
 end)
 
-closeButton.MouseButton1Click:Connect(function()
-	screenGui:Destroy() 
+local function closeGuiWithAnimation()
+	dragBeganConn:Disconnect()
+	dragChangedConn:Disconnect()
+	uiChangedConn:Disconnect()
+	toggleConn:Disconnect()
+	langConn:Disconnect()
+	for _, conn in ipairs(playButtonsConnections) do conn:Disconnect() end
+	
+	local t1 = TweenService:Create(mainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+		Size = UDim2.new(0, mainFrame.Size.X.Offset, 0, 0),
+		BackgroundTransparency = 1
+	})
+	
+	for _, child in ipairs(mainFrame:GetDescendants()) do
+		if child:IsA("TextLabel") or child:IsA("TextButton") then
+			TweenService:Create(child, TweenInfo.new(0.15), {TextTransparency = 1}):Play()
+		elseif child:IsA("Frame") then
+			TweenService:Create(child, TweenInfo.new(0.15), {BackgroundTransparency = 1}):Play()
+		end
+	end
+	
+	t1:Play()
+	t1.Completed:Connect(function()
+		screenGui:Destroy()
+	end)
+end
+
+local closeConn = closeButton.MouseButton1Click:Connect(function()
+	TweenService:Create(confirmOverlay, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(0, 0, 0, 0)}):Play()
+end)
+
+local yesConn = yesButton.MouseButton1Click:Connect(function()
+	closeGuiWithAnimation()
+end)
+
+local noConn = noButton.MouseButton1Click:Connect(function()
+	TweenService:Create(confirmOverlay, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(0, 0, 1, 0)}):Play()
 end)
 
 updatePlayerList()
+task.spawn(checkPlaceRigType)
+
 local pAdded = Players.PlayerAdded:Connect(updatePlayerList)
 local pRemoved = Players.PlayerRemoving:Connect(updatePlayerList)
 
-screenGui.Destroying:Connect(function()
+local destroyingConn
+destroyingConn = screenGui.Destroying:Connect(function()
 	pAdded:Disconnect()
 	pRemoved:Disconnect()
+	closeConn:Disconnect()
+	yesConn:Disconnect()
+	noConn:Disconnect()
+	destroyingConn:Disconnect()
+	for _, conn in ipairs(playButtonsConnections) do conn:Disconnect() end
 end)
