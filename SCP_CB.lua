@@ -11,7 +11,7 @@ local moduleFunc = loadstring(source)
 if not moduleFunc then return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.5.1 Safe")
+local ui = uiModule.CreateUI("SCP:RB by Kiyatsuka | Version: 1.5.2 Safe")
 ui.SetMinimizedImage("130805202254686")
 
 local Players = game:GetService("Players")
@@ -24,6 +24,8 @@ local localPlayer = Players.LocalPlayer
 local cam = Workspace.CurrentCamera
 local MAX_DISTANCE = 600
 local UPDATE_INTERVAL = 0.1
+
+local scriptRunning = true
 
 local SafeContainer = Instance.new("Folder")
 SafeContainer.Name = "EspContainer_" .. math.random(1000,9999)
@@ -101,6 +103,7 @@ local function isVisible(part)
 end
 
 local function GetPlayerVisuals(player)
+    if not scriptRunning then return nil end
     if VisualsCache[player] then return VisualsCache[player] end
 
     local visuals = {
@@ -255,10 +258,39 @@ ui.OpenFirstCategory()
 for _, p in ipairs(Players:GetPlayers()) do
     if p ~= localPlayer then GetPlayerVisuals(p) end
 end
-Players.PlayerRemoving:Connect(ClearVisuals)
+local removalConnection = Players.PlayerRemoving:Connect(ClearVisuals)
+
+ui.OnClose(function()
+    scriptRunning = false
+    aimbotEnabled = false
+    espAllEnabled = false
+    hpEspEnabled = false
+    distEspEnabled = false
+    currentTarget = nil
+    
+    for teamName in pairs(teamSettings) do
+        teamSettings[teamName] = false
+    end
+    
+    if removalConnection then
+        removalConnection:Disconnect()
+    end
+    
+    -- Очистка кэша визуальных элементов
+    for _, plr in ipairs(Players:GetPlayers()) do
+        ClearVisuals(plr)
+    end
+    VisualsCache = {}
+    
+    if SafeContainer then
+        SafeContainer:Destroy()
+    end
+    
+    print("SCP:RB Script successfully unloaded and cleaned up!")
+end)
 
 RunService.RenderStepped:Connect(function()
-    if not aimbotEnabled then return end
+    if not scriptRunning or not aimbotEnabled then return end
     local c, h, r = getCharacter()
     if not c or not r then return end
     local camPos = cam.CFrame.Position
@@ -303,60 +335,63 @@ RunService.RenderStepped:Connect(function()
 end)
 
 task.spawn(function()
-    while true do
+    while scriptRunning do
         local _, _, myRoot = getCharacter()
         for _, p in ipairs(Players:GetPlayers()) do
+            if not scriptRunning then break end
             if p ~= localPlayer then
                 local char = p.Character
                 local visuals = GetPlayerVisuals(p)
-                local root = char and getBestPart(char)
-                local hum = char and char:FindFirstChild("Humanoid")
-                local tName = p.Team and p.Team.Name or ""
-                local isEspOn = (espAllEnabled or teamSettings[tName]) and tName ~= "Lobby"
-                local dist = (myRoot and root) and (myRoot.Position - root.Position).Magnitude or 99999
-                local inRange = dist <= MAX_DISTANCE
-                local shouldShow = isEspOn and inRange and root and hum and hum.Health > 0
+                if visuals then
+                    local root = char and getBestPart(char)
+                    local hum = char and char:FindFirstChild("Humanoid")
+                    local tName = p.Team and p.Team.Name or ""
+                    local isEspOn = (espAllEnabled or teamSettings[tName]) and tName ~= "Lobby"
+                    local dist = (myRoot and root) and (myRoot.Position - root.Position).Magnitude or 99999
+                    local inRange = dist <= MAX_DISTANCE
+                    local shouldShow = isEspOn and inRange and root and hum and hum.Health > 0
 
-                if visuals.Highlight then
-                    visuals.Highlight.Enabled = shouldShow
-                    if shouldShow then
-                        visuals.Highlight.Adornee = char
-                        local teamColor = p.Team and p.Team.TeamColor.Color or Color3.new(1, 1, 1)
-                        visuals.Highlight.FillColor = teamColor
-                        visuals.Highlight.OutlineColor = teamColor
-                    end
-                end
-
-                if visuals.InfoGui then
-                    visuals.InfoGui.Enabled = shouldShow and (hpEspEnabled or distEspEnabled)
-                    if visuals.InfoGui.Enabled then
-                        visuals.InfoGui.Adornee = root
-                        if hpEspEnabled then
-                            local perc = math.clamp(math.floor((hum.Health / hum.MaxHealth) * 100), 0, 100)
-                            visuals.Labels.HP.Text = "HP: " .. perc .. "%"
-                            visuals.Labels.HP.TextColor3 = getHealthColor(perc)
-                            visuals.Labels.HP.Visible = true
-                        else
-                            visuals.Labels.HP.Visible = false
-                        end
-                        if distEspEnabled then
-                            visuals.Labels.Dist.Text = "Dist: " .. math.floor(dist) .. " studs"
-                            visuals.Labels.Dist.Visible = true
-                        else
-                            visuals.Labels.Dist.Visible = false
+                    if visuals.Highlight then
+                        visuals.Highlight.Enabled = shouldShow
+                        if shouldShow then
+                            visuals.Highlight.Adornee = char
+                            local teamColor = p.Team and p.Team.TeamColor.Color or Color3.new(1, 1, 1)
+                            visuals.Highlight.FillColor = teamColor
+                            visuals.Highlight.OutlineColor = teamColor
                         end
                     end
-                end
 
-                local role = p:GetAttribute("Role")
-                if visuals.SkeletonGui then
-                    if role == "SCP-966" and shouldShow then
-                        visuals.SkeletonGui.Enabled = true
-                        visuals.SkeletonGui.Adornee = root
-                        local scpColor = Teams["SCP"] and Teams["SCP"].TeamColor.Color or Color3.new(1,0,0)
-                        visuals.SkeletonPart.BackgroundColor3 = scpColor
-                    else
-                        visuals.SkeletonGui.Enabled = false
+                    if visuals.InfoGui then
+                        visuals.InfoGui.Enabled = shouldShow and (hpEspEnabled or distEspEnabled)
+                        if visuals.InfoGui.Enabled then
+                            visuals.InfoGui.Adornee = root
+                            if hpEspEnabled then
+                                local perc = math.clamp(math.floor((hum.Health / hum.MaxHealth) * 100), 0, 100)
+                                visuals.Labels.HP.Text = "HP: " .. perc .. "%"
+                                visuals.Labels.HP.TextColor3 = getHealthColor(perc)
+                                visuals.Labels.HP.Visible = true
+                            else
+                                visuals.Labels.HP.Visible = false
+                            end
+                            if distEspEnabled then
+                                visuals.Labels.Dist.Text = "Dist: " .. math.floor(dist) .. " studs"
+                                visuals.Labels.Dist.Visible = true
+                            else
+                                visuals.Labels.Dist.Visible = false
+                            end
+                        end
+                    end
+
+                    local role = p:GetAttribute("Role")
+                    if visuals.SkeletonGui then
+                        if role == "SCP-966" and shouldShow then
+                            visuals.SkeletonGui.Enabled = true
+                            visuals.SkeletonGui.Adornee = root
+                            local scpColor = Teams["SCP"] and Teams["SCP"].TeamColor.Color or Color3.new(1,0,0)
+                            visuals.SkeletonPart.BackgroundColor3 = scpColor
+                        else
+                            visuals.SkeletonGui.Enabled = false
+                        end
                     end
                 end
             end
