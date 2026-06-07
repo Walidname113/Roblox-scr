@@ -18,7 +18,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.3 Public.")
+local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.4 Stable.")
 ui.SetMinimizedImage("97837481633367")
 
 local RunService = game:GetService("RunService")
@@ -489,23 +489,37 @@ trackConnection(Players.PlayerRemoving:Connect(function(p)
     originalHeadSizes[p] = nil
 end))
 
-local oldNamecall
-oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-    local method = getnamecallmethod()
-    local args = {...}
-    
-    if scriptRunning and Aim_Settings.Enabled and Aim_Settings.SilentAim and (method == "FindPartOnRayWithIgnoreList" or method == "FindPartOnRay" or method == "Raycast") then
+local oldRaycast
+oldRaycast = hookfunction(workspace.Raycast, function(self, origin, direction, params)
+    if scriptRunning and Aim_Settings.Enabled and Aim_Settings.SilentAim then
         local targetPlr, targetPart = getClosestPlayerToCursor()
         if targetPart then
-            if method == "Raycast" then
-                args[2] = (targetPart.Position - args[1]).Unit * 9999
-            else
-                args[1] = Ray.new(camera.CFrame.Position, (targetPart.Position - camera.CFrame.Position).Unit * 9999)
-            end
-            return oldNamecall(self, unpack(args))
+            direction = (targetPart.Position - origin).Unit * direction.Magnitude
         end
     end
-    return oldNamecall(self, ...)
+    return oldRaycast(self, origin, direction, params)
+end)
+
+local oldFindPartOnRay
+oldFindPartOnRay = hookfunction(workspace.FindPartOnRay, function(self, ray, ignoreList, terrainCellsAreCubes, nonZeroVelocityConsideredMethod)
+    if scriptRunning and Aim_Settings.Enabled and Aim_Settings.SilentAim then
+        local targetPlr, targetPart = getClosestPlayerToCursor()
+        if targetPart then
+            ray = Ray.new(ray.Origin, (targetPart.Position - ray.Origin).Unit * ray.Direction.Magnitude)
+        end
+    end
+    return oldFindPartOnRay(self, ray, ignoreList, terrainCellsAreCubes, nonZeroVelocityConsideredMethod)
+end)
+
+local oldFindPartOnRayWithIgnoreList
+oldFindPartOnRayWithIgnoreList = hookfunction(workspace.FindPartOnRayWithIgnoreList, function(self, ray, ignoreList, terrainCellsAreCubes, nonZeroVelocityConsideredMethod)
+    if scriptRunning and Aim_Settings.Enabled and Aim_Settings.SilentAim then
+        local targetPlr, targetPart = getClosestPlayerToCursor()
+        if targetPart then
+            ray = Ray.new(ray.Origin, (targetPart.Position - ray.Origin).Unit * ray.Direction.Magnitude)
+        end
+    end
+    return oldFindPartOnRayWithIgnoreList(self, ray, ignoreList, terrainCellsAreCubes, nonZeroVelocityConsideredMethod)
 end)
 
 local oldIndex
@@ -557,18 +571,4 @@ ui.OnClose(function()
     table.clear(connections)
 
     for p, data in pairs(originalHeadSizes) do
-        if p and p.Character then
-            local head = p.Character:FindFirstChild("Head")
-            if head then
-                head.Size = data.Size
-                head.Transparency = 0
-                head.CanCollide = data.CanCollide
-            end
-        end
-    end
-    table.clear(originalHeadSizes)
-
-    if listFrame then listFrame:Destroy() end
-
-    print("Flick Script completely deactivated and memory freed!")
-end)
+        if p and p.Character
