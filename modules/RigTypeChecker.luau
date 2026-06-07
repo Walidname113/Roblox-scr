@@ -12,7 +12,7 @@ if oldGui then oldGui:Destroy() end
 local currentLang = "EN"
 local locales = {
 	EN = {
-		title = "RigType Checker v1.0.0:",
+		title = "RigType Checker v1.0.1:",
 		notifText = "Player: <b>%s</b>\nRig: <font color='#0078FF'><b>%s</b></font>",
 		notNotResponded = "Not spawned, wait until this player spawned.",
 		systemNotifText = "This place only supports <font color='#0078FF'><b>%s</b></font> rigs.",
@@ -21,7 +21,7 @@ local locales = {
 		confirmNo = "No"
 	},
 	RU = {
-		title = "Чекер RigType v1.0.0:",
+		title = "Чекер RigType v1.0.1:",
 		notifText = "Игрок: <b>%s</b>\nТело: <font color='#0078FF'><b>%s</b></font>",
 		notNotResponded = "Игрок мёртв (тело не найдено), подождите его возрождения.",
 		systemNotifText = "Этот плейс поддерживает только <font color='#0078FF'><b>%s</b></font> скелеты.",
@@ -130,7 +130,8 @@ listLayout.Parent = scrollingFrame
 local confirmOverlay = Instance.new("Frame")
 confirmOverlay.Size = UDim2.new(1, 0, 1, 0)
 confirmOverlay.Position = UDim2.new(0, 0, 1, 0)
-confirmOverlay.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+confirmOverlay.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
+confirmOverlay.BackgroundTransparency = 0.05
 confirmOverlay.BorderSizePixel = 0
 confirmOverlay.ZIndex = 5
 confirmOverlay.Parent = mainFrame
@@ -139,38 +140,38 @@ Instance.new("UICorner", confirmOverlay).CornerRadius = UDim.new(0, 8)
 
 local confirmTitle = Instance.new("TextLabel")
 confirmTitle.Size = UDim2.new(1, -20, 0, 40)
-confirmTitle.Position = UDim2.new(0, 10, 0, 30)
+confirmTitle.Position = UDim2.new(0, 10, 0, 105)
 confirmTitle.BackgroundTransparency = 1
 confirmTitle.Text = locales[currentLang].confirmTitle
-confirmTitle.TextColor3 = Color3.fromRGB(240, 240, 240)
+confirmTitle.TextColor3 = Color3.fromRGB(245, 245, 245)
 confirmTitle.Font = Enum.Font.GothamBold
-confirmTitle.TextSize = 18
+confirmTitle.TextSize = 16
 confirmTitle.ZIndex = 6
 confirmTitle.Parent = confirmOverlay
 
 local yesButton = Instance.new("TextButton")
-yesButton.Size = UDim2.new(0, 90, 0, 35)
-yesButton.Position = UDim2.new(0.5, -100, 0.5, 0)
-yesButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+yesButton.Size = UDim2.new(0, 95, 0, 32)
+yesButton.Position = UDim2.new(0.5, -105, 0.5, 10)
+yesButton.BackgroundColor3 = Color3.fromRGB(210, 60, 60)
 yesButton.Text = locales[currentLang].confirmYes
-yesButton.TextColor3 = Color3.fromRGB(240, 240, 240)
+yesButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 yesButton.Font = Enum.Font.GothamBold
-yesButton.TextSize = 14
+yesButton.TextSize = 13
 yesButton.ZIndex = 6
 yesButton.Parent = confirmOverlay
-Instance.new("UICorner", yesButton).CornerRadius = UDim.new(0, 6)
+Instance.new("UICorner", yesButton).CornerRadius = UDim.new(0, 5)
 
 local noButton = Instance.new("TextButton")
-noButton.Size = UDim2.new(0, 90, 0, 35)
-noButton.Position = UDim2.new(0.5, 10, 0.5, 0)
-noButton.BackgroundColor3 = Color3.fromRGB(55, 55, 60)
+noButton.Size = UDim2.new(0, 95, 0, 32)
+noButton.Position = UDim2.new(0.5, 10, 0.5, 10)
+noButton.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
 noButton.Text = locales[currentLang].confirmNo
-noButton.TextColor3 = Color3.fromRGB(240, 240, 240)
+noButton.TextColor3 = Color3.fromRGB(230, 230, 230)
 noButton.Font = Enum.Font.GothamBold
-noButton.TextSize = 14
+noButton.TextSize = 13
 noButton.ZIndex = 6
 noButton.Parent = confirmOverlay
-Instance.new("UICorner", noButton).CornerRadius = UDim.new(0, 6)
+Instance.new("UICorner", noButton).CornerRadius = UDim.new(0, 5)
 
 local function updateHeaderStretch()
 	local text = locales[currentLang].title
@@ -224,6 +225,7 @@ end)
 
 local isCollapsed = false
 local originalHeight = 350
+local wasCollapsedBeforeClose = false
 
 local toggleConn = toggleButton.MouseButton1Click:Connect(function()
 	isCollapsed = not isCollapsed
@@ -258,7 +260,7 @@ local function rearrangeNotifications()
 	local tInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	for index, notif in ipairs(activeNotifications) do
 		local targetPos = UDim2.new(1, -NOTIF_WIDTH - SCREEN_PADDING, 1, currentYOffset - NOTIF_HEIGHT)
-		TweenService:Create(notif, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = targetPos}):Play()
+		TweenService:Create(notif, tInfo, {Position = targetPos}):Play()
 		currentYOffset = currentYOffset - (NOTIF_HEIGHT + NOTIF_SPACING)
 	end
 end
@@ -503,7 +505,7 @@ local function closeGuiWithAnimation()
 	for _, child in ipairs(mainFrame:GetDescendants()) do
 		if child:IsA("TextLabel") or child:IsA("TextButton") then
 			TweenService:Create(child, TweenInfo.new(0.15), {TextTransparency = 1}):Play()
-		elseif child:IsA("Frame") then
+		elseif child:IsA("Frame") and child ~= confirmOverlay then
 			TweenService:Create(child, TweenInfo.new(0.15), {BackgroundTransparency = 1}):Play()
 		end
 	end
@@ -515,7 +517,18 @@ local function closeGuiWithAnimation()
 end
 
 local closeConn = closeButton.MouseButton1Click:Connect(function()
-	TweenService:Create(confirmOverlay, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(0, 0, 0, 0)}):Play()
+	wasCollapsedBeforeClose = isCollapsed
+	if isCollapsed then
+		isCollapsed = false
+		toggleButton.Text = "−"
+		local expandTween = TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Size = UDim2.new(0, mainFrame.Size.X.Offset, 0, originalHeight)})
+		expandTween:Play()
+		expandTween.Completed:Connect(function()
+			TweenService:Create(confirmOverlay, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(0, 0, 0, 0)}):Play()
+		end)
+	else
+		TweenService:Create(confirmOverlay, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(0, 0, 0, 0)}):Play()
+	end
 end)
 
 local yesConn = yesButton.MouseButton1Click:Connect(function()
@@ -523,8 +536,26 @@ local yesConn = yesButton.MouseButton1Click:Connect(function()
 end)
 
 local noConn = noButton.MouseButton1Click:Connect(function()
-	TweenService:Create(confirmOverlay, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(0, 0, 1, 0)}):Play()
+	local hideOverlay = TweenService:Create(confirmOverlay, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(0, 0, 1, 0)})
+	hideOverlay:Play()
+	
+	if wasCollapsedBeforeClose then
+		hideOverlay.Completed:Connect(function()
+			if not isCollapsed and wasCollapsedBeforeClose then
+				isCollapsed = true
+				toggleButton.Text = "+"
+				scrollingFrame.Visible = false
+				line.Visible = false
+				TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Size = UDim2.new(0, mainFrame.Size.X.Offset, 0, 40)}):Play()
+			end
+		end)
+	end
 end)
+
+local yesHoverE = yesButton.MouseEnter:Connect(function() TweenService:Create(yesButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(240, 70, 70)}):Play() end)
+local yesHoverL = yesButton.MouseLeave:Connect(function() TweenService:Create(yesButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(210, 60, 60)}):Play() end)
+local noHoverE = noButton.MouseEnter:Connect(function() TweenService:Create(noButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(60, 60, 65)}):Play() end)
+local noHoverL = noButton.MouseLeave:Connect(function() TweenService:Create(noButton, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(45, 45, 50)}):Play() end)
 
 updatePlayerList()
 task.spawn(checkPlaceRigType)
@@ -539,6 +570,10 @@ destroyingConn = screenGui.Destroying:Connect(function()
 	closeConn:Disconnect()
 	yesConn:Disconnect()
 	noConn:Disconnect()
+	yesHoverE:Disconnect()
+	yesHoverL:Disconnect()
+	noHoverE:Disconnect()
+	noHoverL:Disconnect()
 	destroyingConn:Disconnect()
 	for _, conn in ipairs(playButtonsConnections) do conn:Disconnect() end
 end)
