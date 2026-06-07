@@ -18,13 +18,14 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.6 Public.")
+local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.7 Public.")
 ui.SetMinimizedImage("97837481633367")
 
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 local localPlayer = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 local mouse = localPlayer:GetMouse()
@@ -70,6 +71,28 @@ local PresetColors = {
 }
 
 local originalHeadSizes = {}
+local isTouchDevice = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+local isClicking = false
+
+local function performAutoShot()
+    if isClicking then return end
+    isClicking = true
+    
+    task.spawn(function()
+        if isTouchDevice then
+            local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+            VirtualInputManager:SendTouchEvent(0, Enum.UserInputState.Begin, center.X, center.Y)
+            task.wait(0.05)
+            VirtualInputManager:SendTouchEvent(0, Enum.UserInputState.End, center.X, center.Y)
+        else
+            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+            task.wait(0.05)
+            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+        end
+        task.wait(0.1) -- Небольшая задержка между выстрелами
+        isClicking = false
+    end)
+end
 
 local function ShowWarning(text)
     if not ui.ScreenGui then return end
@@ -201,7 +224,8 @@ listFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
 listFrame.Visible = false
 listFrame.ZIndex = 15000
 Instance.new("UICorner", listFrame).CornerRadius = UDim.new(0, 6)
-Instance.new("UIStroke", listFrame).Color = Color3.fromRGB(168, 85, 247)
+listFrame.UIStroke = Instance.new("UIStroke", listFrame)
+listFrame.UIStroke.Color = Color3.fromRGB(168, 85, 247)
 
 local listLayout = Instance.new("UIListLayout", listFrame)
 
@@ -539,7 +563,7 @@ aimConnection = RunService.RenderStepped:Connect(function()
                 if player and player ~= localPlayer then
                     local humanoid = model:FindFirstChildOfClass("Humanoid")
                     if humanoid and humanoid.Health > 0 then
-                        mouse1click()
+                        performAutoShot()
                     end
                 end
             end
