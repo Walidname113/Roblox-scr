@@ -18,7 +18,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.7 Public.")
+local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.8 Public.")
 ui.SetMinimizedImage("97837481633367")
 
 local RunService = game:GetService("RunService")
@@ -89,7 +89,7 @@ local function performAutoShot()
             task.wait(0.05)
             VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
         end
-        task.wait(0.1) -- Небольшая задержка между выстрелами
+        task.wait(0.1)
         isClicking = false
     end)
 end
@@ -224,8 +224,9 @@ listFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
 listFrame.Visible = false
 listFrame.ZIndex = 15000
 Instance.new("UICorner", listFrame).CornerRadius = UDim.new(0, 6)
-listFrame.UIStroke = Instance.new("UIStroke", listFrame)
-listFrame.UIStroke.Color = Color3.fromRGB(168, 85, 247)
+
+local listStroke = Instance.new("UIStroke", listFrame)
+listStroke.Color = Color3.fromRGB(168, 85, 247)
 
 local listLayout = Instance.new("UIListLayout", listFrame)
 
