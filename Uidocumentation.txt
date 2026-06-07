@@ -1,202 +1,140 @@
 README.txt
-==========
-
-CustomScriptUI Module (Roblox Lua)
-----------------------------------
-
-[ENGLISH]
-
-Description
------------
-This module creates a customizable UI for Roblox with support for categories, buttons, toggles, player lists, and minimize/close functionality.  
+​CustomScriptUI Module (Roblox Lua)
+​[ENGLISH]
+​Description
+​This module creates a customizable UI for Roblox with support for categories, buttons, toggles, player lists, and minimize/close functionality.
 The UI is draggable and always stays on top of other interfaces.
-
-Functions
----------
-module.CreateUI(title: string)  
-    Creates the main UI.  
-    Args:  
-        title – UI title (string).  
-    Returns an object with management methods and element creation functions.
-
-Returned object methods:
-------------------------
-Close()  
-    Completely closes and destroys the UI.  
-
-Hide()  
-    Hides the UI and shows the minimized button.  
-
-Show()  
-    Restores the UI from minimized state.  
-
-SetMinimizedImage(assetId: string)  
-    Sets an icon for the minimized UI.  
-    If the string is empty – a “plus” button is used.  
-
-OpenFirstCategory()  
-    Automatically opens the first created category (if any).  
-
-Categories  
-    Table containing data about all created categories.  
-
-CreateCategory(name: string)  
-    Creates a new category in the UI.  
-    Returns a container (Frame) for adding elements.  
-
-CreateToggle(text: string, parent: Frame, callback: function(enabled: bool))  
-    Creates a toggle button (on/off).  
-    Args:  
-        text – toggle name.  
-        parent – category container.  
-        callback – function called when state changes.  
-
-CreateButton(text: string, parent: Frame, callback: function)  
-    Creates a regular button.  
-    Args:  
-        text – button label.  
-        parent – container for the button.  
-        callback – function called on click.  
-
-CreatePlayerList(parent: Frame)  
-    Creates a dropdown player list.  
-    Args:  
-        parent – category container.  
-    Returns a table with:  
-        Container – main UI object of the list.  
-        GetSelected() – returns the selected Player object (or nil).  
-
-Example usage
--------------
-local UI = require(path.to.module)
-
-local ui = UI.CreateUI("My Custom UI")
+​Functions
+​module.CreateUI(title: string)
+Creates the main UI.
+Args:
+title – UI title (string).
+Returns an object with management methods and element creation functions.
+​Returned object methods:
+​Close()
+Completely closes and destroys the UI.
+​Hide()
+Hides the UI and shows the minimized button.
+​Show()
+Restores the UI from minimized state.
+​SetMinimizedImage(assetId: string)
+Sets an icon for the minimized UI.
+If the string is empty – a “plus” button is used.
+​OpenFirstCategory()
+Automatically opens the first created category (if any).
+​OnClose(callback: function)
+Registers a cleanup function that automatically triggers when the user closes the menu via the "Yes" confirmation button.
+Use this to stop loops, remove ESP boxes, or reset modifications made by your script.
+​Categories
+Table containing data about all created categories.
+​CreateCategory(name: string)
+Creates a new category in the UI.
+Returns a container (Frame) for adding elements.
+​CreateToggle(text: string, parent: Frame, callback: function(enabled: bool))
+Creates a toggle button (on/off).
+Args:
+text – toggle name.
+parent – category container.
+callback – function called when state changes.
+​CreateButton(text: string, parent: Frame, callback: function)
+Creates a regular button.
+Args:
+text – button label.
+parent – container for the button.
+callback – function called on click.
+​CreatePlayerList(parent: Frame)
+Creates a dropdown player list.
+Args:
+parent – category container.
+Returns a table with:
+Container – main UI object of the list.
+GetSelected() – returns the selected Player object (or nil).
+​Example usage
+​local UI = require(path.to.module)
+​local ui = UI.CreateUI("My Custom UI")
 local cat = ui.CreateCategory("Main")
-
-ui.CreateButton("Test Button", cat, function()
-    print("Button clicked!")
+​local isFeatureEnabled = false
+​ui.CreateToggle("Enable ESP", cat, function(state)
+isFeatureEnabled = state
+if isFeatureEnabled then
+print("ESP Started")
+end
 end)
-
-ui.CreateToggle("Enable Feature", cat, function(state)
-    print("Toggle state:", state)
+​-- Handle safe script termination on GUI close
+ui.OnClose(function()
+isFeatureEnabled = false
+print("All custom features disabled and cleaned up!")
 end)
-
-local playerList = ui.CreatePlayerList(cat)
-ui.CreateButton("Target Player", cat, function()
-    local target = playerList.GetSelected()
-    if target then
-        print("Selected player:", target.Name)
-    else
-        print("No player selected")
-    end
-end)
-
-ui.OpenFirstCategory()
-
-Dependencies
-------------
-- Roblox API (Instance, Players, UserInputService, TweenService)  
-- Works only on client (LocalScript)  
-
-License
--------
-Free to use and modify. Can be integrated into your own projects.
-
-
-[РУССКИЙ]
-
-Описание
---------
-Этот модуль создает настраиваемый UI для Roblox с поддержкой категорий, кнопок, переключателей, списков игроков, а также функций минимизации и закрытия.  
+​ui.OpenFirstCategory()
+​Dependencies
+​Roblox API (Instance, Players, UserInputService, TweenService)
+​Works only on client (LocalScript)
+​[РУССКИЙ]
+​Описание
+​Этот модуль создает настраиваемый UI для Roblox с поддержкой категорий, кнопок, переключателей, списков игроков, а также функций минимизации и закрытия.
 UI можно перетаскивать, он всегда будет поверх остальных интерфейсов.
-
-Функции
--------
-module.CreateUI(title: string)  
-    Создает основной UI.  
-    Аргументы:  
-        title – заголовок интерфейса (строка).  
-    Возвращает объект с методами управления и добавления элементов.
-
-Методы возвращаемого объекта:
-------------------------------
-Close()  
-    Полностью закрывает и уничтожает UI.  
-
-Hide()  
-    Скрывает UI, показывая кнопку минимизации.  
-
-Show()  
-    Восстанавливает UI из минимизированного состояния.  
-
-SetMinimizedImage(assetId: string)  
-    Устанавливает иконку для минимизированного UI.  
-    Если строка пустая – используется кнопка с плюсом.  
-
-OpenFirstCategory()  
-    Автоматически открывает первую категорию (если создана).  
-
-Categories  
-    Таблица со всеми категориями.  
-
-CreateCategory(name: string)  
-    Создает новую категорию в UI.  
-    Возвращает контейнер (Frame), куда можно добавлять элементы.  
-
-CreateToggle(text: string, parent: Frame, callback: function(enabled: bool))  
-    Создает кнопку-переключатель (вкл/выкл).  
-    Аргументы:  
-        text – название переключателя.  
-        parent – контейнер категории.  
-        callback – функция, вызываемая при изменении состояния.  
-
-CreateButton(text: string, parent: Frame, callback: function)  
-    Создает обычную кнопку.  
-    Аргументы:  
-        text – текст кнопки.  
-        parent – контейнер для кнопки.  
-        callback – функция, вызываемая при клике.  
-
-CreatePlayerList(parent: Frame)  
-    Создает выпадающий список игроков.  
-    Аргументы:  
-        parent – контейнер категории.  
-    Возвращает таблицу с полями:  
-        Container – основной объект списка.  
-        GetSelected() – возвращает объект выбранного игрока (или nil).  
-
-Пример использования
---------------------
-local UI = require(path.to.module)
-
-local ui = UI.CreateUI("My Custom UI")
+​Функции
+​module.CreateUI(title: string)
+Создает основной UI.
+Аргументы:
+title – заголовок интерфейса (строка).
+Возвращает объект с методами управления и добавления элементов.
+​Методы возвращаемого объекта:
+​Close()
+Полностью закрывает и уничтожает UI.
+​Hide()
+Скрывает UI, показывая кнопку минимизации.
+​Show()
+Восстанавливает UI из минимизированного состояния.
+​SetMinimizedImage(assetId: string)
+Устанавливает иконку для минимизированного UI.
+Если строка пустая – используется кнопка с плюсом.
+​OpenFirstCategory()
+Автоматически открывает первую категорию (если создана).
+​OnClose(callback: function)
+Регистрирует функцию очистки, которая автоматически сработает, когда пользователь закроет меню через модальное окно подтверждения («Yes»).
+Используйте этот метод для остановки циклов, удаления ESP-боксов или сброса измененных вашим скриптом настроек игры.
+​Categories
+Таблица со всеми категориями.
+​CreateCategory(name: string)
+Создает новую категорию в UI.
+Возвращает контейнер (Frame), куда можно добавлять элементы.
+​CreateToggle(text: string, parent: Frame, callback: function(enabled: bool))
+Создает кнопку-переключатель (вкл/выкл).
+Аргументы:
+text – название переключателя.
+parent – контейнер категории.
+callback – функция, вызываемая при изменении состояния.
+​CreateButton(text: string, parent: Frame, callback: function)
+Создает обычную кнопку.
+Аргументы:
+text – текст кнопки.
+parent – контейнер для кнопки.
+callback – функция, вызываемая при клике.
+​CreatePlayerList(parent: Frame)
+Создает выпадающий список игроков.
+Аргументы:
+parent – контейнер категории.
+Возвращает таблицу с полями:
+Container – основной объект списка.
+GetSelected() – возвращает объект выбранного игрока (или nil).
+​Пример использования
+​local UI = require(path.to.module)
+​local ui = UI.CreateUI("My Custom UI")
 local cat = ui.CreateCategory("Main")
-
-ui.CreateButton("Test Button", cat, function()
-    print("Button clicked!")
+​local isFeatureEnabled = false
+​ui.CreateToggle("Включить ESP", cat, function(state)
+isFeatureEnabled = state
+if isFeatureEnabled then
+print("ESP запущен")
+end
 end)
-
-ui.CreateToggle("Enable Feature", cat, function(state)
-    print("Toggle state:", state)
+​-- Безопасное отключение функций при закрытии GUI разработчиком скрипта
+ui.OnClose(function()
+isFeatureEnabled = false
+print("Все сторонние функции и циклы успешно деактивированы!")
 end)
-
-local playerList = ui.CreatePlayerList(cat)
-ui.CreateButton("Target Player", cat, function()
-    local target = playerList.GetSelected()
-    if target then
-        print("Selected player:", target.Name)
-    else
-        print("No player selected")
-    end
-end)
-
-ui.OpenFirstCategory()
-
-Зависимости
------------
-- Roblox API (Instance, Players, UserInputService, TweenService)  
-- Работает только на клиенте (LocalScript)  
-
-Лицензия
---------
-Свободное использование. Код можно изменять и интегрировать в свои проекты.
+​ui.OpenFirstCategory()
+​Зависимости
+​Roblox API (Instance, Players, UserInputService, TweenService)
+​Работает только на клиенте (LocalScript)
