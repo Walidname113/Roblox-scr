@@ -1,18 +1,4 @@
---[[
-Copyright (c) 2025 Kiyatsuka
-Licensed under the Kiyatsuka GUI Proprietary License v1.1
-GUI Source Code: https://raw.githubusercontent.com/Walidname113/Roblox-scr/refs/heads/main/uncoded.lua
-Full license text: https://raw.githubusercontent.com/Walidname113/Roblox-scr/refs/heads/main/LICENSE
-
-Key points:
-- "Software" = this GUI source code, scripts, and resources.
-- Users may download, run, integrate, and call public functions.
-- Users MAY NOT modify, redistribute modified code, reverse-engineer, or violate laws.
-- By downloading, installing, copying, or using, the User explicitly accepts all terms.
-- Educational copying (review, study, evaluation) allowed without modification.
---]]
-
--- v26 (Fixed: Asset property type matching error in closeWithAnimation) --
+-- v27 (Added: Automatic Game Icon fallback for minimized state) --
 local module = {}
 
 local Players = game:GetService("Players")
@@ -762,13 +748,15 @@ function module.CreateUI(title)
     plusIcon.TextSize = 24
     module.MinimizedFrame = minimizedFrame
 
+    -- FIX/EXTENSION: Auto Fallback to Place Icon if assetId is empty --
     local function setMinimizedImage(assetId)
         if assetId and assetId ~= "" then
             minimizedFrame.Image = "rbxassetid://" .. assetId
             plusIcon.Visible = false
         else
-            minimizedFrame.Image = ""
-            plusIcon.Visible = true
+            -- Takes the active place's icon using official Roblox rbxthumb pipeline
+            minimizedFrame.Image = "rbxthumb://type=Asset&id=" .. game.PlaceId .. "&w=150&h=150"
+            plusIcon.Visible = false
         end
     end
 
