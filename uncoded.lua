@@ -12,7 +12,7 @@ Key points:
 - Educational copying (review, study, evaluation) allowed without modification.
 --]]
 
--- v21 (Updated with Descriptions and Sub-functions) --
+-- v22 (Added Custom Input, Sub-Buttons, and Full RGB Color Picker for subConfig) --
 local module = {}
 
 local Players = game:GetService("Players")
@@ -95,7 +95,124 @@ local function makeDraggable(frame)
     end))
 end
 
-local function applyFeatureExtensions(container, description, subConfig, descStyle)
+local function createColorPickerUI(screenGui, defaultColor, callback)
+    local pickerFrame = Instance.new("Frame", screenGui)
+    pickerFrame.Size = UDim2.new(0, 240, 0, 180)
+    pickerFrame.Position = UDim2.new(0.5, -120, 0.5, -90)
+    pickerFrame.BackgroundColor3 = Theme.Background
+    pickerFrame.ZIndex = 5000
+    Instance.new("UICorner", pickerFrame).CornerRadius = UDim.new(0, 10)
+    local pStroke = Instance.new("UIStroke", pickerFrame)
+    pStroke.Color = Theme.AccentGlow
+    pStroke.Thickness = 1
+    makeDraggable(pickerFrame)
+    trackObject(pickerFrame)
+
+    local title = Instance.new("TextLabel", pickerFrame)
+    title.Size = UDim2.new(1, 0, 0, 30)
+    title.Text = "RGB Color Picker"
+    title.TextColor3 = Theme.TextMain
+    title.Font = Theme.FontBold
+    title.TextSize = 12
+    title.BackgroundTransparency = 1
+    title.ZIndex = 5001
+
+    local preview = Instance.new("Frame", pickerFrame)
+    preview.Size = UDim2.new(0, 40, 0, 40)
+    preview.Position = UDim2.new(1, -55, 0, 45)
+    preview.BackgroundColor3 = defaultColor
+    preview.ZIndex = 5001
+    Instance.new("UICorner", preview).CornerRadius = UDim.new(0, 6)
+    Instance.new("UIStroke", preview).Color = Theme.Border
+
+    local sliders = {}
+    local channels = {"R", "G", "B"}
+    local startColor = {defaultColor.R * 255, defaultColor.G * 255, defaultColor.B * 255}
+
+    local function updateColor()
+        local r = tonumber(sliders["R"].Text) or 0
+        local g = tonumber(sliders["G"].Text) or 0
+        local b = tonumber(sliders["B"].Text) or 0
+        local newColor = Color3.fromRGB(r, g, b)
+        preview.BackgroundColor3 = newColor
+        if callback then callback(newColor) end
+    end
+
+    for i, ch in ipairs(channels) do
+        local row = Instance.new("Frame", pickerFrame)
+        row.Size = UDim2.new(1, -75, 0, 30)
+        row.Position = UDim2.new(0, 15, 0, 15 + (i * 32))
+        row.BackgroundTransparency = 1
+        row.ZIndex = 5001
+
+        local lbl = Instance.new("TextLabel", row)
+        lbl.Size = UDim2.new(0, 15, 1, 0)
+        lbl.Text = ch
+        lbl.TextColor3 = Theme.TextMuted
+        lbl.Font = Theme.FontBold
+        lbl.TextSize = 12
+        lbl.BackgroundTransparency = 1
+        lbl.ZIndex = 5001
+
+        local box = Instance.new("TextBox", row)
+        box.Size = UDim2.new(1, -20, 1, 0)
+        box.Position = UDim2.new(0, 20, 0, 0)
+        box.BackgroundColor3 = Theme.SecondaryBg
+        box.Text = tostring(math.round(startColor[i]))
+        box.TextColor3 = Theme.TextMain
+        box.Font = Theme.FontMain
+        box.TextSize = 12
+        box.ClearTextOnFocus = false
+        box.ZIndex = 5001
+        Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
+        Instance.new("UIStroke", box).Color = Theme.Border
+
+        sliders[ch] = box
+
+        trackConnection(box:GetPropertyChangedSignal("Text"):Connect(function()
+            local val = tonumber(box.Text)
+            if val then
+                local clamped = math.clamp(val, 0, 255)
+                if tostring(clamped) ~= box.Text then box.Text = tostring(clamped) end
+                updateColor()
+            end
+        end))
+    end
+
+    local saveBtn = Instance.new("TextButton", pickerFrame)
+    saveBtn.Size = UDim2.new(0, 80, 0, 28)
+    saveBtn.Position = UDim2.new(0, 40, 1, -38)
+    saveBtn.Text = "Apply"
+    saveBtn.Font = Theme.FontBold
+    saveBtn.TextSize = 12
+    saveBtn.BackgroundColor3 = Theme.Success
+    saveBtn.TextColor3 = Theme.TextMain
+    saveBtn.ZIndex = 5001
+    Instance.new("UICorner", saveBtn).CornerRadius = UDim.new(0, 6)
+
+    local closeBtn = Instance.new("TextButton", pickerFrame)
+    closeBtn.Size = UDim2.new(0, 80, 0, 28)
+    closeBtn.Position = UDim2.new(1, -120, 1, -38)
+    closeBtn.Text = "Close"
+    closeBtn.Font = Theme.FontBold
+    closeBtn.TextSize = 12
+    closeBtn.BackgroundColor3 = Theme.SecondaryBg
+    closeBtn.TextColor3 = Theme.TextMuted
+    closeBtn.ZIndex = 5001
+    Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
+    Instance.new("UIStroke", closeBtn).Color = Theme.Border
+
+    trackConnection(saveBtn.MouseButton1Click:Connect(function()
+        updateColor()
+        pickerFrame:Destroy()
+    end))
+
+    trackConnection(closeBtn.MouseButton1Click:Connect(function()
+        pickerFrame:Destroy()
+    end))
+end
+
+local function applyFeatureExtensions(container, description, subConfig, descStyle, screenGui)
     local layout = Instance.new("UIListLayout", container)
     layout.SortOrder = Enum.SortOrder.LayoutOrder
     layout.Padding = UDim.new(0, 6)
@@ -183,32 +300,85 @@ local function applyFeatureExtensions(container, description, subConfig, descSty
                 lbl.TextSize = 12
                 lbl.TextXAlignment = Enum.TextXAlignment.Left
 
-                local palette = Instance.new("Frame", colFrame)
-                palette.Size = UDim2.new(1, -105, 1, 0)
-                palette.Position = UDim2.new(0, 105, 0, 0)
-                palette.BackgroundTransparency = 1
+                local activeColor = item.DefaultColor or Color3.fromRGB(168, 85, 247)
 
-                local palLayout = Instance.new("UIListLayout", palette)
-                palLayout.FillDirection = Enum.FillDirection.Horizontal
-                palLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
-                palLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-                palLayout.Padding = UDim.new(0, 6)
+                local cBtn = Instance.new("TextButton", colFrame)
+                cBtn.Size = UDim2.new(0, 36, 0, 18)
+                cBtn.Position = UDim2.new(1, -36, 0.5, -9)
+                cBtn.BackgroundColor3 = activeColor
+                cBtn.Text = ""
+                Instance.new("UICorner", cBtn).CornerRadius = UDim.new(0, 4)
+                local cStroke = Instance.new("UIStroke", cBtn)
+                cStroke.Color = Theme.Border
 
-                local colors = item.Colors or {Color3.fromRGB(239,68,68), Color3.fromRGB(34,197,94), Color3.fromRGB(168,85,247), Color3.fromRGB(59,130,246)}
-                for _, color in ipairs(colors) do
-                    local cBtn = Instance.new("TextButton", palette)
-                    cBtn.Size = UDim2.new(0, 18, 0, 18)
-                    cBtn.BackgroundColor3 = color
-                    cBtn.Text = ""
-                    Instance.new("UICorner", cBtn).CornerRadius = UDim.new(1, 0)
-                    local cStroke = Instance.new("UIStroke", cBtn)
-                    cStroke.Color = Theme.Border
-                    cStroke.Thickness = 1
+                trackConnection(cBtn.MouseButton1Click:Connect(function()
+                    createColorPickerUI(screenGui, activeColor, function(selectedColor)
+                        activeColor = selectedColor
+                        cBtn.BackgroundColor3 = selectedColor
+                        if item.Callback then item.Callback(selectedColor) end
+                    end)
+                end))
 
-                    trackConnection(cBtn.MouseButton1Click:Connect(function()
-                        if item.Callback then item.Callback(color) end
-                    end))
-                end
+            elseif item.Type == "Input" then
+                local inputFrame = Instance.new("Frame", subFrame)
+                inputFrame.Size = UDim2.new(1, 0, 0, 28)
+                inputFrame.BackgroundTransparency = 1
+                inputFrame.LayoutOrder = item.LayoutOrder or 1
+
+                local lbl = Instance.new("TextLabel", inputFrame)
+                lbl.Size = UDim2.new(0, 100, 1, 0)
+                lbl.BackgroundTransparency = 1
+                lbl.Text = item.Text or "Input"
+                lbl.TextColor3 = Theme.TextMuted
+                lbl.Font = Theme.FontMain
+                lbl.TextSize = 12
+                lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+                local box = Instance.new("TextBox", inputFrame)
+                box.Size = UDim2.new(1, -105, 1, 0)
+                box.Position = UDim2.new(0, 105, 0, 0)
+                box.BackgroundColor3 = Theme.SecondaryBg
+                box.Text = item.DefaultText or ""
+                box.PlaceholderText = item.Placeholder or "Type here..."
+                box.PlaceholderColor3 = Color3.fromRGB(100, 100, 105)
+                box.TextColor3 = Theme.TextMain
+                box.Font = Theme.FontMain
+                box.TextSize = 12
+                box.ClearTextOnFocus = false
+                Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
+                local bStroke = Instance.new("UIStroke", box)
+                bStroke.Color = Theme.Border
+
+                trackConnection(box.FocusLost:Connect(function(enterPressed)
+                    if item.Callback then item.Callback(box.Text, enterPressed) end
+                end))
+
+            elseif item.Type == "Button" then
+                local btnFrame = Instance.new("Frame", subFrame)
+                btnFrame.Size = UDim2.new(1, 0, 0, 28)
+                btnFrame.BackgroundTransparency = 1
+                btnFrame.LayoutOrder = item.LayoutOrder or 1
+
+                local btn = Instance.new("TextButton", btnFrame)
+                btn.Size = UDim2.new(1, 0, 1, 0)
+                btn.BackgroundColor3 = Theme.SecondaryBg
+                btn.Text = item.Text or "Button"
+                btn.TextColor3 = Theme.TextMain
+                btn.Font = Theme.FontBold
+                btn.TextSize = 11
+                Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+                local bStroke = Instance.new("UIStroke", btn)
+                bStroke.Color = Theme.Border
+
+                trackConnection(btn.MouseEnter:Connect(function()
+                    TweenService:Create(bStroke, TweenInfo.new(0.2), {Color = Theme.AccentGlow}):Play()
+                end))
+                trackConnection(btn.MouseLeave:Connect(function()
+                    TweenService:Create(bStroke, TweenInfo.new(0.2), {Color = Theme.Border}):Play()
+                end))
+                trackConnection(btn.MouseButton1Click:Connect(function()
+                    if item.Callback then item.Callback() end
+                end))
             end
         end
     end
@@ -602,7 +772,7 @@ function module.CreateUI(title)
         end))
 
         updateVisual(false)
-        applyFeatureExtensions(container, description, subConfig, descStyle)
+        applyFeatureExtensions(container, description, subConfig, descStyle, screenGui)
         return container
     end
 
@@ -645,7 +815,7 @@ function module.CreateUI(title)
             if callback then callback() end
         end))
 
-        applyFeatureExtensions(container, description, subConfig, descStyle)
+        applyFeatureExtensions(container, description, subConfig, descStyle, screenGui)
         return container
     end
 
