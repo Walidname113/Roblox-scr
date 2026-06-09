@@ -12,7 +12,7 @@ Key points:
 - Educational copying (review, study, evaluation) allowed without modification.
 --]]
 
--- v20 --
+-- v21 (Updated with Descriptions and Sub-functions) --
 local module = {}
 
 local Players = game:GetService("Players")
@@ -93,6 +93,146 @@ local function makeDraggable(frame)
             }):Play()
         end
     end))
+end
+
+local function applyFeatureExtensions(container, description, subConfig, descStyle)
+    local layout = Instance.new("UIListLayout", container)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Padding = UDim.new(0, 6)
+
+    local padding = Instance.new("UIPadding", container)
+    padding.PaddingTop = UDim.new(0, 0)
+    padding.PaddingBottom = UDim.new(0, 0)
+    padding.PaddingLeft = UDim.new(0, 0)
+    padding.PaddingRight = UDim.new(0, 0)
+
+    if (description and description ~= "") or (subConfig and #subConfig > 0) then
+        container.AutomaticSize = Enum.AutomaticSize.Y
+        padding.PaddingBottom = UDim.new(0, 10)
+    end
+
+    if subConfig and #subConfig > 0 then
+        local subFrame = Instance.new("Frame", container)
+        subFrame.Size = UDim2.new(1, 0, 0, 0)
+        subFrame.BackgroundTransparency = 1
+        subFrame.AutomaticSize = Enum.AutomaticSize.Y
+        subFrame.LayoutOrder = 2
+
+        local subLayout = Instance.new("UIListLayout", subFrame)
+        subLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        subLayout.Padding = UDim.new(0, 6)
+        
+        local subPadding = Instance.new("UIPadding", subFrame)
+        subPadding.PaddingLeft = UDim.new(0, 14)
+        subPadding.PaddingRight = UDim.new(0, 14)
+
+        for _, item in ipairs(subConfig) do
+            if item.Type == "Checkbox" then
+                local chk = Instance.new("TextButton", subFrame)
+                chk.Size = UDim2.new(1, 0, 0, 24)
+                chk.BackgroundTransparency = 1
+                chk.Text = ""
+                chk.LayoutOrder = item.LayoutOrder or 1
+
+                local box = Instance.new("Frame", chk)
+                box.Size = UDim2.new(0, 16, 0, 16)
+                box.Position = UDim2.new(0, 0, 0.5, -8)
+                box.BackgroundColor3 = Theme.SecondaryBg
+                Instance.new("UICorner", box).CornerRadius = UDim.new(0, 4)
+                Instance.new("UIStroke", box).Color = Theme.Border
+
+                local checkMark = Instance.new("TextLabel", box)
+                checkMark.Size = UDim2.new(1, 0, 1, 0)
+                checkMark.Text = "✓"
+                checkMark.TextColor3 = Theme.TextMain
+                checkMark.Font = Theme.FontBold
+                checkMark.TextSize = 12
+                checkMark.BackgroundTransparency = 1
+                checkMark.Visible = item.State or false
+
+                local lbl = Instance.new("TextLabel", chk)
+                lbl.Size = UDim2.new(1, -24, 1, 0)
+                lbl.Position = UDim2.new(0, 24, 0, 0)
+                lbl.BackgroundTransparency = 1
+                lbl.Text = item.Text or "Option"
+                lbl.TextColor3 = Theme.TextMuted
+                lbl.Font = Theme.FontMain
+                lbl.TextSize = 12
+                lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+                local active = item.State or false
+                trackConnection(chk.MouseButton1Click:Connect(function()
+                    active = not active
+                    checkMark.Visible = active
+                    TweenService:Create(lbl, TweenInfo.new(0.2), {TextColor3 = active and Theme.TextMain or Theme.TextMuted}):Play()
+                    if item.Callback then item.Callback(active) end
+                end))
+
+            elseif item.Type == "Color" then
+                local colFrame = Instance.new("Frame", subFrame)
+                colFrame.Size = UDim2.new(1, 0, 0, 26)
+                colFrame.BackgroundTransparency = 1
+                colFrame.LayoutOrder = item.LayoutOrder or 1
+
+                local lbl = Instance.new("TextLabel", colFrame)
+                lbl.Size = UDim2.new(0, 100, 1, 0)
+                lbl.BackgroundTransparency = 1
+                lbl.Text = item.Text or "Color"
+                lbl.TextColor3 = Theme.TextMuted
+                lbl.Font = Theme.FontMain
+                lbl.TextSize = 12
+                lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+                local palette = Instance.new("Frame", colFrame)
+                palette.Size = UDim2.new(1, -105, 1, 0)
+                palette.Position = UDim2.new(0, 105, 0, 0)
+                palette.BackgroundTransparency = 1
+
+                local palLayout = Instance.new("UIListLayout", palette)
+                palLayout.FillDirection = Enum.FillDirection.Horizontal
+                palLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+                palLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+                palLayout.Padding = UDim.new(0, 6)
+
+                local colors = item.Colors or {Color3.fromRGB(239,68,68), Color3.fromRGB(34,197,94), Color3.fromRGB(168,85,247), Color3.fromRGB(59,130,246)}
+                for _, color in ipairs(colors) do
+                    local cBtn = Instance.new("TextButton", palette)
+                    cBtn.Size = UDim2.new(0, 18, 0, 18)
+                    cBtn.BackgroundColor3 = color
+                    cBtn.Text = ""
+                    Instance.new("UICorner", cBtn).CornerRadius = UDim.new(1, 0)
+                    local cStroke = Instance.new("UIStroke", cBtn)
+                    cStroke.Color = Theme.Border
+                    cStroke.Thickness = 1
+
+                    trackConnection(cBtn.MouseButton1Click:Connect(function()
+                        if item.Callback then item.Callback(color) end
+                    end))
+                end
+            end
+        end
+    end
+
+    if description and description ~= "" then
+        descStyle = descStyle or {}
+        local dLabel = Instance.new("TextLabel", container)
+        dLabel.Size = UDim2.new(1, -28, 0, 0)
+        dLabel.Position = UDim2.new(0, 14, 0, 0)
+        dLabel.BackgroundTransparency = 1
+        dLabel.Text = description
+        dLabel.TextColor3 = descStyle.Color or Color3.fromRGB(255, 255, 255)
+        dLabel.TextTransparency = descStyle.Transparency or 0
+        dLabel.Font = descStyle.Font or Theme.FontMain
+        dLabel.TextSize = descStyle.TextSize or 11
+        dLabel.TextXAlignment = Enum.TextXAlignment.Left
+        dLabel.TextWrapped = true
+        dLabel.AutomaticSize = Enum.AutomaticSize.Y
+        dLabel.LayoutOrder = 3
+
+        local descPadding = Instance.new("UIPadding", dLabel)
+        descPadding.PaddingLeft = UDim.new(0, 14)
+        descPadding.PaddingRight = UDim.new(0, 14)
+    end
 end
 
 function module.CreateUI(title)
@@ -390,7 +530,7 @@ function module.CreateUI(title)
         return holder
     end
 
-    function module.CreateToggle(text, parent, callback)
+    function module.CreateToggle(text, parent, callback, description, subConfig, descStyle)
         local container = Instance.new("Frame", parent)
         container.Size = UDim2.new(1, -4, 0, 42)
         container.BackgroundColor3 = Theme.Background
@@ -398,7 +538,12 @@ function module.CreateUI(title)
         Instance.new("UIStroke", container).Color = Theme.Border
         trackObject(container)
 
-        local label = Instance.new("TextLabel", container)
+        local topRow = Instance.new("Frame", container)
+        topRow.Size = UDim2.new(1, 0, 0, 42)
+        topRow.BackgroundTransparency = 1
+        topRow.LayoutOrder = 1
+
+        local label = Instance.new("TextLabel", topRow)
         label.Size = UDim2.new(1, -60, 1, 0)
         label.Position = UDim2.new(0, 14, 0, 0)
         label.BackgroundTransparency = 1
@@ -408,7 +553,7 @@ function module.CreateUI(title)
         label.TextColor3 = Theme.TextMain
         label.TextXAlignment = Enum.TextXAlignment.Left
 
-        local switch = Instance.new("Frame", container)
+        local switch = Instance.new("Frame", topRow)
         switch.Size = UDim2.new(0, 42, 0, 22)
         switch.Position = UDim2.new(1, -54, 0.5, -11)
         switch.BackgroundColor3 = Theme.SecondaryBg
@@ -436,13 +581,13 @@ function module.CreateUI(title)
         end
 
         local touchPos
-        trackConnection(container.InputBegan:Connect(function(input)
+        trackConnection(topRow.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                 touchPos = input.Position
             end
         end))
 
-        trackConnection(container.InputEnded:Connect(function(input)
+        trackConnection(topRow.InputEnded:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                 if touchPos then
                     local delta = (input.Position - touchPos).Magnitude
@@ -457,34 +602,40 @@ function module.CreateUI(title)
         end))
 
         updateVisual(false)
+        applyFeatureExtensions(container, description, subConfig, descStyle)
         return container
     end
 
-    function module.CreateButton(text, parent, callback)
-        local button = Instance.new("TextButton", parent)
-        button.Size = UDim2.new(1, -4, 0, 40)
+    function module.CreateButton(text, parent, callback, description, subConfig, descStyle)
+        local container = Instance.new("Frame", parent)
+        container.Size = UDim2.new(1, -4, 0, 40)
+        container.BackgroundColor3 = Theme.SecondaryBg
+        Instance.new("UICorner", container).CornerRadius = UDim.new(0, 8)
+        local bStroke = Instance.new("UIStroke", container)
+        bStroke.Color = Theme.Border
+        trackObject(container)
+
+        local button = Instance.new("TextButton", container)
+        button.Size = UDim2.new(1, 0, 0, 40)
         button.Text = text
-        button.BackgroundColor3 = Theme.SecondaryBg
+        button.BackgroundTransparency = 1
         button.TextColor3 = Theme.TextMain
         button.Font = Theme.FontBold
         button.TextSize = 13
         button.AutoButtonColor = false
-        Instance.new("UICorner", button).CornerRadius = UDim.new(0, 8)
-        local bStroke = Instance.new("UIStroke", button)
-        bStroke.Color = Theme.Border
-        trackObject(button)
+        button.LayoutOrder = 1
 
         trackConnection(button.MouseEnter:Connect(function()
-            TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30, 30, 37)}):Play()
+            TweenService:Create(container, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30, 30, 37)}):Play()
             TweenService:Create(bStroke, TweenInfo.new(0.2), {Color = Theme.AccentGlow}):Play()
         end))
         trackConnection(button.MouseLeave:Connect(function()
-            TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = Theme.SecondaryBg}):Play()
+            TweenService:Create(container, TweenInfo.new(0.2), {BackgroundColor3 = Theme.SecondaryBg}):Play()
             TweenService:Create(bStroke, TweenInfo.new(0.2), {Color = Theme.Border}):Play()
         end))
         trackConnection(button.MouseButton1Click:Connect(function()
-            local bounceDown = TweenService:Create(button, TweenInfo.new(0.08, Enum.EasingStyle.Quad), {Size = UDim2.new(1, -12, 0, 36)})
-            local bounceUp = TweenService:Create(button, TweenInfo.new(0.12, Enum.EasingStyle.Back), {Size = UDim2.new(1, -4, 0, 40)})
+            local bounceDown = TweenService:Create(button, TweenInfo.new(0.08, Enum.EasingStyle.Quad), {Size = UDim2.new(1, 0, 0, 36)})
+            local bounceUp = TweenService:Create(button, TweenInfo.new(0.12, Enum.EasingStyle.Back), {Size = UDim2.new(1, 0, 0, 40)})
             bounceDown:Play()
             local bConn
             bConn = bounceDown.Completed:Connect(function() 
@@ -494,7 +645,8 @@ function module.CreateUI(title)
             if callback then callback() end
         end))
 
-        return button
+        applyFeatureExtensions(container, description, subConfig, descStyle)
+        return container
     end
 
     function module.CreatePlayerList(parentFrame)
