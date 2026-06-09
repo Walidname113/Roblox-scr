@@ -12,7 +12,7 @@ Key points:
 - Educational copying (review, study, evaluation) allowed without modification.
 --]]
 
--- v22 (Added Custom Input, Sub-Buttons, and Full RGB Color Picker for subConfig) --
+-- v23 (Advanced GUI Color Picker, Adjustable Input Sizes, and Window Enhancements) --
 local module = {}
 
 local Players = game:GetService("Players")
@@ -97,119 +97,238 @@ end
 
 local function createColorPickerUI(screenGui, defaultColor, callback)
     local pickerFrame = Instance.new("Frame", screenGui)
-    pickerFrame.Size = UDim2.new(0, 240, 0, 180)
-    pickerFrame.Position = UDim2.new(0.5, -120, 0.5, -90)
-    pickerFrame.BackgroundColor3 = Theme.Background
+    pickerFrame.Size = UDim2.new(0, 340, 0, 350)
+    pickerFrame.Position = UDim2.new(0.5, -170, 0.5, -175)
+    pickerFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
     pickerFrame.ZIndex = 5000
-    Instance.new("UICorner", pickerFrame).CornerRadius = UDim.new(0, 10)
+    Instance.new("UICorner", pickerFrame).CornerRadius = UDim.new(0, 12)
     local pStroke = Instance.new("UIStroke", pickerFrame)
-    pStroke.Color = Theme.AccentGlow
+    pStroke.Color = Theme.Border
     pStroke.Thickness = 1
     makeDraggable(pickerFrame)
     trackObject(pickerFrame)
 
     local title = Instance.new("TextLabel", pickerFrame)
-    title.Size = UDim2.new(1, 0, 0, 30)
-    title.Text = "RGB Color Picker"
+    title.Size = UDim2.new(1, -40, 0, 40)
+    title.Position = UDim2.new(0, 16, 0, 0)
+    title.Text = "Палитра"
     title.TextColor3 = Theme.TextMain
     title.Font = Theme.FontBold
-    title.TextSize = 12
+    title.TextSize = 15
+    title.TextXAlignment = Enum.TextXAlignment.Left
     title.BackgroundTransparency = 1
     title.ZIndex = 5001
 
-    local preview = Instance.new("Frame", pickerFrame)
-    preview.Size = UDim2.new(0, 40, 0, 40)
-    preview.Position = UDim2.new(1, -55, 0, 45)
-    preview.BackgroundColor3 = defaultColor
-    preview.ZIndex = 5001
-    Instance.new("UICorner", preview).CornerRadius = UDim.new(0, 6)
-    Instance.new("UIStroke", preview).Color = Theme.Border
+    local xCloseBtn = Instance.new("TextButton", pickerFrame)
+    xCloseBtn.Size = UDim2.new(0, 24, 0, 24)
+    xCloseBtn.Position = UDim2.new(1, -36, 0, 8)
+    xCloseBtn.Text = "×"
+    xCloseBtn.Font = Theme.FontBold
+    xCloseBtn.TextSize = 18
+    xCloseBtn.TextColor3 = Theme.TextMuted
+    xCloseBtn.BackgroundTransparency = 1
+    xCloseBtn.ZIndex = 5001
+    trackConnection(xCloseBtn.MouseButton1Click:Connect(function() pickerFrame:Destroy() end))
 
-    local sliders = {}
-    local channels = {"R", "G", "B"}
-    local startColor = {defaultColor.R * 255, defaultColor.G * 255, defaultColor.B * 255}
+    local topDisplay = Instance.new("Frame", pickerFrame)
+    topDisplay.Size = UDim2.new(1, -32, 0, 130)
+    topDisplay.Position = UDim2.new(0, 16, 0, 45)
+    topDisplay.BackgroundTransparency = 1
+    topDisplay.ZIndex = 5001
 
-    local function updateColor()
-        local r = tonumber(sliders["R"].Text) or 0
-        local g = tonumber(sliders["G"].Text) or 0
-        local b = tonumber(sliders["B"].Text) or 0
-        local newColor = Color3.fromRGB(r, g, b)
-        preview.BackgroundColor3 = newColor
-        if callback then callback(newColor) end
+    local leftColorShow = Instance.new("Frame", topDisplay)
+    leftColorShow.Size = UDim2.new(0.4, 0, 1, 0)
+    leftColorShow.BackgroundColor3 = defaultColor
+    leftColorShow.ZIndex = 5001
+    Instance.new("UICorner", leftColorShow).CornerRadius = UDim.new(0, 6)
+
+    local rightSatVal = Instance.new("ImageLabel", topDisplay)
+    rightSatVal.Size = UDim2.new(0.6, -8, 1, 0)
+    rightSatVal.Position = UDim2.new(0.4, 8, 0, 0)
+    rightSatVal.Image = "rbxassetid://4155801252"
+    rightSatVal.ZIndex = 5001
+    Instance.new("UICorner", rightSatVal).CornerRadius = UDim.new(0, 6)
+
+    local satValSelection = Instance.new("Frame", rightSatVal)
+    satValSelection.Size = UDim2.new(0, 14, 0, 14)
+    satValSelection.AnchorPoint = Vector2.new(0.5, 0.5)
+    satValSelection.BackgroundTransparency = 1
+    satValSelection.ZIndex = 5002
+    local sRing = Instance.new("UIStroke", satValSelection)
+    sRing.Color = Color3.new(1, 1, 1)
+    sRing.Thickness = 2
+    Instance.new("UICorner", satValSelection).CornerRadius = UDim.new(1, 0)
+
+    local hueSlider = Instance.new("ImageButton", pickerFrame)
+    hueSlider.Size = UDim2.new(1, -32, 0, 16)
+    hueSlider.Position = UDim2.new(0, 16, 0, 190)
+    hueSlider.Image = "rbxassetid://3641079629"
+    hueSlider.ZIndex = 5001
+    Instance.new("UICorner", hueSlider).CornerRadius = UDim.new(1, 0)
+
+    local hueKnob = Instance.new("Frame", hueSlider)
+    hueKnob.Size = UDim2.new(0, 18, 0, 18)
+    hueKnob.AnchorPoint = Vector2.new(0.5, 0.5)
+    hueKnob.Position = UDim2.new(0, 0, 0.5, 0)
+    hueKnob.BackgroundColor3 = Color3.new(1, 1, 1)
+    hueKnob.ZIndex = 5002
+    Instance.new("UICorner", hueKnob).CornerRadius = UDim.new(1, 0)
+    local hRing = Instance.new("UIStroke", hueKnob)
+    hRing.Color = Color3.new(0, 0, 0)
+    hRing.Thickness = 1.5
+
+    local rgbContainer = Instance.new("Frame", pickerFrame)
+    rgbContainer.Size = UDim2.new(1, -32, 0, 45)
+    rgbContainer.Position = UDim2.new(0, 16, 0, 222)
+    rgbContainer.BackgroundColor3 = Theme.SecondaryBg
+    rgbContainer.ZIndex = 5001
+    Instance.new("UICorner", rgbContainer).CornerRadius = UDim.new(0, 8)
+    local rStroke = Instance.new("UIStroke", rgbContainer)
+    rStroke.Color = Theme.Border
+
+    local rgbLabel = Instance.new("TextLabel", rgbContainer)
+    rgbLabel.Size = UDim2.new(0, 45, 1, 0)
+    rgbLabel.Position = UDim2.new(0, 12, 0, 0)
+    rgbLabel.Text = "RGB"
+    rgbLabel.Font = Theme.FontBold
+    rgbLabel.TextSize = 12
+    rgbLabel.TextColor3 = Theme.TextMuted
+    rgbLabel.TextXAlignment = Enum.TextXAlignment.Left
+    rgbLabel.BackgroundTransparency = 1
+    rgbLabel.ZIndex = 5002
+
+    local rgbInput = Instance.new("TextBox", rgbContainer)
+    rgbInput.Size = UDim2.new(1, -65, 1, 0)
+    rgbInput.Position = UDim2.new(0, 55, 0, 0)
+    rgbInput.TextXAlignment = Enum.TextXAlignment.Left
+    rgbInput.Font = Theme.FontMain
+    rgbInput.TextSize = 13
+    rgbInput.TextColor3 = Theme.TextMain
+    rgbInput.BackgroundTransparency = 1
+    rgbInput.ClearTextOnFocus = false
+    rgbInput.ZIndex = 5002
+
+    local currentH, currentS, currentV = defaultColor:ToHSV()
+
+    local function updatePicker()
+        rightSatVal.BackgroundColor3 = Color3.fromHSV(currentH, 1, 1)
+        local finalColor = Color3.fromHSV(currentH, currentS, currentV)
+        leftColorShow.BackgroundColor3 = finalColor
+        
+        hueKnob.Position = UDim2.new(currentH, 0, 0.5, 0)
+        satValSelection.Position = UDim2.new(currentS, 0, 1 - currentV, 0)
+        
+        local r = math.round(finalColor.R * 255)
+        local g = math.round(finalColor.G * 255)
+        local b = math.round(finalColor.B * 255)
+        
+        if not rgbInput:IsFocused() then
+            rgbInput.Text = string.format("%d, %d, %d", r, g, b)
+        end
+        
+        if callback then callback(finalColor) end
     end
 
-    for i, ch in ipairs(channels) do
-        local row = Instance.new("Frame", pickerFrame)
-        row.Size = UDim2.new(1, -75, 0, 30)
-        row.Position = UDim2.new(0, 15, 0, 15 + (i * 32))
-        row.BackgroundTransparency = 1
-        row.ZIndex = 5001
-
-        local lbl = Instance.new("TextLabel", row)
-        lbl.Size = UDim2.new(0, 15, 1, 0)
-        lbl.Text = ch
-        lbl.TextColor3 = Theme.TextMuted
-        lbl.Font = Theme.FontBold
-        lbl.TextSize = 12
-        lbl.BackgroundTransparency = 1
-        lbl.ZIndex = 5001
-
-        local box = Instance.new("TextBox", row)
-        box.Size = UDim2.new(1, -20, 1, 0)
-        box.Position = UDim2.new(0, 20, 0, 0)
-        box.BackgroundColor3 = Theme.SecondaryBg
-        box.Text = tostring(math.round(startColor[i]))
-        box.TextColor3 = Theme.TextMain
-        box.Font = Theme.FontMain
-        box.TextSize = 12
-        box.ClearTextOnFocus = false
-        box.ZIndex = 5001
-        Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
-        Instance.new("UIStroke", box).Color = Theme.Border
-
-        sliders[ch] = box
-
-        trackConnection(box:GetPropertyChangedSignal("Text"):Connect(function()
-            local val = tonumber(box.Text)
-            if val then
-                local clamped = math.clamp(val, 0, 255)
-                if tostring(clamped) ~= box.Text then box.Text = tostring(clamped) end
-                updateColor()
-            end
-        end))
+    local function parseRGBText(text)
+        local r, g, b = text:match("(%d+)%s*,%s*(%d+)%s*,%s*(%d+)")
+        if r and g and b then
+            r = math.clamp(tonumber(r) or 0, 0, 255)
+            g = math.clamp(tonumber(g) or 0, 0, 255)
+            b = math.clamp(tonumber(b) or 0, 0, 255)
+            local col = Color3.fromRGB(r, g, b)
+            currentH, currentS, currentV = col:ToHSV()
+            updatePicker()
+        end
     end
 
-    local saveBtn = Instance.new("TextButton", pickerFrame)
-    saveBtn.Size = UDim2.new(0, 80, 0, 28)
-    saveBtn.Position = UDim2.new(0, 40, 1, -38)
-    saveBtn.Text = "Apply"
-    saveBtn.Font = Theme.FontBold
-    saveBtn.TextSize = 12
-    saveBtn.BackgroundColor3 = Theme.Success
-    saveBtn.TextColor3 = Theme.TextMain
-    saveBtn.ZIndex = 5001
-    Instance.new("UICorner", saveBtn).CornerRadius = UDim.new(0, 6)
+    trackConnection(rgbInput.FocusLost:Connect(function()
+        parseRGBText(rgbInput.Text)
+    end))
 
-    local closeBtn = Instance.new("TextButton", pickerFrame)
-    closeBtn.Size = UDim2.new(0, 80, 0, 28)
-    closeBtn.Position = UDim2.new(1, -120, 1, -38)
-    closeBtn.Text = "Close"
-    closeBtn.Font = Theme.FontBold
-    closeBtn.TextSize = 12
-    closeBtn.BackgroundColor3 = Theme.SecondaryBg
-    closeBtn.TextColor3 = Theme.TextMuted
-    closeBtn.ZIndex = 5001
-    Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
-    Instance.new("UIStroke", closeBtn).Color = Theme.Border
+    local isSettingHue = false
+    local function processHue(input)
+        local x = math.clamp((input.Position.X - hueSlider.AbsolutePosition.X) / hueSlider.AbsoluteSize.X, 0, 1)
+        currentH = x
+        updatePicker()
+    end
 
-    trackConnection(saveBtn.MouseButton1Click:Connect(function()
-        updateColor()
+    trackConnection(hueSlider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            isSettingHue = true
+            processHue(input)
+        end
+    end))
+
+    trackConnection(UserInputService.InputChanged:Connect(function(input)
+        if isSettingHue and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            processHue(input)
+        end
+    end))
+
+    local isSettingSatVal = false
+    local function processSatVal(input)
+        local x = math.clamp((input.Position.X - rightSatVal.AbsolutePosition.X) / rightSatVal.AbsoluteSize.X, 0, 1)
+        local y = math.clamp((input.Position.Y - rightSatVal.AbsolutePosition.Y) / rightSatVal.AbsoluteSize.Y, 0, 1)
+        currentS = x
+        currentV = 1 - y
+        updatePicker()
+    end
+
+    trackConnection(rightSatVal.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            isSettingSatVal = true
+            processSatVal(input)
+        end
+    end))
+
+    trackConnection(UserInputService.InputChanged:Connect(function(input)
+        if isSettingSatVal and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            processSatVal(input)
+        end
+    end))
+
+    trackConnection(UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            isSettingHue = false
+            isSettingSatVal = false
+        end
+    end))
+
+    local applyBtn = Instance.new("TextButton", pickerFrame)
+    applyBtn.Size = UDim2.new(0, 140, 0, 36)
+    applyBtn.Position = UDim2.new(0, 16, 1, -52)
+    applyBtn.Text = "Применить"
+    applyBtn.Font = Theme.FontBold
+    applyBtn.TextSize = 13
+    applyBtn.BackgroundColor3 = Theme.Success
+    applyBtn.TextColor3 = Theme.TextMain
+    applyBtn.ZIndex = 5001
+    Instance.new("UICorner", applyBtn).CornerRadius = UDim.new(0, 6)
+
+    local cancelBtn = Instance.new("TextButton", pickerFrame)
+    cancelBtn.Size = UDim2.new(0, 140, 0, 36)
+    cancelBtn.Position = UDim2.new(1, -156, 1, -52)
+    cancelBtn.Text = "Отмена"
+    cancelBtn.Font = Theme.FontBold
+    cancelBtn.TextSize = 13
+    cancelBtn.BackgroundColor3 = Theme.SecondaryBg
+    cancelBtn.TextColor3 = Theme.TextMuted
+    cancelBtn.ZIndex = 5001
+    Instance.new("UICorner", cancelBtn).CornerRadius = UDim.new(0, 6)
+    local cStrk = Instance.new("UIStroke", cancelBtn)
+    cStrk.Color = Theme.Border
+
+    trackConnection(applyBtn.MouseButton1Click:Connect(function()
+        local finalColor = Color3.fromHSV(currentH, currentS, currentV)
+        if callback then callback(finalColor) end
         pickerFrame:Destroy()
     end))
 
-    trackConnection(closeBtn.MouseButton1Click:Connect(function()
+    trackConnection(cancelBtn.MouseButton1Click:Connect(function()
         pickerFrame:Destroy()
     end))
+
+    updatePicker()
 end
 
 local function applyFeatureExtensions(container, description, subConfig, descStyle, screenGui)
@@ -320,8 +439,12 @@ local function applyFeatureExtensions(container, description, subConfig, descSty
                 end))
 
             elseif item.Type == "Input" then
+                local inputHeight = item.Height or 28
+                local inputSizeY = item.InputHeight or 28
+                local textSize = item.TextSize or 12
+
                 local inputFrame = Instance.new("Frame", subFrame)
-                inputFrame.Size = UDim2.new(1, 0, 0, 28)
+                inputFrame.Size = UDim2.new(1, 0, 0, math.max(inputHeight, inputSizeY))
                 inputFrame.BackgroundTransparency = 1
                 inputFrame.LayoutOrder = item.LayoutOrder or 1
 
@@ -331,19 +454,19 @@ local function applyFeatureExtensions(container, description, subConfig, descSty
                 lbl.Text = item.Text or "Input"
                 lbl.TextColor3 = Theme.TextMuted
                 lbl.Font = Theme.FontMain
-                lbl.TextSize = 12
+                lbl.TextSize = textSize
                 lbl.TextXAlignment = Enum.TextXAlignment.Left
 
                 local box = Instance.new("TextBox", inputFrame)
-                box.Size = UDim2.new(1, -105, 1, 0)
-                box.Position = UDim2.new(0, 105, 0, 0)
+                box.Size = UDim2.new(1, -105, 0, inputSizeY)
+                box.Position = UDim2.new(0, 105, 0.5, -inputSizeY/2)
                 box.BackgroundColor3 = Theme.SecondaryBg
                 box.Text = item.DefaultText or ""
                 box.PlaceholderText = item.Placeholder or "Type here..."
                 box.PlaceholderColor3 = Color3.fromRGB(100, 100, 105)
                 box.TextColor3 = Theme.TextMain
                 box.Font = Theme.FontMain
-                box.TextSize = 12
+                box.TextSize = textSize
                 box.ClearTextOnFocus = false
                 Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
                 local bStroke = Instance.new("UIStroke", box)
