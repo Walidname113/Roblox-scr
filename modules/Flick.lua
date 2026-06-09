@@ -18,7 +18,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.9 Public.")
+local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.1.0 Public.")
 ui.SetMinimizedImage("97837481633367")
 
 local RunService = game:GetService("RunService")
