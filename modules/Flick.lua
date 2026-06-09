@@ -19,7 +19,7 @@ end
 
 local uiModule = moduleFunc()
 local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.1.0 Public.")
-ui.SetMinimizedImage("97837481633367")
+ui.SetMinimizedImage("")
 
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
