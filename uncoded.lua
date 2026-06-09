@@ -12,7 +12,7 @@ Key points:
 - Educational copying (review, study, evaluation) allowed without modification.
 --]]
 
--- v23 (Advanced GUI Color Picker, Adjustable Input Sizes, and Window Enhancements) --
+-- v24 (Fixes: UI Blocking, Dedicated Drag Zones, Dynamic Hue Gradient, and Modal Close Animations) --
 local module = {}
 
 local Players = game:GetService("Players")
@@ -62,9 +62,11 @@ local function destroyAll()
     end
 end
 
-local function makeDraggable(frame)
+local function makeDraggable(frame, handle)
+    local dragHandle = handle or frame
     local dragging, dragInput, dragStart, startPos
-    trackConnection(frame.InputBegan:Connect(function(input)
+    
+    trackConnection(dragHandle.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
@@ -80,11 +82,13 @@ local function makeDraggable(frame)
             trackConnection(endConn)
         end
     end))
+    
     trackConnection(frame.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
             dragInput = input
         end
     end))
+    
     trackConnection(UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then
             local delta = input.Position - dragStart
@@ -101,15 +105,21 @@ local function createColorPickerUI(screenGui, defaultColor, callback)
     pickerFrame.Position = UDim2.new(0.5, -170, 0.5, -175)
     pickerFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
     pickerFrame.ZIndex = 5000
+    pickerFrame.Active = true
     Instance.new("UICorner", pickerFrame).CornerRadius = UDim.new(0, 12)
     local pStroke = Instance.new("UIStroke", pickerFrame)
     pStroke.Color = Theme.Border
     pStroke.Thickness = 1
-    makeDraggable(pickerFrame)
     trackObject(pickerFrame)
 
-    local title = Instance.new("TextLabel", pickerFrame)
-    title.Size = UDim2.new(1, -40, 0, 40)
+    local dragHandle = Instance.new("Frame", pickerFrame)
+    dragHandle.Size = UDim2.new(1, 0, 0, 40)
+    dragHandle.BackgroundTransparency = 1
+    dragHandle.ZIndex = 5001
+    makeDraggable(pickerFrame, dragHandle)
+
+    local title = Instance.new("TextLabel", dragHandle)
+    title.Size = UDim2.new(1, -40, 1, 0)
     title.Position = UDim2.new(0, 16, 0, 0)
     title.Text = "Палитра"
     title.TextColor3 = Theme.TextMain
@@ -117,7 +127,7 @@ local function createColorPickerUI(screenGui, defaultColor, callback)
     title.TextSize = 15
     title.TextXAlignment = Enum.TextXAlignment.Left
     title.BackgroundTransparency = 1
-    title.ZIndex = 5001
+    title.ZIndex = 5002
 
     local xCloseBtn = Instance.new("TextButton", pickerFrame)
     xCloseBtn.Size = UDim2.new(0, 24, 0, 24)
@@ -127,8 +137,7 @@ local function createColorPickerUI(screenGui, defaultColor, callback)
     xCloseBtn.TextSize = 18
     xCloseBtn.TextColor3 = Theme.TextMuted
     xCloseBtn.BackgroundTransparency = 1
-    xCloseBtn.ZIndex = 5001
-    trackConnection(xCloseBtn.MouseButton1Click:Connect(function() pickerFrame:Destroy() end))
+    xCloseBtn.ZIndex = 5005
 
     local topDisplay = Instance.new("Frame", pickerFrame)
     topDisplay.Size = UDim2.new(1, -32, 0, 130)
@@ -147,6 +156,7 @@ local function createColorPickerUI(screenGui, defaultColor, callback)
     rightSatVal.Position = UDim2.new(0.4, 8, 0, 0)
     rightSatVal.Image = "rbxassetid://4155801252"
     rightSatVal.ZIndex = 5001
+    rightSatVal.Active = true
     Instance.new("UICorner", rightSatVal).CornerRadius = UDim.new(0, 6)
 
     local satValSelection = Instance.new("Frame", rightSatVal)
@@ -159,12 +169,24 @@ local function createColorPickerUI(screenGui, defaultColor, callback)
     sRing.Thickness = 2
     Instance.new("UICorner", satValSelection).CornerRadius = UDim.new(1, 0)
 
-    local hueSlider = Instance.new("ImageButton", pickerFrame)
+    local hueSlider = Instance.new("Frame", pickerFrame)
     hueSlider.Size = UDim2.new(1, -32, 0, 16)
     hueSlider.Position = UDim2.new(0, 16, 0, 190)
-    hueSlider.Image = "rbxassetid://3641079629"
+    hueSlider.BackgroundColor3 = Color3.new(1, 1, 1)
     hueSlider.ZIndex = 5001
+    hueSlider.Active = true
     Instance.new("UICorner", hueSlider).CornerRadius = UDim.new(1, 0)
+
+    local hueGrad = Instance.new("UIGradient", hueSlider)
+    hueGrad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0/6, Color3.fromRGB(255, 0, 0)),
+        ColorSequenceKeypoint.new(1/6, Color3.fromRGB(255, 255, 0)),
+        ColorSequenceKeypoint.new(2/6, Color3.fromRGB(0, 255, 0)),
+        ColorSequenceKeypoint.new(3/6, Color3.fromRGB(0, 255, 255)),
+        ColorSequenceKeypoint.new(4/6, Color3.fromRGB(0, 0, 255)),
+        ColorSequenceKeypoint.new(5/6, Color3.fromRGB(255, 0, 255)),
+        ColorSequenceKeypoint.new(6/6, Color3.fromRGB(255, 0, 0))
+    })
 
     local hueKnob = Instance.new("Frame", hueSlider)
     hueKnob.Size = UDim2.new(0, 18, 0, 18)
@@ -182,6 +204,7 @@ local function createColorPickerUI(screenGui, defaultColor, callback)
     rgbContainer.Position = UDim2.new(0, 16, 0, 222)
     rgbContainer.BackgroundColor3 = Theme.SecondaryBg
     rgbContainer.ZIndex = 5001
+    rgbContainer.Active = true
     Instance.new("UICorner", rgbContainer).CornerRadius = UDim.new(0, 8)
     local rStroke = Instance.new("UIStroke", rgbContainer)
     rStroke.Color = Theme.Border
@@ -225,8 +248,6 @@ local function createColorPickerUI(screenGui, defaultColor, callback)
         if not rgbInput:IsFocused() then
             rgbInput.Text = string.format("%d, %d, %d", r, g, b)
         end
-        
-        if callback then callback(finalColor) end
     end
 
     local function parseRGBText(text)
@@ -318,15 +339,54 @@ local function createColorPickerUI(screenGui, defaultColor, callback)
     local cStrk = Instance.new("UIStroke", cancelBtn)
     cStrk.Color = Theme.Border
 
-    trackConnection(applyBtn.MouseButton1Click:Connect(function()
-        local finalColor = Color3.fromHSV(currentH, currentS, currentV)
-        if callback then callback(finalColor) end
-        pickerFrame:Destroy()
-    end))
+    local function closeWithAnimation(shouldSave)
+        local origSize = pickerFrame.Size
+        local origPos = pickerFrame.Position
+        local targetSize = UDim2.new(0, origSize.X.Offset * 0.8, 0, origSize.Y.Offset * 0.8)
+        local targetPos = UDim2.new(origPos.X.Scale, origPos.X.Offset + (origSize.X.Offset * 0.1), origPos.Y.Scale, origPos.Y.Offset + (origSize.Y.Offset * 0.1))
+        
+        local t1 = TweenService:Create(pickerFrame, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            Size = targetSize,
+            Position = targetPos,
+            BackgroundTransparency = 1
+        })
+        
+        for _, descendant in ipairs(pickerFrame:GetDescendants()) do
+            if descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox") then
+                TweenService:Create(descendant, TweenInfo.new(0.12), {TextTransparency = 1}):Play()
+            elseif descendant:IsA("Frame") or descendant:IsA("ImageLabel") then
+                TweenService:Create(descendant, TweenInfo.new(0.12), {BackgroundTransparency = 1, ImageTransparency = 1}):Play()
+            elseif descendant:IsA("UIStroke") then
+                TweenService:Create(descendant, TweenInfo.new(0.12), {Transparency = 1}):Play()
+            end
+        end
+        
+        t1:Play()
+        local endConn
+        endConn = t1.Completed:Connect(function()
+            endConn:Disconnect()
+            if shouldSave then
+                local finalColor = Color3.fromHSV(currentH, currentS, currentV)
+                if callback then callback(finalColor) end
+            end
+            pickerFrame:Destroy()
+        end)
+    end
 
-    trackConnection(cancelBtn.MouseButton1Click:Connect(function()
-        pickerFrame:Destroy()
-    end))
+    trackConnection(applyBtn.MouseButton1Click:Connect(function() closeWithAnimation(true) end))
+    trackConnection(cancelBtn.MouseButton1Click:Connect(function() closeWithAnimation(false) end))
+    trackConnection(xCloseBtn.MouseButton1Click:Connect(function() closeWithAnimation(false) end))
+
+    pickerFrame.Size = UDim2.new(0, 272, 0, 280)
+    pickerFrame.Position = UDim2.new(0.5, -136, 0.5, -140)
+    pickerFrame.BackgroundTransparency = 1
+    
+    local openTween = TweenService:Create(pickerFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 340, 0, 350),
+        Position = UDim2.new(0.5, -170, 0.5, -175),
+        BackgroundTransparency = 0
+    })
+    openTween:Play()
 
     updatePicker()
 end
