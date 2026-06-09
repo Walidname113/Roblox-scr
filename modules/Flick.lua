@@ -18,7 +18,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.8 Public.")
+local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.0.9 Public.")
 ui.SetMinimizedImage("97837481633367")
 
 local RunService = game:GetService("RunService")
@@ -38,6 +38,7 @@ local function trackConnection(conn)
 end
 
 local ESP_Settings = {
+    Master = false,
     Box = false,
     BoxColor = Color3.fromRGB(255, 255, 0),
     Names = false,
@@ -58,16 +59,6 @@ local Aim_Settings = {
     HitboxActive = false,
     HitboxSize = 3,
     Triggerbot = false
-}
-
-local PresetColors = {
-    {n = "Red", c = Color3.fromRGB(255, 0, 0)},
-    {n = "Green", c = Color3.fromRGB(0, 255, 0)},
-    {n = "Blue", c = Color3.fromRGB(0, 150, 255)},
-    {n = "Yellow", c = Color3.fromRGB(255, 255, 0)},
-    {n = "Purple", c = Color3.fromRGB(170, 0, 255)},
-    {n = "White", c = Color3.fromRGB(255, 255, 255)},
-    {n = "Cyan", c = Color3.fromRGB(0, 255, 255)}
 }
 
 local originalHeadSizes = {}
@@ -94,102 +85,48 @@ local function performAutoShot()
     end)
 end
 
-local function ShowWarning(text)
-    if not ui.ScreenGui then return end
-    local warnFrame = Instance.new("Frame")
-    warnFrame.Size = UDim2.new(0, 300, 0, 150)
-    warnFrame.Position = UDim2.new(0.5, -150, 0.5, -75)
-    warnFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    warnFrame.ZIndex = 11000
-    Instance.new("UICorner", warnFrame)
-    Instance.new("UIStroke", warnFrame).Color = Color3.fromRGB(255, 0, 0)
-
-    local msg = Instance.new("TextLabel", warnFrame)
-    msg.Size = UDim2.new(1, -20, 0, 80)
-    msg.Position = UDim2.new(0, 10, 0, 10)
-    msg.BackgroundTransparency = 1
-    msg.Text = text
-    msg.TextColor3 = Color3.new(1,1,1)
-    msg.Font = Enum.Font.GothamBold
-    msg.TextSize = 16
-    msg.TextWrapped = true
-
-    local btn = Instance.new("TextButton", warnFrame)
-    btn.Size = UDim2.new(0, 120, 0, 35)
-    btn.Position = UDim2.new(0.5, -60, 0.7, 0)
-    btn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
-    btn.Text = "Understood"
-    btn.TextColor3 = Color3.new(1,1,1)
-    Instance.new("UICorner", btn)
-
-    warnFrame.Parent = ui.ScreenGui
-    btn.MouseButton1Click:Connect(function() warnFrame:Destroy() end)
-end
-
-local function ForceDisableToggle(container)
-    local switch = container:FindFirstChild("switch") or container:FindFirstChildWhichIsA("Frame", true)
-    if switch then
-        local knob = switch:FindFirstChildWhichIsA("Frame", true)
-        TweenService:Create(switch, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(70, 70, 70)}):Play()
-        if knob then
-            TweenService:Create(knob, TweenInfo.new(0.3), {Position = UDim2.new(0, 1, 0.5, -9)}):Play()
-        end
-    end
-end
-
-local function AddColorPicker(container, defaultValue, callback)
-    local colorBtn = Instance.new("TextButton")
-    colorBtn.Size = UDim2.new(0, 24, 0, 24)
-    colorBtn.Position = UDim2.new(1, -85, 0.5, -12)
-    colorBtn.BackgroundColor3 = defaultValue
-    colorBtn.Text = ""
-    Instance.new("UICorner", colorBtn).CornerRadius = UDim.new(0, 4)
-    Instance.new("UIStroke", colorBtn).Color = Color3.new(1,1,1)
-    colorBtn.Parent = container
-
-    local menu = Instance.new("ScrollingFrame")
-    menu.Size = UDim2.new(0, 110, 0, 180)
-    menu.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    menu.Visible = false
-    menu.ZIndex = 12000
-    menu.CanvasSize = UDim2.new(0, 0, 0, #PresetColors * 32 + 10)
-    menu.ScrollBarThickness = 4
-    Instance.new("UICorner", menu)
-    menu.Parent = ui.ScreenGui
-
-    local layout = Instance.new("UIListLayout", menu)
-    layout.Padding = UDim.new(0, 5)
-    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
-    for _, data in ipairs(PresetColors) do
-        local btn = Instance.new("TextButton", menu)
-        btn.Size = UDim2.new(0, 90, 0, 25)
-        btn.BackgroundColor3 = data.c
-        btn.Text = ""
-        Instance.new("UICorner", btn)
-        btn.MouseButton1Click:Connect(function()
-            colorBtn.BackgroundColor3 = data.c
-            menu.Visible = false
-            callback(data.c)
-        end)
-    end
-
-    colorBtn.MouseButton1Click:Connect(function()
-        menu.Position = UDim2.new(0, colorBtn.AbsolutePosition.X + 35, 0, colorBtn.AbsolutePosition.Y)
-        menu.Visible = not menu.Visible
-    end)
-end
-
+-- КАТЕГОРИЯ: MISC (AIMBOT)
 local miscCategory = ui.CreateCategory("Misc")
 
-ui.CreateToggle("Aimbot", miscCategory, function(state)
-    Aim_Settings.Enabled = state
-end)
+local aimbotSubConfig = {
+    {
+        Type = "Checkbox",
+        Text = "Triggerbot",
+        State = Aim_Settings.Triggerbot,
+        LayoutOrder = 1,
+        Callback = function(state) Aim_Settings.Triggerbot = state end
+    },
+    {
+        Type = "Checkbox",
+        Text = "Wall Check",
+        State = Aim_Settings.WallCheck,
+        LayoutOrder = 2,
+        Callback = function(state) Aim_Settings.WallCheck = state end
+    },
+    {
+        Type = "Color",
+        Text = "Max Range Preset",
+        LayoutOrder = 3,
+        Colors = {Color3.fromRGB(59,130,246), Color3.fromRGB(234,179,8), Color3.fromRGB(34,197,94), Color3.fromRGB(239,68,68)}, -- 50, 100, 200, 500 studs representation
+        Callback = function(color)
+            if color == Color3.fromRGB(59,130,246) then Aim_Settings.MaxDistance = 50
+            elseif color == Color3.fromRGB(234,179,8) then Aim_Settings.MaxDistance = 100
+            elseif color == Color3.fromRGB(34,197,94) then Aim_Settings.MaxDistance = 200
+            elseif color == Color3.fromRGB(239,68,68) then Aim_Settings.MaxDistance = 500
+            end
+        end
+    }
+}
 
-ui.CreateToggle("Triggerbot", miscCategory, function(state)
-    Aim_Settings.Triggerbot = state
-end)
+ui.CreateToggle(
+    "Aimbot", 
+    miscCategory, 
+    function(state) Aim_Settings.Enabled = state end,
+    "Automatically locks your camera onto enemies within the selected range. Includes specialized sub-features below.",
+    aimbotSubConfig
+)
 
+-- Выбор кости (Target Bone) оставляем отдельным элементом в Misc
 local boneContainer = Instance.new("Frame")
 boneContainer.Size = UDim2.new(1, -4, 0, 42)
 boneContainer.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
@@ -224,9 +161,7 @@ listFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
 listFrame.Visible = false
 listFrame.ZIndex = 15000
 Instance.new("UICorner", listFrame).CornerRadius = UDim.new(0, 6)
-
-local listStroke = Instance.new("UIStroke", listFrame)
-listStroke.Color = Color3.fromRGB(168, 85, 247)
+Instance.new("UIStroke", listFrame).Color = Color3.fromRGB(168, 85, 247)
 
 local listLayout = Instance.new("UIListLayout", listFrame)
 
@@ -253,79 +188,89 @@ dropdownBtn.MouseButton1Click:Connect(function()
     listFrame.Visible = not listFrame.Visible
 end)
 
-local distanceContainer = Instance.new("Frame")
-distanceContainer.Size = UDim2.new(1, -4, 0, 42)
-distanceContainer.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
-Instance.new("UICorner", distanceContainer).CornerRadius = UDim.new(0, 8)
-local distContStroke = Instance.new("UIStroke", distanceContainer)
-distContStroke.Color = Color3.fromRGB(39, 39, 42)
-distanceContainer.Parent = miscCategory
 
-local distanceLabel = Instance.new("TextLabel", distanceContainer)
-distanceLabel.Size = UDim2.new(0, 150, 1, 0)
-distanceLabel.Position = UDim2.new(0, 14, 0, 0)
-distanceLabel.BackgroundTransparency = 1
-distanceLabel.Text = "Aimbot Distance (Studs)"
-distanceLabel.Font = Enum.Font.Gotham
-distanceLabel.TextSize = 13
-distanceLabel.TextColor3 = Color3.fromRGB(243, 244, 246)
-distanceLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local distanceInput = Instance.new("TextBox", distanceContainer)
-distanceInput.Size = UDim2.new(0, 70, 0, 28)
-distanceInput.Position = UDim2.new(1, -84, 0.5, -14)
-distanceInput.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
-distanceInput.Text = tostring(Aim_Settings.MaxDistance)
-distanceInput.PlaceholderText = "100"
-distanceInput.Font = Enum.Font.GothamBold
-distanceInput.TextColor3 = Color3.fromRGB(243, 244, 246)
-distanceInput.TextSize = 12
-Instance.new("UICorner", distanceInput).CornerRadius = UDim.new(0, 6)
-Instance.new("UIStroke", distanceInput).Color = Color3.fromRGB(39, 39, 42)
-
-distanceInput.FocusLost:Connect(function()
-    local val = tonumber(distanceInput.Text)
-    if val then
-        Aim_Settings.MaxDistance = val
-    else
-        distanceInput.Text = tostring(Aim_Settings.MaxDistance)
-    end
-end)
-
-ui.CreateToggle("Wall Check", miscCategory, function(state)
-    Aim_Settings.WallCheck = state
-end)
-
+-- КАТЕГОРИЯ: HITBOXES
 local hitboxCategory = ui.CreateCategory("Hitboxes")
-
 ui.CreateToggle("Head Hitbox Expander", hitboxCategory, function(state)
     Aim_Settings.HitboxActive = state
 end)
 
+
+-- КАТЕГОРИЯ: ESP SETTINGS (С СУБКОНФИГАМИ)
 local espCategory = ui.CreateCategory("ESP Settings")
 
-local boxT = ui.CreateToggle("Box ESP", espCategory, function(state) ESP_Settings.Box = state end)
-AddColorPicker(boxT, ESP_Settings.BoxColor, function(c) ESP_Settings.BoxColor = c end)
+local espSubConfig = {
+    {
+        Type = "Checkbox",
+        Text = "Box ESP",
+        State = ESP_Settings.Box,
+        LayoutOrder = 1,
+        Callback = function(state) ESP_Settings.Box = state end
+    },
+    {
+        Type = "Color",
+        Text = "Box Color",
+        LayoutOrder = 2,
+        Callback = function(color) ESP_Settings.BoxColor = color end
+    },
+    {
+        Type = "Checkbox",
+        Text = "Names ESP",
+        State = ESP_Settings.Names,
+        LayoutOrder = 3,
+        Callback = function(state) ESP_Settings.Names = state end
+    },
+    {
+        Type = "Color",
+        Text = "Names Color",
+        LayoutOrder = 4,
+        Callback = function(color) ESP_Settings.NamesColor = color end
+    },
+    {
+        Type = "Checkbox",
+        Text = "HP ESP",
+        State = ESP_Settings.HP,
+        LayoutOrder = 5,
+        Callback = function(state) ESP_Settings.HP = state end
+    },
+    {
+        Type = "Checkbox",
+        Text = "Line ESP",
+        State = ESP_Settings.Lines,
+        LayoutOrder = 6,
+        Callback = function(state) ESP_Settings.Lines = state end
+    },
+    {
+        Type = "Color",
+        Text = "Lines Color",
+        LayoutOrder = 7,
+        Callback = function(color) ESP_Settings.LinesColor = color end
+    },
+    {
+        Type = "Checkbox",
+        Text = "Distance ESP",
+        State = ESP_Settings.Distance,
+        LayoutOrder = 8,
+        Callback = function(state) ESP_Settings.Distance = state end
+    },
+    {
+        Type = "Color",
+        Text = "Distance Color",
+        LayoutOrder = 9,
+        Callback = function(color) ESP_Settings.DistanceColor = color end
+    }
+}
 
-local nameT = ui.CreateToggle("Names ESP", espCategory, function(state) ESP_Settings.Names = state end)
-AddColorPicker(nameT, ESP_Settings.NamesColor, function(c) ESP_Settings.NamesColor = c end)
+ui.CreateToggle(
+    "Master ESP", 
+    espCategory, 
+    function(state) ESP_Settings.Master = state end,
+    "Renders elements through walls to reveal opponent positions. Customize indicators and colors inside this module.",
+    espSubConfig
+)
 
-local hpT = ui.CreateToggle("HP ESP", espCategory, function(state) ESP_Settings.HP = state end)
 
-local lineT = ui.CreateToggle("Line ESP", espCategory, function(state)
-    if state and not ESP_Settings.Box then
-        ShowWarning("Enable 'Box ESP' first!")
-        ESP_Settings.Lines = false
-        ForceDisableToggle(lineT)
-        return
-    end
-    ESP_Settings.Lines = state
-end)
-AddColorPicker(lineT, ESP_Settings.LinesColor, function(c) ESP_Settings.LinesColor = c end)
-
-local distT = ui.CreateToggle("Distance ESP", espCategory, function(state) ESP_Settings.Distance = state end)
-AddColorPicker(distT, ESP_Settings.DistanceColor, function(c) ESP_Settings.DistanceColor = c end)
-
+-- ЛОГИКА РАБОТЫ СКРИПТА
 local function isTargetVisible(part, char)
     local origin = camera.CFrame.Position
     local direction = part.Position - origin
@@ -449,6 +394,14 @@ local function CreateESP(plr)
         end
 
         if not hrp or not hum or hum.Health <= 0 then
+            highlight.Enabled = false
+            billboard.Enabled = false
+            lineFrame.Visible = false
+            return
+        end
+
+        -- Если Master ESP выключен, принудительно гасим визуализацию игрока
+        if not ESP_Settings.Master then
             highlight.Enabled = false
             billboard.Enabled = false
             lineFrame.Visible = false
