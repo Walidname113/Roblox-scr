@@ -12,7 +12,7 @@ Key points:
 - Educational copying (review, study, evaluation) allowed without modification.
 --]]
 
--- v24 (Fixes: UI Blocking, Dedicated Drag Zones, Dynamic Hue Gradient, and Modal Close Animations) --
+-- v25 (Fixes: Button Callbacks, Full English Localization, Single Instance Color Picker Constraint) --
 local module = {}
 
 local Players = game:GetService("Players")
@@ -24,6 +24,7 @@ local player = Players.LocalPlayer
 local connections = {}
 local trackedObjects = {}
 local onCloseCallback = nil
+local activePicker = nil
 
 local Theme = {
     Background = Color3.fromRGB(15, 15, 18),
@@ -100,6 +101,8 @@ local function makeDraggable(frame, handle)
 end
 
 local function createColorPickerUI(screenGui, defaultColor, callback)
+    if activePicker then return end
+
     local pickerFrame = Instance.new("Frame", screenGui)
     pickerFrame.Size = UDim2.new(0, 340, 0, 350)
     pickerFrame.Position = UDim2.new(0.5, -170, 0.5, -175)
@@ -111,6 +114,7 @@ local function createColorPickerUI(screenGui, defaultColor, callback)
     pStroke.Color = Theme.Border
     pStroke.Thickness = 1
     trackObject(pickerFrame)
+    activePicker = pickerFrame
 
     local dragHandle = Instance.new("Frame", pickerFrame)
     dragHandle.Size = UDim2.new(1, 0, 0, 40)
@@ -121,7 +125,7 @@ local function createColorPickerUI(screenGui, defaultColor, callback)
     local title = Instance.new("TextLabel", dragHandle)
     title.Size = UDim2.new(1, -40, 1, 0)
     title.Position = UDim2.new(0, 16, 0, 0)
-    title.Text = "Палитра"
+    title.Text = "Color Palette"
     title.TextColor3 = Theme.TextMain
     title.Font = Theme.FontBold
     title.TextSize = 15
@@ -318,7 +322,7 @@ local function createColorPickerUI(screenGui, defaultColor, callback)
     local applyBtn = Instance.new("TextButton", pickerFrame)
     applyBtn.Size = UDim2.new(0, 140, 0, 36)
     applyBtn.Position = UDim2.new(0, 16, 1, -52)
-    applyBtn.Text = "Применить"
+    applyBtn.Text = "Apply"
     applyBtn.Font = Theme.FontBold
     applyBtn.TextSize = 13
     applyBtn.BackgroundColor3 = Theme.Success
@@ -329,7 +333,7 @@ local function createColorPickerUI(screenGui, defaultColor, callback)
     local cancelBtn = Instance.new("TextButton", pickerFrame)
     cancelBtn.Size = UDim2.new(0, 140, 0, 36)
     cancelBtn.Position = UDim2.new(1, -156, 1, -52)
-    cancelBtn.Text = "Отмена"
+    cancelBtn.Text = "Cancel"
     cancelBtn.Font = Theme.FontBold
     cancelBtn.TextSize = 13
     cancelBtn.BackgroundColor3 = Theme.SecondaryBg
@@ -369,6 +373,7 @@ local function createColorPickerUI(screenGui, defaultColor, callback)
                 local finalColor = Color3.fromHSV(currentH, currentS, currentV)
                 if callback then callback(finalColor) end
             end
+            if activePicker == pickerFrame then activePicker = nil end
             pickerFrame:Destroy()
         end)
     end
@@ -1016,7 +1021,7 @@ function module.CreateUI(title)
         local dropdownButton = Instance.new("TextButton", container)
         dropdownButton.Size = UDim2.new(1, -120, 0, 32)
         dropdownButton.Position = UDim2.new(0, 10, 0.5, -16)
-        dropdownButton.Text = "  Игрок: " .. selectedPlayer
+        dropdownButton.Text = "  Player: " .. selectedPlayer
         dropdownButton.TextColor3 = Theme.TextMain
         dropdownButton.Font = Theme.FontMain
         dropdownButton.TextSize = 13
@@ -1028,7 +1033,7 @@ function module.CreateUI(title)
         local trackBtn = Instance.new("TextButton", container)
         trackBtn.Size = UDim2.new(0, 80, 0, 32)
         trackBtn.Position = UDim2.new(1, -90, 0.5, -16)
-        trackBtn.Text = "Следить"
+        trackBtn.Text = "Track"
         trackBtn.Font = Theme.FontBold
         trackBtn.TextSize = 12
         trackBtn.BackgroundColor3 = Color3.fromRGB(24, 24, 27)
@@ -1067,7 +1072,7 @@ function module.CreateUI(title)
                     
                     trackConnection(btn.MouseButton1Click:Connect(function()
                         selectedPlayer = plr.Name
-                        dropdownButton.Text = "  Игрок: " .. selectedPlayer
+                        dropdownButton.Text = "  Player: " .. selectedPlayer
                         dropdownFrame.Visible = false
                     end))
                 end
