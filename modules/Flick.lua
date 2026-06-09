@@ -178,7 +178,7 @@ local espSubConfig = {
     },
     {
         Type = "Color",
-        Text = "Names Color RGB",
+        Text = "Names Color",
         DefaultColor = ESP_Settings.NamesColor,
         LayoutOrder = 4,
         Callback = function(color) ESP_Settings.NamesColor = color end
@@ -199,7 +199,7 @@ local espSubConfig = {
     },
     {
         Type = "Color",
-        Text = "Lines Color RGB",
+        Text = "Lines Color",
         DefaultColor = ESP_Settings.LinesColor,
         LayoutOrder = 7,
         Callback = function(color) ESP_Settings.LinesColor = color end
@@ -213,7 +213,7 @@ local espSubConfig = {
     },
     {
         Type = "Color",
-        Text = "Distance Color RGB",
+        Text = "Distance Color",
         DefaultColor = ESP_Settings.DistanceColor,
         LayoutOrder = 9,
         Callback = function(color) ESP_Settings.DistanceColor = color end
@@ -221,7 +221,7 @@ local espSubConfig = {
 }
 
 ui.CreateToggle(
-    "Master ESP", 
+    "ESP", 
     espCategory, 
     function(state) ESP_Settings.Master = state end,
     "Renders elements through walls to reveal opponent positions. Customize precise indicators and full RGB colors inside this module.",
