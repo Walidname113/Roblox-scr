@@ -1,18 +1,4 @@
---[[
-Copyright (c) 2025 Kiyatsuka
-Licensed under the Kiyatsuka GUI Proprietary License v1.1
-GUI Source Code: https://raw.githubusercontent.com/Walidname113/Roblox-scr/refs/heads/main/uncoded.lua
-Full license text: https://raw.githubusercontent.com/Walidname113/Roblox-scr/refs/heads/main/LICENSE
-
-Key points:
-- "Software" = this GUI source code, scripts, and resources.
-- Users may download, run, integrate, and call public functions.
-- Users MAY NOT modify, redistribute modified code, reverse-engineer, or violate laws.
-- By downloading, installing, copying, or using, the User explicitly accepts all terms.
-- Educational copying (review, study, evaluation) allowed without modification.
---]]
-
--- v25 (Fixes: Button Callbacks, Full English Localization, Single Instance Color Picker Constraint) --
+-- v26 (Fixed: Asset property type matching error in closeWithAnimation) --
 local module = {}
 
 local Players = game:GetService("Players")
@@ -358,7 +344,9 @@ local function createColorPickerUI(screenGui, defaultColor, callback)
         for _, descendant in ipairs(pickerFrame:GetDescendants()) do
             if descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox") then
                 TweenService:Create(descendant, TweenInfo.new(0.12), {TextTransparency = 1}):Play()
-            elseif descendant:IsA("Frame") or descendant:IsA("ImageLabel") then
+            elseif descendant:IsA("Frame") then
+                TweenService:Create(descendant, TweenInfo.new(0.12), {BackgroundTransparency = 1}):Play()
+            elseif descendant:IsA("ImageLabel") or descendant:IsA("ImageButton") then
                 TweenService:Create(descendant, TweenInfo.new(0.12), {BackgroundTransparency = 1, ImageTransparency = 1}):Play()
             elseif descendant:IsA("UIStroke") then
                 TweenService:Create(descendant, TweenInfo.new(0.12), {Transparency = 1}):Play()
