@@ -65,6 +65,16 @@ local originalHeadSizes = {}
 local isTouchDevice = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 local isClicking = false
 
+local R6_Bones = {
+    {Name = "Head", Value = "Head"},
+    {Name = "Torso", Value = "HumanoidRootPart"},
+    {Name = "Left Arm", Value = "Left Arm"},
+    {Name = "Right Arm", Value = "Right Arm"},
+    {Name = "Left Leg", Value = "Left Leg"},
+    {Name = "Right Leg", Value = "Right Leg"}
+}
+local currentBoneIndex = 1
+
 local function performAutoShot()
     if isClicking then return end
     isClicking = true
@@ -85,7 +95,6 @@ local function performAutoShot()
     end)
 end
 
--- КАТЕГОРИЯ: MISC (AIMBOT)
 local miscCategory = ui.CreateCategory("Misc")
 
 local aimbotSubConfig = {
@@ -104,16 +113,28 @@ local aimbotSubConfig = {
         Callback = function(state) Aim_Settings.WallCheck = state end
     },
     {
-        Type = "Color",
-        Text = "Max Range Preset",
+        Type = "Input",
+        Text = "Aimbot Range",
+        DefaultText = tostring(Aim_Settings.MaxDistance),
+        Placeholder = "Studs (e.g. 100)",
         LayoutOrder = 3,
-        Colors = {Color3.fromRGB(59,130,246), Color3.fromRGB(234,179,8), Color3.fromRGB(34,197,94), Color3.fromRGB(239,68,68)}, -- 50, 100, 200, 500 studs representation
-        Callback = function(color)
-            if color == Color3.fromRGB(59,130,246) then Aim_Settings.MaxDistance = 50
-            elseif color == Color3.fromRGB(234,179,8) then Aim_Settings.MaxDistance = 100
-            elseif color == Color3.fromRGB(34,197,94) then Aim_Settings.MaxDistance = 200
-            elseif color == Color3.fromRGB(239,68,68) then Aim_Settings.MaxDistance = 500
-            end
+        Callback = function(text, enterPressed)
+            local num = tonumber(text)
+            if num then Aim_Settings.MaxDistance = num end
+        end
+    },
+    {
+        Type = "Button",
+        Text = "Cycle R6 Bone (Current: Head)",
+        LayoutOrder = 4,
+        Callback = function()
+            currentBoneIndex = currentBoneIndex + 1
+            if currentBoneIndex > #R6_Bones then currentBoneIndex = 1 end
+            
+            local chosen = R6_Bones[currentBoneIndex]
+            Aim_Settings.TargetPart = chosen.Value
+            
+            print("Aimbot target bone changed to: " .. chosen.Name)
         end
     }
 }
@@ -122,81 +143,15 @@ ui.CreateToggle(
     "Aimbot", 
     miscCategory, 
     function(state) Aim_Settings.Enabled = state end,
-    "Automatically locks your camera onto enemies within the selected range. Includes specialized sub-features below.",
+    "Automatically locks your camera onto enemies within the selected range. Includes R6 body part filters, custom input distance, and built-in triggerbot tracking.",
     aimbotSubConfig
 )
 
--- Выбор кости (Target Bone) оставляем отдельным элементом в Misc
-local boneContainer = Instance.new("Frame")
-boneContainer.Size = UDim2.new(1, -4, 0, 42)
-boneContainer.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
-Instance.new("UICorner", boneContainer).CornerRadius = UDim.new(0, 8)
-Instance.new("UIStroke", boneContainer).Color = Color3.fromRGB(39, 39, 42)
-boneContainer.Parent = miscCategory
-
-local boneLabel = Instance.new("TextLabel", boneContainer)
-boneLabel.Size = UDim2.new(0, 120, 1, 0)
-boneLabel.Position = UDim2.new(0, 14, 0, 0)
-boneLabel.BackgroundTransparency = 1
-boneLabel.Text = "Target Bone"
-boneLabel.Font = Enum.Font.Gotham
-boneLabel.TextSize = 13
-boneLabel.TextColor3 = Color3.fromRGB(243, 244, 246)
-boneLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local dropdownBtn = Instance.new("TextButton", boneContainer)
-dropdownBtn.Size = UDim2.new(0, 120, 0, 28)
-dropdownBtn.Position = UDim2.new(1, -134, 0.5, -14)
-dropdownBtn.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
-dropdownBtn.Text = "Head ▼"
-dropdownBtn.Font = Enum.Font.GothamBold
-dropdownBtn.TextColor3 = Color3.fromRGB(243, 244, 246)
-dropdownBtn.TextSize = 12
-Instance.new("UICorner", dropdownBtn).CornerRadius = UDim.new(0, 6)
-Instance.new("UIStroke", dropdownBtn).Color = Color3.fromRGB(39, 39, 42)
-
-local listFrame = Instance.new("Frame", ui.ScreenGui)
-listFrame.Size = UDim2.new(0, 120, 0, 64)
-listFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
-listFrame.Visible = false
-listFrame.ZIndex = 15000
-Instance.new("UICorner", listFrame).CornerRadius = UDim.new(0, 6)
-Instance.new("UIStroke", listFrame).Color = Color3.fromRGB(168, 85, 247)
-
-local listLayout = Instance.new("UIListLayout", listFrame)
-
-local function makeDropdownItem(name, value)
-    local b = Instance.new("TextButton", listFrame)
-    b.Size = UDim2.new(1, 0, 0, 32)
-    b.BackgroundTransparency = 1
-    b.Text = name
-    b.Font = Enum.Font.Gotham
-    b.TextColor3 = Color3.fromRGB(156, 163, 175)
-    b.TextSize = 12
-    
-    b.MouseButton1Click:Connect(function()
-        Aim_Settings.TargetPart = value
-        dropdownBtn.Text = name .. " ▼"
-        listFrame.Visible = false
-    end)
-end
-makeDropdownItem("Head", "Head")
-makeDropdownItem("Torso", "HumanoidRootPart")
-
-dropdownBtn.MouseButton1Click:Connect(function()
-    listFrame.Position = UDim2.new(0, dropdownBtn.AbsolutePosition.X, 0, dropdownBtn.AbsolutePosition.Y + 32)
-    listFrame.Visible = not listFrame.Visible
-end)
-
-
--- КАТЕГОРИЯ: HITBOXES
 local hitboxCategory = ui.CreateCategory("Hitboxes")
 ui.CreateToggle("Head Hitbox Expander", hitboxCategory, function(state)
     Aim_Settings.HitboxActive = state
 end)
 
-
--- КАТЕГОРИЯ: ESP SETTINGS (С СУБКОНФИГАМИ)
 local espCategory = ui.CreateCategory("ESP Settings")
 
 local espSubConfig = {
@@ -209,7 +164,8 @@ local espSubConfig = {
     },
     {
         Type = "Color",
-        Text = "Box Color",
+        Text = "Box Color RGB",
+        DefaultColor = ESP_Settings.BoxColor,
         LayoutOrder = 2,
         Callback = function(color) ESP_Settings.BoxColor = color end
     },
@@ -222,7 +178,8 @@ local espSubConfig = {
     },
     {
         Type = "Color",
-        Text = "Names Color",
+        Text = "Names Color RGB",
+        DefaultColor = ESP_Settings.NamesColor,
         LayoutOrder = 4,
         Callback = function(color) ESP_Settings.NamesColor = color end
     },
@@ -242,7 +199,8 @@ local espSubConfig = {
     },
     {
         Type = "Color",
-        Text = "Lines Color",
+        Text = "Lines Color RGB",
+        DefaultColor = ESP_Settings.LinesColor,
         LayoutOrder = 7,
         Callback = function(color) ESP_Settings.LinesColor = color end
     },
@@ -255,7 +213,8 @@ local espSubConfig = {
     },
     {
         Type = "Color",
-        Text = "Distance Color",
+        Text = "Distance Color RGB",
+        DefaultColor = ESP_Settings.DistanceColor,
         LayoutOrder = 9,
         Callback = function(color) ESP_Settings.DistanceColor = color end
     }
@@ -265,12 +224,10 @@ ui.CreateToggle(
     "Master ESP", 
     espCategory, 
     function(state) ESP_Settings.Master = state end,
-    "Renders elements through walls to reveal opponent positions. Customize indicators and colors inside this module.",
+    "Renders elements through walls to reveal opponent positions. Customize precise indicators and full RGB colors inside this module.",
     espSubConfig
 )
 
-
--- ЛОГИКА РАБОТЫ СКРИПТА
 local function isTargetVisible(part, char)
     local origin = camera.CFrame.Position
     local direction = part.Position - origin
@@ -400,7 +357,6 @@ local function CreateESP(plr)
             return
         end
 
-        -- Если Master ESP выключен, принудительно гасим визуализацию игрока
         if not ESP_Settings.Master then
             highlight.Enabled = false
             billboard.Enabled = false
@@ -554,8 +510,6 @@ ui.OnClose(function()
         end
     end
     table.clear(originalHeadSizes)
-
-    if listFrame then listFrame:Destroy() end
 
     print("Flick Script completely deactivated and memory freed!")
 end)
