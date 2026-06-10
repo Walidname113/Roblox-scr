@@ -78,7 +78,6 @@ local currentBoneIndex = 1
 local function performAutoShot()
     if isClicking then return end
     isClicking = true
-    
     task.spawn(function()
         if isTouchDevice then
             local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
@@ -113,15 +112,13 @@ local aimbotSubConfig = {
         Callback = function(state) Aim_Settings.WallCheck = state end
     },
     {
-        Type = "Input",
+        Type = "Slider",
         Text = "Aimbot Range",
-        DefaultText = tostring(Aim_Settings.MaxDistance),
-        Placeholder = "Studs (e.g. 100)",
+        Min = 10,
+        Max = 1000,
+        Default = Aim_Settings.MaxDistance,
         LayoutOrder = 3,
-        Callback = function(text, enterPressed)
-            local num = tonumber(text)
-            if num then Aim_Settings.MaxDistance = num end
-        end
+        Callback = function(value) Aim_Settings.MaxDistance = value end
     },
     {
         Type = "Button",
@@ -130,18 +127,15 @@ local aimbotSubConfig = {
         Callback = function()
             currentBoneIndex = currentBoneIndex + 1
             if currentBoneIndex > #R6_Bones then currentBoneIndex = 1 end
-            
             local chosen = R6_Bones[currentBoneIndex]
             Aim_Settings.TargetPart = chosen.Value
-            
-            print("Aimbot target bone changed to: " .. chosen.Name)
         end
     }
 }
 
 ui.CreateToggle(
-    "Aimbot", 
-    miscCategory, 
+    "Aimbot",
+    miscCategory,
     function(state) Aim_Settings.Enabled = state end,
     "Automatically locks your camera onto enemies within the selected range. Includes R6 body part filters, custom input distance, and built-in triggerbot tracking.",
     aimbotSubConfig
@@ -221,8 +215,8 @@ local espSubConfig = {
 }
 
 ui.CreateToggle(
-    "ESP", 
-    espCategory, 
+    "ESP",
+    espCategory,
     function(state) ESP_Settings.Master = state end,
     "Renders elements through walls to reveal opponent positions. Customize precise indicators and full RGB colors inside this module.",
     espSubConfig
@@ -234,7 +228,6 @@ local function isTargetVisible(part, char)
     local params = RaycastParams.new()
     params.FilterDescendantsInstances = {localPlayer.Character, camera}
     params.FilterType = Enum.RaycastFilterType.Exclude
-    
     local result = workspace:Raycast(origin, direction, params)
     return not result or result.Instance:IsDescendantOf(char)
 end
@@ -242,22 +235,18 @@ end
 local function getClosestPlayerToCursor()
     local targetPlr, targetPart = nil, nil
     local shortestDistance = math.huge
-
     local myChar = localPlayer.Character
     local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
     if not myHrp then return nil, nil end
-
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= localPlayer and p.Character then
             local char = p.Character
             local hum = char:FindFirstChildOfClass("Humanoid")
             local part = char:FindFirstChild(Aim_Settings.TargetPart)
-
             if part and hum and hum.Health > 0 then
                 local distToTarget = (myHrp.Position - part.Position).Magnitude
                 if distToTarget <= Aim_Settings.MaxDistance then
                     if Aim_Settings.WallCheck and not isTargetVisible(part, char) then continue end
-
                     local _, onScreen = camera:WorldToViewportPoint(part.Position)
                     if onScreen then
                         if distToTarget < shortestDistance then
@@ -317,28 +306,21 @@ local function CreateESP(plr)
 
     local renderConnection
     renderConnection = RunService.RenderStepped:Connect(function()
-        if not scriptRunning then
-            renderConnection:Disconnect()
-            return
-        end
-
+        if not scriptRunning then renderConnection:Disconnect() return end
         if not plr or not plr.Parent or not plr.Character then
             highlight.Enabled = false
             billboard.Enabled = false
             lineFrame.Visible = false
             return
         end
-
         local character = plr.Character
         local hrp = character:FindFirstChild("HumanoidRootPart")
         local head = character:FindFirstChild("Head")
         local hum = character:FindFirstChildOfClass("Humanoid")
-        
         if head and head:IsA("BasePart") then
             if not originalHeadSizes[plr] then
                 originalHeadSizes[plr] = {Size = head.Size, CanCollide = head.CanCollide}
             end
-            
             if Aim_Settings.HitboxActive then
                 head.Size = Vector3.new(Aim_Settings.HitboxSize, Aim_Settings.HitboxSize, Aim_Settings.HitboxSize)
                 head.Transparency = 0.5
@@ -349,51 +331,39 @@ local function CreateESP(plr)
                 head.CanCollide = originalHeadSizes[plr].CanCollide
             end
         end
-
         if not hrp or not hum or hum.Health <= 0 then
             highlight.Enabled = false
             billboard.Enabled = false
             lineFrame.Visible = false
             return
         end
-
         if not ESP_Settings.Master then
             highlight.Enabled = false
             billboard.Enabled = false
             lineFrame.Visible = false
             return
         end
-
         highlight.Adornee = character
         highlight.Enabled = ESP_Settings.Box
         highlight.FillColor = ESP_Settings.BoxColor
-
         billboard.Adornee = hrp
         billboard.Enabled = (ESP_Settings.Names or ESP_Settings.HP or ESP_Settings.Distance)
-        
         local sizeOffset = (character:GetExtentsSize().Y / 2)
         billboard.StudsOffset = Vector3.new(0, sizeOffset + 1.5, 0)
-
         nameL.Visible = ESP_Settings.Names
         nameL.Text = plr.Name
         nameL.TextColor3 = ESP_Settings.NamesColor
-
         hpL.Visible = ESP_Settings.HP
         hpL.Text = "HP: " .. math.floor(hum.Health)
         hpL.TextColor3 = Color3.fromHSV(math.clamp(hum.Health/hum.MaxHealth, 0, 1) * 0.3, 1, 1)
-
         distL.Visible = ESP_Settings.Distance
         distL.TextColor3 = ESP_Settings.DistanceColor
-        distL.Position = UDim2.new(0, 0, 0, 60) 
-        
-        local charDist = 0
+        distL.Position = UDim2.new(0, 0, 0, 60)
         local myChar = localPlayer.Character
         local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
         if myHrp then
-            charDist = (myHrp.Position - hrp.Position).Magnitude
-            distL.Text = math.floor(charDist) .. " studs"
+            distL.Text = math.floor((myHrp.Position - hrp.Position).Magnitude) .. " studs"
         end
-
         if ESP_Settings.Lines and ESP_Settings.Box then
             local bottomPos = hrp.Position - Vector3.new(0, sizeOffset, 0)
             local pos, onScreen = camera:WorldToViewportPoint(bottomPos)
@@ -416,12 +386,12 @@ local function CreateESP(plr)
     trackConnection(renderConnection)
 end
 
-for _, p in ipairs(Players:GetPlayers()) do 
-    if p ~= localPlayer then CreateESP(p) end 
+for _, p in ipairs(Players:GetPlayers()) do
+    if p ~= localPlayer then CreateESP(p) end
 end
 
-trackConnection(Players.PlayerAdded:Connect(function(p) 
-    if p ~= localPlayer then CreateESP(p) end 
+trackConnection(Players.PlayerAdded:Connect(function(p)
+    if p ~= localPlayer then CreateESP(p) end
 end))
 
 trackConnection(Players.PlayerRemoving:Connect(function(p)
@@ -430,11 +400,7 @@ end))
 
 local aimConnection
 aimConnection = RunService.RenderStepped:Connect(function()
-    if not scriptRunning then
-        aimConnection:Disconnect()
-        return
-    end
-
+    if not scriptRunning then aimConnection:Disconnect() return end
     if Aim_Settings.Enabled then
         local targetPlr, targetPart = getClosestPlayerToCursor()
         if targetPart then
@@ -444,26 +410,21 @@ aimConnection = RunService.RenderStepped:Connect(function()
             if targetRoot then
                 targetPos = targetPos + (targetRoot.AssemblyLinearVelocity * 0.015)
             end
-            
             local targetCFrame = CFrame.new(camera.CFrame.Position, targetPos)
             local mouseDelta = UserInputService:GetMouseDelta()
             local handResistance = mouseDelta.Magnitude
             local adaptiveSmoothness = Aim_Settings.Smoothness
-            
             if handResistance > 0 then
                 adaptiveSmoothness = math.clamp(Aim_Settings.Smoothness + (handResistance * 0.02), Aim_Settings.Smoothness, 0.85)
             end
-            
             camera.CFrame = camera.CFrame:Lerp(targetCFrame, adaptiveSmoothness)
         end
     end
-
     if Aim_Settings.Triggerbot then
         local centerRay = camera:ViewportPointToRay(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
         local raycastParams = RaycastParams.new()
         raycastParams.FilterDescendantsInstances = {localPlayer.Character, camera}
         raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-
         local raycastResult = workspace:Raycast(centerRay.Origin, centerRay.Direction * 1000, raycastParams)
         if raycastResult and raycastResult.Instance then
             local hitInstance = raycastResult.Instance
@@ -486,19 +447,14 @@ ui.OpenFirstCategory()
 
 ui.OnClose(function()
     scriptRunning = false
-    
     Aim_Settings.Enabled = false
     Aim_Settings.Triggerbot = false
     Aim_Settings.HitboxActive = false
     for k in pairs(ESP_Settings) do ESP_Settings[k] = false end
-
     for _, conn in ipairs(connections) do
-        if conn and conn.Connected then
-            conn:Disconnect()
-        end
+        if conn and conn.Connected then conn:Disconnect() end
     end
     table.clear(connections)
-
     for p, data in pairs(originalHeadSizes) do
         if p and p.Character then
             local head = p.Character:FindFirstChild("Head")
@@ -510,6 +466,4 @@ ui.OnClose(function()
         end
     end
     table.clear(originalHeadSizes)
-
-    print("Flick Script completely deactivated and memory freed!")
 end)
