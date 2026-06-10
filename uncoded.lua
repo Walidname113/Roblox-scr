@@ -1,4 +1,4 @@
--- v27 (Added: Automatic Game Icon fallback for minimized state) --
+-- v28 (Added: Sliders, Advanced Inputs, Nested Subfunctions, Dropdowns) --
 local module = {}
 
 local Players = game:GetService("Players")
@@ -36,7 +36,7 @@ local function disconnectAll()
     end
     if onCloseCallback then
         local success, err = pcall(onCloseCallback)
-        if not success then warn("Error executing OnClose callback: " .. tostring(err)) end
+        if not success then warn(tostring(err)) end
         onCloseCallback = nil
     end
 end
@@ -252,9 +252,7 @@ local function createColorPickerUI(screenGui, defaultColor, callback)
         end
     end
 
-    trackConnection(rgbInput.FocusLost:Connect(function()
-        parseRGBText(rgbInput.Text)
-    end))
+    trackConnection(rgbInput.FocusLost:Connect(function() parseRGBText(rgbInput.Text) end))
 
     local isSettingHue = false
     local function processHue(input)
@@ -385,15 +383,21 @@ local function createColorPickerUI(screenGui, defaultColor, callback)
 end
 
 local function applyFeatureExtensions(container, description, subConfig, descStyle, screenGui)
-    local layout = Instance.new("UIListLayout", container)
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Padding = UDim.new(0, 6)
+    local layout = container:FindFirstChildWhichIsA("UIListLayout")
+    if not layout then
+        layout = Instance.new("UIListLayout", container)
+        layout.SortOrder = Enum.SortOrder.LayoutOrder
+        layout.Padding = UDim.new(0, 6)
+    end
 
-    local padding = Instance.new("UIPadding", container)
-    padding.PaddingTop = UDim.new(0, 0)
-    padding.PaddingBottom = UDim.new(0, 0)
-    padding.PaddingLeft = UDim.new(0, 0)
-    padding.PaddingRight = UDim.new(0, 0)
+    local padding = container:FindFirstChildWhichIsA("UIPadding")
+    if not padding then
+        padding = Instance.new("UIPadding", container)
+        padding.PaddingTop = UDim.new(0, 0)
+        padding.PaddingBottom = UDim.new(0, 0)
+        padding.PaddingLeft = UDim.new(0, 0)
+        padding.PaddingRight = UDim.new(0, 0)
+    end
 
     if (description and description ~= "") or (subConfig and #subConfig > 0) then
         container.AutomaticSize = Enum.AutomaticSize.Y
@@ -416,12 +420,18 @@ local function applyFeatureExtensions(container, description, subConfig, descSty
         subPadding.PaddingRight = UDim.new(0, 14)
 
         for _, item in ipairs(subConfig) do
+            local itemContainer
+            
             if item.Type == "Checkbox" then
-                local chk = Instance.new("TextButton", subFrame)
-                chk.Size = UDim2.new(1, 0, 0, 24)
+                itemContainer = Instance.new("Frame", subFrame)
+                itemContainer.Size = UDim2.new(1, 0, 0, 24)
+                itemContainer.BackgroundTransparency = 1
+                itemContainer.LayoutOrder = item.LayoutOrder or 1
+
+                local chk = Instance.new("TextButton", itemContainer)
+                chk.Size = UDim2.new(1, 0, 1, 0)
                 chk.BackgroundTransparency = 1
                 chk.Text = ""
-                chk.LayoutOrder = item.LayoutOrder or 1
 
                 local box = Instance.new("Frame", chk)
                 box.Size = UDim2.new(0, 16, 0, 16)
@@ -458,12 +468,12 @@ local function applyFeatureExtensions(container, description, subConfig, descSty
                 end))
 
             elseif item.Type == "Color" then
-                local colFrame = Instance.new("Frame", subFrame)
-                colFrame.Size = UDim2.new(1, 0, 0, 26)
-                colFrame.BackgroundTransparency = 1
-                colFrame.LayoutOrder = item.LayoutOrder or 1
+                itemContainer = Instance.new("Frame", subFrame)
+                itemContainer.Size = UDim2.new(1, 0, 0, 26)
+                itemContainer.BackgroundTransparency = 1
+                itemContainer.LayoutOrder = item.LayoutOrder or 1
 
-                local lbl = Instance.new("TextLabel", colFrame)
+                local lbl = Instance.new("TextLabel", itemContainer)
                 lbl.Size = UDim2.new(0, 100, 1, 0)
                 lbl.BackgroundTransparency = 1
                 lbl.Text = item.Text or "Color"
@@ -474,7 +484,7 @@ local function applyFeatureExtensions(container, description, subConfig, descSty
 
                 local activeColor = item.DefaultColor or Color3.fromRGB(168, 85, 247)
 
-                local cBtn = Instance.new("TextButton", colFrame)
+                local cBtn = Instance.new("TextButton", itemContainer)
                 cBtn.Size = UDim2.new(0, 36, 0, 18)
                 cBtn.Position = UDim2.new(1, -36, 0.5, -9)
                 cBtn.BackgroundColor3 = activeColor
@@ -495,13 +505,17 @@ local function applyFeatureExtensions(container, description, subConfig, descSty
                 local inputHeight = item.Height or 28
                 local inputSizeY = item.InputHeight or 28
                 local textSize = item.TextSize or 12
+                local inType = item.InputType or "Any"
+                local minVal = item.Min
+                local maxVal = item.Max
+                local defaultVal = item.Default or (inType == "Number" and 0 or "")
 
-                local inputFrame = Instance.new("Frame", subFrame)
-                inputFrame.Size = UDim2.new(1, 0, 0, math.max(inputHeight, inputSizeY))
-                inputFrame.BackgroundTransparency = 1
-                inputFrame.LayoutOrder = item.LayoutOrder or 1
+                itemContainer = Instance.new("Frame", subFrame)
+                itemContainer.Size = UDim2.new(1, 0, 0, math.max(inputHeight, inputSizeY))
+                itemContainer.BackgroundTransparency = 1
+                itemContainer.LayoutOrder = item.LayoutOrder or 1
 
-                local lbl = Instance.new("TextLabel", inputFrame)
+                local lbl = Instance.new("TextLabel", itemContainer)
                 lbl.Size = UDim2.new(0, 100, 1, 0)
                 lbl.BackgroundTransparency = 1
                 lbl.Text = item.Text or "Input"
@@ -510,11 +524,11 @@ local function applyFeatureExtensions(container, description, subConfig, descSty
                 lbl.TextSize = textSize
                 lbl.TextXAlignment = Enum.TextXAlignment.Left
 
-                local box = Instance.new("TextBox", inputFrame)
+                local box = Instance.new("TextBox", itemContainer)
                 box.Size = UDim2.new(1, -105, 0, inputSizeY)
                 box.Position = UDim2.new(0, 105, 0.5, -inputSizeY/2)
                 box.BackgroundColor3 = Theme.SecondaryBg
-                box.Text = item.DefaultText or ""
+                box.Text = tostring(defaultVal)
                 box.PlaceholderText = item.Placeholder or "Type here..."
                 box.PlaceholderColor3 = Color3.fromRGB(100, 100, 105)
                 box.TextColor3 = Theme.TextMain
@@ -526,16 +540,26 @@ local function applyFeatureExtensions(container, description, subConfig, descSty
                 bStroke.Color = Theme.Border
 
                 trackConnection(box.FocusLost:Connect(function(enterPressed)
-                    if item.Callback then item.Callback(box.Text, enterPressed) end
+                    local txt = box.Text
+                    if inType == "Number" then
+                        local num = tonumber(txt)
+                        if not num then num = defaultVal end
+                        if minVal then num = math.max(minVal, num) end
+                        if maxVal then num = math.min(maxVal, num) end
+                        box.Text = tostring(num)
+                        if item.Callback then item.Callback(num, enterPressed) end
+                    else
+                        if item.Callback then item.Callback(txt, enterPressed) end
+                    end
                 end))
 
             elseif item.Type == "Button" then
-                local btnFrame = Instance.new("Frame", subFrame)
-                btnFrame.Size = UDim2.new(1, 0, 0, 28)
-                btnFrame.BackgroundTransparency = 1
-                btnFrame.LayoutOrder = item.LayoutOrder or 1
+                itemContainer = Instance.new("Frame", subFrame)
+                itemContainer.Size = UDim2.new(1, 0, 0, 28)
+                itemContainer.BackgroundTransparency = 1
+                itemContainer.LayoutOrder = item.LayoutOrder or 1
 
-                local btn = Instance.new("TextButton", btnFrame)
+                local btn = Instance.new("TextButton", itemContainer)
                 btn.Size = UDim2.new(1, 0, 1, 0)
                 btn.BackgroundColor3 = Theme.SecondaryBg
                 btn.Text = item.Text or "Button"
@@ -555,6 +579,192 @@ local function applyFeatureExtensions(container, description, subConfig, descSty
                 trackConnection(btn.MouseButton1Click:Connect(function()
                     if item.Callback then item.Callback() end
                 end))
+
+            elseif item.Type == "Slider" then
+                itemContainer = Instance.new("Frame", subFrame)
+                itemContainer.Size = UDim2.new(1, 0, 0, 42)
+                itemContainer.BackgroundTransparency = 1
+                itemContainer.LayoutOrder = item.LayoutOrder or 1
+                itemContainer.AutomaticSize = Enum.AutomaticSize.Y
+
+                local sliderTop = Instance.new("Frame", itemContainer)
+                sliderTop.Size = UDim2.new(1, 0, 0, 42)
+                sliderTop.BackgroundTransparency = 1
+
+                local lbl = Instance.new("TextLabel", sliderTop)
+                lbl.Size = UDim2.new(1, -60, 0, 16)
+                lbl.Position = UDim2.new(0, 0, 0, 4)
+                lbl.BackgroundTransparency = 1
+                lbl.Text = item.Text or "Slider"
+                lbl.TextColor3 = Theme.TextMuted
+                lbl.Font = Theme.FontMain
+                lbl.TextSize = 12
+                lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+                local valLbl = Instance.new("TextLabel", sliderTop)
+                valLbl.Size = UDim2.new(0, 50, 0, 16)
+                valLbl.Position = UDim2.new(1, -50, 0, 4)
+                valLbl.BackgroundTransparency = 1
+                valLbl.TextColor3 = Theme.TextMain
+                valLbl.Font = Theme.FontBold
+                valLbl.TextSize = 12
+                valLbl.TextXAlignment = Enum.TextXAlignment.Right
+
+                local slideBg = Instance.new("Frame", sliderTop)
+                slideBg.Size = UDim2.new(1, 0, 0, 6)
+                slideBg.Position = UDim2.new(0, 0, 0, 26)
+                slideBg.BackgroundColor3 = Theme.SecondaryBg
+                Instance.new("UICorner", slideBg).CornerRadius = UDim.new(1, 0)
+                Instance.new("UIStroke", slideBg).Color = Theme.Border
+
+                local fill = Instance.new("Frame", slideBg)
+                fill.Size = UDim2.new(0, 0, 1, 0)
+                fill.BackgroundColor3 = Theme.AccentGlow
+                Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+
+                local sType = item.SliderType or "Number"
+                local list = item.List or {}
+                local minVal = item.Min or 0
+                local maxVal = item.Max or 100
+                local defVal = item.Default
+
+                local function setSliderVisual(percent)
+                    fill.Size = UDim2.new(math.clamp(percent, 0, 1), 0, 1, 0)
+                end
+
+                local function getValFromPercent(percent)
+                    if sType == "Text" then
+                        local idx = math.clamp(math.floor(percent * #list) + 1, 1, #list)
+                        return list[idx], idx
+                    else
+                        return math.floor(minVal + (maxVal - minVal) * percent)
+                    end
+                end
+
+                if sType == "Text" then
+                    defVal = defVal or list[1]
+                    valLbl.Text = tostring(defVal)
+                    local startIdx = 1
+                    for i, v in ipairs(list) do if v == defVal then startIdx = i break end end
+                    setSliderVisual(#list > 1 and ((startIdx - 1) / (#list - 1)) or 0)
+                else
+                    defVal = defVal or minVal
+                    valLbl.Text = tostring(defVal)
+                    setSliderVisual((maxVal - minVal) > 0 and ((defVal - minVal) / (maxVal - minVal)) or 0)
+                end
+
+                local isDragging = false
+                local function updateSliderDrag(input)
+                    local pct = math.clamp((input.Position.X - slideBg.AbsolutePosition.X) / slideBg.AbsoluteSize.X, 0, 1)
+                    setSliderVisual(pct)
+                    local v = getValFromPercent(pct)
+                    valLbl.Text = tostring(v)
+                    if item.Callback then item.Callback(v) end
+                end
+
+                trackConnection(slideBg.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                        isDragging = true
+                        updateSliderDrag(input)
+                    end
+                end))
+                trackConnection(UserInputService.InputEnded:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                        isDragging = false
+                    end
+                end))
+                trackConnection(UserInputService.InputChanged:Connect(function(input)
+                    if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                        updateSliderDrag(input)
+                    end
+                end))
+
+            elseif item.Type == "Dropdown" then
+                itemContainer = Instance.new("Frame", subFrame)
+                itemContainer.Size = UDim2.new(1, 0, 0, 32)
+                itemContainer.BackgroundTransparency = 1
+                itemContainer.LayoutOrder = item.LayoutOrder or 1
+                itemContainer.AutomaticSize = Enum.AutomaticSize.Y
+
+                local dropTop = Instance.new("Frame", itemContainer)
+                dropTop.Size = UDim2.new(1, 0, 0, 32)
+                dropTop.BackgroundTransparency = 1
+
+                local btn = Instance.new("TextButton", dropTop)
+                btn.Size = UDim2.new(1, 0, 0, 32)
+                btn.BackgroundColor3 = Theme.SecondaryBg
+                btn.Text = "  " .. (item.Text or "Dropdown") .. ": " .. tostring(item.Default or "---")
+                btn.TextColor3 = Theme.TextMain
+                btn.Font = Theme.FontMain
+                btn.TextSize = 12
+                btn.TextXAlignment = Enum.TextXAlignment.Left
+                Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+                Instance.new("UIStroke", btn).Color = Theme.Border
+
+                local arrow = Instance.new("TextLabel", btn)
+                arrow.Size = UDim2.new(0, 20, 1, 0)
+                arrow.Position = UDim2.new(1, -25, 0, 0)
+                arrow.BackgroundTransparency = 1
+                arrow.Text = "▼"
+                arrow.TextColor3 = Theme.TextMuted
+                arrow.Font = Theme.FontMain
+                arrow.TextSize = 10
+
+                local scrollBox = Instance.new("ScrollingFrame", itemContainer)
+                scrollBox.Size = UDim2.new(1, 0, 0, 0)
+                scrollBox.Position = UDim2.new(0, 0, 0, 36)
+                scrollBox.BackgroundColor3 = Theme.SecondaryBg
+                scrollBox.Visible = false
+                scrollBox.ZIndex = 2000
+                scrollBox.ScrollBarThickness = 2
+                Instance.new("UICorner", scrollBox).CornerRadius = UDim.new(0, 6)
+                Instance.new("UIStroke", scrollBox).Color = Theme.AccentGlow
+
+                local dLayout = Instance.new("UIListLayout", scrollBox)
+                dLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+                local function populateDropdown()
+                    for _, c in ipairs(scrollBox:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
+                    local opts = item.Options or {}
+                    for _, opt in ipairs(opts) do
+                        local oBtn = Instance.new("TextButton", scrollBox)
+                        oBtn.Size = UDim2.new(1, 0, 0, 28)
+                        oBtn.Text = "  " .. tostring(opt)
+                        oBtn.BackgroundColor3 = Theme.SecondaryBg
+                        oBtn.TextColor3 = Theme.TextMuted
+                        oBtn.Font = Theme.FontMain
+                        oBtn.TextSize = 11
+                        oBtn.TextXAlignment = Enum.TextXAlignment.Left
+                        oBtn.ZIndex = 2001
+                        
+                        trackConnection(oBtn.MouseEnter:Connect(function() oBtn.TextColor3 = Theme.TextMain end))
+                        trackConnection(oBtn.MouseLeave:Connect(function() oBtn.TextColor3 = Theme.TextMuted end))
+                        trackConnection(oBtn.MouseButton1Click:Connect(function()
+                            btn.Text = "  " .. (item.Text or "Dropdown") .. ": " .. tostring(opt)
+                            scrollBox.Visible = false
+                            arrow.Rotation = 0
+                            if item.Callback then item.Callback(opt) end
+                        end))
+                    end
+                    local contentY = dLayout.AbsoluteContentSize.Y
+                    scrollBox.Size = UDim2.new(1, 0, 0, math.clamp(contentY, 0, 120))
+                    scrollBox.CanvasSize = UDim2.new(0, 0, 0, contentY)
+                end
+
+                trackConnection(btn.MouseButton1Click:Connect(function()
+                    if scrollBox.Visible then
+                        scrollBox.Visible = false
+                        arrow.Rotation = 0
+                    else
+                        populateDropdown()
+                        scrollBox.Visible = true
+                        arrow.Rotation = 180
+                    end
+                end))
+            end
+
+            if itemContainer and item.subConfig then
+                applyFeatureExtensions(itemContainer, item.Description, item.subConfig, item.DescStyle, screenGui)
             end
         end
     end
@@ -748,13 +958,11 @@ function module.CreateUI(title)
     plusIcon.TextSize = 24
     module.MinimizedFrame = minimizedFrame
 
-    -- FIX/EXTENSION: Auto Fallback to Place Icon if assetId is empty --
     local function setMinimizedImage(assetId)
         if assetId and assetId ~= "" then
             minimizedFrame.Image = "rbxassetid://" .. assetId
             plusIcon.Visible = false
         else
-            -- Takes the active place's icon using official Roblox rbxthumb pipeline
             minimizedFrame.Image = "rbxthumb://type=Asset&id=" .. game.PlaceId .. "&w=150&h=150"
             plusIcon.Visible = false
         end
@@ -997,6 +1205,264 @@ function module.CreateUI(title)
         return container
     end
 
+    function module.CreateSlider(text, parent, config, description, subConfig, descStyle)
+        local container = Instance.new("Frame", parent)
+        container.Size = UDim2.new(1, -4, 0, 52)
+        container.BackgroundColor3 = Theme.Background
+        Instance.new("UICorner", container).CornerRadius = UDim.new(0, 8)
+        Instance.new("UIStroke", container).Color = Theme.Border
+        trackObject(container)
+
+        local sliderTop = Instance.new("Frame", container)
+        sliderTop.Size = UDim2.new(1, 0, 0, 52)
+        sliderTop.BackgroundTransparency = 1
+        sliderTop.LayoutOrder = 1
+
+        local lbl = Instance.new("TextLabel", sliderTop)
+        lbl.Size = UDim2.new(1, -60, 0, 20)
+        lbl.Position = UDim2.new(0, 14, 0, 8)
+        lbl.BackgroundTransparency = 1
+        lbl.Text = text
+        lbl.TextColor3 = Theme.TextMain
+        lbl.Font = Theme.FontMain
+        lbl.TextSize = 13
+        lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+        local valLbl = Instance.new("TextLabel", sliderTop)
+        valLbl.Size = UDim2.new(0, 50, 0, 20)
+        valLbl.Position = UDim2.new(1, -64, 0, 8)
+        valLbl.BackgroundTransparency = 1
+        valLbl.TextColor3 = Theme.TextMuted
+        valLbl.Font = Theme.FontBold
+        valLbl.TextSize = 13
+        valLbl.TextXAlignment = Enum.TextXAlignment.Right
+
+        local slideBg = Instance.new("Frame", sliderTop)
+        slideBg.Size = UDim2.new(1, -28, 0, 6)
+        slideBg.Position = UDim2.new(0, 14, 0, 36)
+        slideBg.BackgroundColor3 = Theme.SecondaryBg
+        Instance.new("UICorner", slideBg).CornerRadius = UDim.new(1, 0)
+        Instance.new("UIStroke", slideBg).Color = Theme.Border
+
+        local fill = Instance.new("Frame", slideBg)
+        fill.Size = UDim2.new(0, 0, 1, 0)
+        fill.BackgroundColor3 = Theme.AccentGlow
+        Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+
+        config = config or {}
+        local sType = config.SliderType or "Number"
+        local list = config.List or {}
+        local minVal = config.Min or 0
+        local maxVal = config.Max or 100
+        local defVal = config.Default
+
+        local function setSliderVisual(percent)
+            fill.Size = UDim2.new(math.clamp(percent, 0, 1), 0, 1, 0)
+        end
+
+        local function getValFromPercent(percent)
+            if sType == "Text" then
+                local idx = math.clamp(math.floor(percent * #list) + 1, 1, #list)
+                return list[idx], idx
+            else
+                return math.floor(minVal + (maxVal - minVal) * percent)
+            end
+        end
+
+        if sType == "Text" then
+            defVal = defVal or list[1]
+            valLbl.Text = tostring(defVal)
+            local startIdx = 1
+            for i, v in ipairs(list) do if v == defVal then startIdx = i break end end
+            setSliderVisual(#list > 1 and ((startIdx - 1) / (#list - 1)) or 0)
+        else
+            defVal = defVal or minVal
+            valLbl.Text = tostring(defVal)
+            setSliderVisual((maxVal - minVal) > 0 and ((defVal - minVal) / (maxVal - minVal)) or 0)
+        end
+
+        local isDragging = false
+        local function updateSliderDrag(input)
+            local pct = math.clamp((input.Position.X - slideBg.AbsolutePosition.X) / slideBg.AbsoluteSize.X, 0, 1)
+            setSliderVisual(pct)
+            local v = getValFromPercent(pct)
+            valLbl.Text = tostring(v)
+            if config.Callback then config.Callback(v) end
+        end
+
+        trackConnection(slideBg.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                isDragging = true
+                updateSliderDrag(input)
+            end
+        end))
+        trackConnection(UserInputService.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                isDragging = false
+            end
+        end))
+        trackConnection(UserInputService.InputChanged:Connect(function(input)
+            if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                updateSliderDrag(input)
+            end
+        end))
+
+        applyFeatureExtensions(container, description, subConfig, descStyle, screenGui)
+        return container
+    end
+
+    function module.CreateInput(text, parent, config, description, subConfig, descStyle)
+        local container = Instance.new("Frame", parent)
+        container.Size = UDim2.new(1, -4, 0, 42)
+        container.BackgroundColor3 = Theme.Background
+        Instance.new("UICorner", container).CornerRadius = UDim.new(0, 8)
+        Instance.new("UIStroke", container).Color = Theme.Border
+        trackObject(container)
+
+        local inTop = Instance.new("Frame", container)
+        inTop.Size = UDim2.new(1, 0, 0, 42)
+        inTop.BackgroundTransparency = 1
+        inTop.LayoutOrder = 1
+
+        local lbl = Instance.new("TextLabel", inTop)
+        lbl.Size = UDim2.new(0, 120, 1, 0)
+        lbl.Position = UDim2.new(0, 14, 0, 0)
+        lbl.BackgroundTransparency = 1
+        lbl.Text = text
+        lbl.TextColor3 = Theme.TextMain
+        lbl.Font = Theme.FontMain
+        lbl.TextSize = 13
+        lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+        config = config or {}
+        local inType = config.InputType or "Any"
+        local minVal = config.Min
+        local maxVal = config.Max
+        local defaultVal = config.Default or (inType == "Number" and 0 or "")
+
+        local box = Instance.new("TextBox", inTop)
+        box.Size = UDim2.new(1, -150, 0, 28)
+        box.Position = UDim2.new(0, 136, 0.5, -14)
+        box.BackgroundColor3 = Theme.SecondaryBg
+        box.Text = tostring(defaultVal)
+        box.PlaceholderText = config.Placeholder or "Type here..."
+        box.PlaceholderColor3 = Color3.fromRGB(100, 100, 105)
+        box.TextColor3 = Theme.TextMain
+        box.Font = Theme.FontMain
+        box.TextSize = 12
+        box.ClearTextOnFocus = false
+        Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
+        local bStroke = Instance.new("UIStroke", box)
+        bStroke.Color = Theme.Border
+
+        trackConnection(box.FocusLost:Connect(function(enterPressed)
+            local txt = box.Text
+            if inType == "Number" then
+                local num = tonumber(txt)
+                if not num then num = defaultVal end
+                if minVal then num = math.max(minVal, num) end
+                if maxVal then num = math.min(maxVal, num) end
+                box.Text = tostring(num)
+                if config.Callback then config.Callback(num, enterPressed) end
+            else
+                if config.Callback then config.Callback(txt, enterPressed) end
+            end
+        end))
+
+        applyFeatureExtensions(container, description, subConfig, descStyle, screenGui)
+        return container
+    end
+
+    function module.CreateDropdown(text, parent, config, description, subConfig, descStyle)
+        local container = Instance.new("Frame", parent)
+        container.Size = UDim2.new(1, -4, 0, 46)
+        container.BackgroundColor3 = Theme.Background
+        Instance.new("UICorner", container).CornerRadius = UDim.new(0, 8)
+        Instance.new("UIStroke", container).Color = Theme.Border
+        trackObject(container)
+
+        local dropTop = Instance.new("Frame", container)
+        dropTop.Size = UDim2.new(1, 0, 0, 46)
+        dropTop.BackgroundTransparency = 1
+        dropTop.LayoutOrder = 1
+
+        local btn = Instance.new("TextButton", dropTop)
+        btn.Size = UDim2.new(1, -20, 0, 32)
+        btn.Position = UDim2.new(0, 10, 0.5, -16)
+        btn.BackgroundColor3 = Theme.SecondaryBg
+        btn.Text = "  " .. text .. ": " .. tostring(config.Default or "---")
+        btn.TextColor3 = Theme.TextMain
+        btn.Font = Theme.FontMain
+        btn.TextSize = 13
+        btn.TextXAlignment = Enum.TextXAlignment.Left
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+        Instance.new("UIStroke", btn).Color = Theme.Border
+
+        local arrow = Instance.new("TextLabel", btn)
+        arrow.Size = UDim2.new(0, 20, 1, 0)
+        arrow.Position = UDim2.new(1, -25, 0, 0)
+        arrow.BackgroundTransparency = 1
+        arrow.Text = "▼"
+        arrow.TextColor3 = Theme.TextMuted
+        arrow.Font = Theme.FontMain
+        arrow.TextSize = 12
+
+        local scrollBox = Instance.new("ScrollingFrame", dropTop)
+        scrollBox.Size = UDim2.new(1, -20, 0, 0)
+        scrollBox.Position = UDim2.new(0, 10, 1, 4)
+        scrollBox.BackgroundColor3 = Theme.SecondaryBg
+        scrollBox.Visible = false
+        scrollBox.ZIndex = 2000
+        scrollBox.ScrollBarThickness = 2
+        Instance.new("UICorner", scrollBox).CornerRadius = UDim.new(0, 6)
+        Instance.new("UIStroke", scrollBox).Color = Theme.AccentGlow
+
+        local dLayout = Instance.new("UIListLayout", scrollBox)
+        dLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+        local function populateDropdown()
+            for _, c in ipairs(scrollBox:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
+            local opts = config.Options or {}
+            for _, opt in ipairs(opts) do
+                local oBtn = Instance.new("TextButton", scrollBox)
+                oBtn.Size = UDim2.new(1, 0, 0, 30)
+                oBtn.Text = "  " .. tostring(opt)
+                oBtn.BackgroundColor3 = Theme.SecondaryBg
+                oBtn.TextColor3 = Theme.TextMuted
+                oBtn.Font = Theme.FontMain
+                oBtn.TextSize = 12
+                oBtn.TextXAlignment = Enum.TextXAlignment.Left
+                oBtn.ZIndex = 2001
+                
+                trackConnection(oBtn.MouseEnter:Connect(function() oBtn.TextColor3 = Theme.TextMain end))
+                trackConnection(oBtn.MouseLeave:Connect(function() oBtn.TextColor3 = Theme.TextMuted end))
+                trackConnection(oBtn.MouseButton1Click:Connect(function()
+                    btn.Text = "  " .. text .. ": " .. tostring(opt)
+                    scrollBox.Visible = false
+                    arrow.Rotation = 0
+                    if config.Callback then config.Callback(opt) end
+                end))
+            end
+            local contentY = dLayout.AbsoluteContentSize.Y
+            scrollBox.Size = UDim2.new(1, -20, 0, math.clamp(contentY, 0, 140))
+            scrollBox.CanvasSize = UDim2.new(0, 0, 0, contentY)
+        end
+
+        trackConnection(btn.MouseButton1Click:Connect(function()
+            if scrollBox.Visible then
+                scrollBox.Visible = false
+                arrow.Rotation = 0
+            else
+                populateDropdown()
+                scrollBox.Visible = true
+                arrow.Rotation = 180
+            end
+        end))
+
+        applyFeatureExtensions(container, description, subConfig, descStyle, screenGui)
+        return container
+    end
+
     function module.CreatePlayerList(parentFrame)
         local selectedPlayer = "---"
         local tracking = false
@@ -1119,6 +1585,9 @@ function module.CreateUI(title)
         CreateCategory = module.CreateCategory,
         CreatePlayerList = module.CreatePlayerList,
         CreateButton = module.CreateButton,
+        CreateSlider = module.CreateSlider,
+        CreateInput = module.CreateInput,
+        CreateDropdown = module.CreateDropdown,
         Close = function() disconnectAll() destroyAll() end,
         SetMinimizedImage = setMinimizedImage,
         OpenFirstCategory = openFirstCategory,
