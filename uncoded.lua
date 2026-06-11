@@ -725,9 +725,12 @@ function module.CreateUI(title)
     local function setMinImg(assetId)
         local function tryLoad(img)
             minF.Image=img
-            local conn; conn=minF:GetPropertyChangedSignal("IsLoaded"):Connect(function()
-                if minF.IsLoaded then plusIco.Visible=false; conn:Disconnect() end
-            end); if minF.IsLoaded then plusIco.Visible=false; conn:Disconnect() end
+            task.spawn(function()
+                for _ = 1, 50 do
+                    if minF.IsLoaded then plusIco.Visible=false; return end
+                    task.wait(0.1)
+                end
+            end)
         end
         if assetId and assetId~="" then tryLoad("rbxassetid://"..tostring(assetId))
         else local ok,pid=pcall(function() return game.PlaceId end); if ok and pid and pid~=0 then tryLoad("rbxthumb://type=Asset&id="..pid.."&w=150&h=150") end end
