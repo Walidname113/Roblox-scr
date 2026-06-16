@@ -2,40 +2,28 @@ local REQUIRED_GAME_ID = 8795154789
 if game.GameId ~= REQUIRED_GAME_ID then return end
 
 local uiurl = "https://raw.githubusercontent.com/Walidname113/Roblox-scr/main/uncoded.lua"
-local success, source = pcall(function()
-    return game:HttpGet(uiurl)
-end)
-
-if not success then
-    warn("Error load UI:", source)
-    return
-end
+local success, source = pcall(function() return game:HttpGet(uiurl) end)
+if not success then warn("Error load UI:", source) return end
 
 local moduleFunc, err = loadstring(source)
-if not moduleFunc then
-    warn("Error module func:", err)
-    return
-end
+if not moduleFunc then warn("Error module func:", err) return end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.1.2 Public.")
+local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.1.3 Public.")
 ui.SetMinimizedImage("")
 
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local localPlayer = Players.LocalPlayer
 local camera = workspace.CurrentCamera
-local mouse = localPlayer:GetMouse()
 
 local scriptRunning = true
 local connections = {}
+local function trackConnection(conn) table.insert(connections, conn) end
 
-local function trackConnection(conn)
-    table.insert(connections, conn)
-end
+local isTouchDevice = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 
 local ESP_Settings = {
     Master = false,
@@ -61,10 +49,29 @@ local Aim_Settings = {
     Triggerbot = false
 }
 
-local originalHeadSizes = {}
-local isTouchDevice = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-local isClicking = false
+local Move_Settings = {
+    WalkSpeed = 16,
+    JumpPower = 50
+}
 
+local defaultWalkSpeed = 16
+local defaultJumpPower = 50
+
+local function readHumanoidDefaults()
+    local char = localPlayer.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        defaultWalkSpeed = hum.WalkSpeed
+        defaultJumpPower = hum.JumpPower
+        Move_Settings.WalkSpeed = hum.WalkSpeed
+        Move_Settings.JumpPower = hum.JumpPower
+    end
+end
+readHumanoidDefaults()
+
+local originalHeadSizes = {}
+local isClicking = false
 local currentTarget = nil
 local currentTargetPart = nil
 local HYSTERESIS_MARGIN = 15
@@ -79,20 +86,13 @@ local R6_Bones = {
 }
 
 local fireButton = nil
-
 local function findFireButton()
-    local playerGui = localPlayer:WaitForChild("PlayerGui", 5)
+    local playerGui = localPlayer:FindFirstChild("PlayerGui")
     if playerGui then
         for _, desc in ipairs(playerGui:GetDescendants()) do
-            if desc.Name == "FireButton" then
-                return desc
-            end
+            if desc.Name == "FireButton" then return desc end
         end
     end
-    local ok, result = pcall(function()
-        return game:GetService("StarterGui").MobileControls.Frame.FireButton
-    end)
-    if ok and result then return result end
     return nil
 end
 
@@ -104,22 +104,23 @@ local function performAutoShot()
             if not fireButton or not fireButton.Parent then
                 fireButton = findFireButton()
             end
-            if fireButton and fireButton.AbsoluteSize.X > 0 then
-                local absPos = fireButton.AbsolutePosition
-                local absSize = fireButton.AbsoluteSize
-                local cx = absPos.X + absSize.X / 2
-                local cy = absPos.Y + absSize.Y / 2
+            if fireButton and fireButton.Parent then
+                pcall(function() fireButton:Activate() end)
+            else
+                local cx = camera.ViewportSize.X / 2
+                local cy = camera.ViewportSize.Y / 2
                 VirtualInputManager:SendTouchEvent(0, Enum.UserInputState.Begin, cx, cy)
                 task.wait(0.05)
                 VirtualInputManager:SendTouchEvent(0, Enum.UserInputState.End, cx, cy)
-            else
-                local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
-                VirtualInputManager:SendTouchEvent(0, Enum.UserInputState.Begin, center.X, center.Y)
-                task.wait(0.05)
-                VirtualInputManager:SendTouchEvent(0, Enum.UserInputState.End, center.X, center.Y)
             end
         else
-            pcall(mouse1click)
+            if type(mouse1click) == "function" then
+                pcall(mouse1click)
+            else
+                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                task.wait(0.05)
+                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+            end
         end
         task.wait(0.1)
         isClicking = false
@@ -187,77 +188,50 @@ ui.CreateToggle(
     aimbotSubConfig
 )
 
-local hitboxCategory = ui.CreateCategory("Hitboxes")
-ui.CreateToggle("Head Hitbox Expander", hitboxCategory, function(state)
+ui.CreateToggle("Head Hitbox Expander", miscCategory, function(state)
     Aim_Settings.HitboxActive = state
 end)
+
+ui.CreateSlider("Walk Speed", miscCategory, {
+    Min = defaultWalkSpeed,
+    Max = 1000,
+    Default = defaultWalkSpeed,
+    Callback = function(value)
+        Move_Settings.WalkSpeed = value
+        local char = localPlayer.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then hum.WalkSpeed = value end
+        end
+    end
+})
+
+ui.CreateSlider("Jump Power", miscCategory, {
+    Min = defaultJumpPower,
+    Max = 1000,
+    Default = defaultJumpPower,
+    Callback = function(value)
+        Move_Settings.JumpPower = value
+        local char = localPlayer.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then hum.JumpPower = value end
+        end
+    end
+})
 
 local espCategory = ui.CreateCategory("ESP Settings")
 
 local espSubConfig = {
-    {
-        Type = "Checkbox",
-        Text = "Box ESP",
-        State = ESP_Settings.Box,
-        LayoutOrder = 1,
-        Callback = function(state) ESP_Settings.Box = state end
-    },
-    {
-        Type = "Color",
-        Text = "Box Color RGB",
-        DefaultColor = ESP_Settings.BoxColor,
-        LayoutOrder = 2,
-        Callback = function(color) ESP_Settings.BoxColor = color end
-    },
-    {
-        Type = "Checkbox",
-        Text = "Names ESP",
-        State = ESP_Settings.Names,
-        LayoutOrder = 3,
-        Callback = function(state) ESP_Settings.Names = state end
-    },
-    {
-        Type = "Color",
-        Text = "Names Color",
-        DefaultColor = ESP_Settings.NamesColor,
-        LayoutOrder = 4,
-        Callback = function(color) ESP_Settings.NamesColor = color end
-    },
-    {
-        Type = "Checkbox",
-        Text = "HP ESP",
-        State = ESP_Settings.HP,
-        LayoutOrder = 5,
-        Callback = function(state) ESP_Settings.HP = state end
-    },
-    {
-        Type = "Checkbox",
-        Text = "Line ESP",
-        State = ESP_Settings.Lines,
-        LayoutOrder = 6,
-        Callback = function(state) ESP_Settings.Lines = state end
-    },
-    {
-        Type = "Color",
-        Text = "Lines Color",
-        DefaultColor = ESP_Settings.LinesColor,
-        LayoutOrder = 7,
-        Callback = function(color) ESP_Settings.LinesColor = color end
-    },
-    {
-        Type = "Checkbox",
-        Text = "Distance ESP",
-        State = ESP_Settings.Distance,
-        LayoutOrder = 8,
-        Callback = function(state) ESP_Settings.Distance = state end
-    },
-    {
-        Type = "Color",
-        Text = "Distance Color",
-        DefaultColor = ESP_Settings.DistanceColor,
-        LayoutOrder = 9,
-        Callback = function(color) ESP_Settings.DistanceColor = color end
-    }
+    {Type="Checkbox", Text="Box ESP",       State=ESP_Settings.Box,      LayoutOrder=1, Callback=function(s) ESP_Settings.Box=s end},
+    {Type="Color",    Text="Box Color RGB", DefaultColor=ESP_Settings.BoxColor,         LayoutOrder=2, Callback=function(c) ESP_Settings.BoxColor=c end},
+    {Type="Checkbox", Text="Names ESP",     State=ESP_Settings.Names,    LayoutOrder=3, Callback=function(s) ESP_Settings.Names=s end},
+    {Type="Color",    Text="Names Color",   DefaultColor=ESP_Settings.NamesColor,       LayoutOrder=4, Callback=function(c) ESP_Settings.NamesColor=c end},
+    {Type="Checkbox", Text="HP ESP",        State=ESP_Settings.HP,       LayoutOrder=5, Callback=function(s) ESP_Settings.HP=s end},
+    {Type="Checkbox", Text="Line ESP",      State=ESP_Settings.Lines,    LayoutOrder=6, Callback=function(s) ESP_Settings.Lines=s end},
+    {Type="Color",    Text="Lines Color",   DefaultColor=ESP_Settings.LinesColor,       LayoutOrder=7, Callback=function(c) ESP_Settings.LinesColor=c end},
+    {Type="Checkbox", Text="Distance ESP",  State=ESP_Settings.Distance, LayoutOrder=8, Callback=function(s) ESP_Settings.Distance=s end},
+    {Type="Color",    Text="Distance Color",DefaultColor=ESP_Settings.DistanceColor,    LayoutOrder=9, Callback=function(c) ESP_Settings.DistanceColor=c end}
 }
 
 ui.CreateToggle(
@@ -268,11 +242,19 @@ ui.CreateToggle(
     espSubConfig
 )
 
+local function buildRaycastFilter()
+    local filter = {}
+    if localPlayer.Character then
+        table.insert(filter, localPlayer.Character)
+    end
+    return filter
+end
+
 local function isTargetVisible(part, char)
     local origin = camera.CFrame.Position
     local direction = part.Position - origin
     local params = RaycastParams.new()
-    params.FilterDescendantsInstances = {localPlayer.Character, camera}
+    params.FilterDescendantsInstances = buildRaycastFilter()
     params.FilterType = Enum.RaycastFilterType.Exclude
     local result = workspace:Raycast(origin, direction, params)
     return not result or result.Instance:IsDescendantOf(char)
@@ -316,15 +298,17 @@ local function getClosestPlayerToCursor()
         if curPart and curHum and curHum.Health > 0 then
             local curDist = (myHrp.Position - curPart.Position).Magnitude
             if curDist <= Aim_Settings.MaxDistance then
+                if Aim_Settings.WallCheck and not isTargetVisible(curPart, curChar) then
+                    currentTarget = bestPlr
+                    currentTargetPart = bestPart
+                    return currentTarget, currentTargetPart
+                end
                 local _, onScreen = camera:WorldToViewportPoint(curPart.Position)
                 if onScreen then
-                    if bestDist < curDist - HYSTERESIS_MARGIN then
-                        currentTarget = bestPlr
-                        currentTargetPart = bestPart
-                    else
+                    if not (bestDist < curDist - HYSTERESIS_MARGIN) then
                         currentTargetPart = curPart
+                        return currentTarget, currentTargetPart
                     end
-                    return currentTarget, currentTargetPart
                 end
             end
         end
@@ -421,14 +405,14 @@ local function CreateESP(plr)
         highlight.FillColor = ESP_Settings.BoxColor
         billboard.Adornee = hrp
         billboard.Enabled = (ESP_Settings.Names or ESP_Settings.HP or ESP_Settings.Distance)
-        local sizeOffset = (character:GetExtentsSize().Y / 2)
+        local sizeOffset = character:GetExtentsSize().Y / 2
         billboard.StudsOffset = Vector3.new(0, sizeOffset + 1.5, 0)
         nameL.Visible = ESP_Settings.Names
         nameL.Text = plr.Name
         nameL.TextColor3 = ESP_Settings.NamesColor
         hpL.Visible = ESP_Settings.HP
         hpL.Text = "HP: " .. math.floor(hum.Health)
-        hpL.TextColor3 = Color3.fromHSV(math.clamp(hum.Health/hum.MaxHealth, 0, 1) * 0.3, 1, 1)
+        hpL.TextColor3 = Color3.fromHSV(math.clamp(hum.Health / hum.MaxHealth, 0, 1) * 0.3, 1, 1)
         distL.Visible = ESP_Settings.Distance
         distL.TextColor3 = ESP_Settings.DistanceColor
         distL.Position = UDim2.new(0, 0, 0, 60)
@@ -475,6 +459,14 @@ trackConnection(Players.PlayerRemoving:Connect(function(p)
     end
 end))
 
+trackConnection(localPlayer.CharacterAdded:Connect(function(char)
+    local hum = char:WaitForChild("Humanoid", 5)
+    if hum then
+        hum.WalkSpeed = Move_Settings.WalkSpeed
+        hum.JumpPower = Move_Settings.JumpPower
+    end
+end))
+
 local lastTriggerTime = 0
 local TRIGGER_COOLDOWN = 0.12
 
@@ -509,11 +501,12 @@ aimConnection = RunService.RenderStepped:Connect(function()
     if Aim_Settings.Triggerbot then
         local now = tick()
         if now - lastTriggerTime >= TRIGGER_COOLDOWN then
-            local viewX = camera.ViewportSize.X / 2
-            local viewY = camera.ViewportSize.Y / 2
-            local unitRay = camera:ViewportPointToRay(viewX, viewY)
+            local unitRay = camera:ViewportPointToRay(
+                camera.ViewportSize.X / 2,
+                camera.ViewportSize.Y / 2
+            )
             local raycastParams = RaycastParams.new()
-            raycastParams.FilterDescendantsInstances = {localPlayer.Character}
+            raycastParams.FilterDescendantsInstances = buildRaycastFilter()
             raycastParams.FilterType = Enum.RaycastFilterType.Exclude
             local raycastResult = workspace:Raycast(
                 unitRay.Origin,
@@ -521,8 +514,7 @@ aimConnection = RunService.RenderStepped:Connect(function()
                 raycastParams
             )
             if raycastResult and raycastResult.Instance then
-                local hitInstance = raycastResult.Instance
-                local model = hitInstance:FindFirstAncestorOfClass("Model")
+                local model = raycastResult.Instance:FindFirstAncestorOfClass("Model")
                 if model then
                     local hitPlayer = Players:GetPlayerFromCharacter(model)
                     if hitPlayer and hitPlayer ~= localPlayer then
@@ -564,4 +556,12 @@ ui.OnClose(function()
         end
     end
     table.clear(originalHeadSizes)
+    local char = localPlayer.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.WalkSpeed = defaultWalkSpeed
+            hum.JumpPower = defaultJumpPower
+        end
+    end
 end)
