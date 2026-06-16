@@ -18,7 +18,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.1.1 Public.")
+local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.1.2 Public.")
 ui.SetMinimizedImage("")
 
 local RunService = game:GetService("RunService")
@@ -70,32 +70,61 @@ local currentTargetPart = nil
 local HYSTERESIS_MARGIN = 15
 
 local R6_Bones = {
-    {Name = "Head",           Value = "Head"},
-    {Name = "Torso",          Value = "HumanoidRootPart"},
-    {Name = "Left Arm",       Value = "Left Arm"},
-    {Name = "Right Arm",      Value = "Right Arm"},
-    {Name = "Left Leg",       Value = "Left Leg"},
-    {Name = "Right Leg",      Value = "Right Leg"}
+    {Name = "Head",       Value = "Head"},
+    {Name = "Torso",      Value = "HumanoidRootPart"},
+    {Name = "Left Arm",   Value = "Left Arm"},
+    {Name = "Right Arm",  Value = "Right Arm"},
+    {Name = "Left Leg",   Value = "Left Leg"},
+    {Name = "Right Leg",  Value = "Right Leg"}
 }
+
+local fireButton = nil
+
+local function findFireButton()
+    local playerGui = localPlayer:WaitForChild("PlayerGui", 5)
+    if playerGui then
+        for _, desc in ipairs(playerGui:GetDescendants()) do
+            if desc.Name == "FireButton" then
+                return desc
+            end
+        end
+    end
+    local ok, result = pcall(function()
+        return game:GetService("StarterGui").MobileControls.Frame.FireButton
+    end)
+    if ok and result then return result end
+    return nil
+end
 
 local function performAutoShot()
     if isClicking then return end
     isClicking = true
     task.spawn(function()
         if isTouchDevice then
-            local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
-            VirtualInputManager:SendTouchEvent(0, Enum.UserInputState.Begin, center.X, center.Y)
-            task.wait(0.05)
-            VirtualInputManager:SendTouchEvent(0, Enum.UserInputState.End, center.X, center.Y)
+            if not fireButton or not fireButton.Parent then
+                fireButton = findFireButton()
+            end
+            if fireButton and fireButton.AbsoluteSize.X > 0 then
+                local absPos = fireButton.AbsolutePosition
+                local absSize = fireButton.AbsoluteSize
+                local cx = absPos.X + absSize.X / 2
+                local cy = absPos.Y + absSize.Y / 2
+                VirtualInputManager:SendTouchEvent(0, Enum.UserInputState.Begin, cx, cy)
+                task.wait(0.05)
+                VirtualInputManager:SendTouchEvent(0, Enum.UserInputState.End, cx, cy)
+            else
+                local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+                VirtualInputManager:SendTouchEvent(0, Enum.UserInputState.Begin, center.X, center.Y)
+                task.wait(0.05)
+                VirtualInputManager:SendTouchEvent(0, Enum.UserInputState.End, center.X, center.Y)
+            end
         else
-            mouse1click()
+            pcall(mouse1click)
         end
         task.wait(0.1)
         isClicking = false
     end)
 end
-
-local miscCategory = ui.CreateCategory("Misc")
 
 local boneOptions = {}
 local boneNameToValue = {}
@@ -103,6 +132,8 @@ for _, bone in ipairs(R6_Bones) do
     table.insert(boneOptions, bone.Name)
     boneNameToValue[bone.Name] = bone.Value
 end
+
+local miscCategory = ui.CreateCategory("Misc")
 
 local aimbotSubConfig = {
     {
@@ -291,7 +322,6 @@ local function getClosestPlayerToCursor()
                         currentTarget = bestPlr
                         currentTargetPart = bestPart
                     else
-                        currentTarget = currentTarget
                         currentTargetPart = curPart
                     end
                     return currentTarget, currentTargetPart
@@ -446,7 +476,7 @@ trackConnection(Players.PlayerRemoving:Connect(function(p)
 end))
 
 local lastTriggerTime = 0
-local TRIGGER_COOLDOWN = 0.15
+local TRIGGER_COOLDOWN = 0.12
 
 local aimConnection
 aimConnection = RunService.RenderStepped:Connect(function()
