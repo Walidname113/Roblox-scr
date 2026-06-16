@@ -18,7 +18,7 @@ if not moduleFunc then
 end
 
 local uiModule = moduleFunc()
-local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.1.0 Public.")
+local ui = uiModule.CreateUI("Flick by Kiyatsuka | Version: 1.1.1 Public.")
 ui.SetMinimizedImage("")
 
 local RunService = game:GetService("RunService")
@@ -65,15 +65,18 @@ local originalHeadSizes = {}
 local isTouchDevice = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 local isClicking = false
 
+local currentTarget = nil
+local currentTargetPart = nil
+local HYSTERESIS_MARGIN = 15
+
 local R6_Bones = {
-    {Name = "Head", Value = "Head"},
-    {Name = "Torso", Value = "HumanoidRootPart"},
-    {Name = "Left Arm", Value = "Left Arm"},
-    {Name = "Right Arm", Value = "Right Arm"},
-    {Name = "Left Leg", Value = "Left Leg"},
-    {Name = "Right Leg", Value = "Right Leg"}
+    {Name = "Head",           Value = "Head"},
+    {Name = "Torso",          Value = "HumanoidRootPart"},
+    {Name = "Left Arm",       Value = "Left Arm"},
+    {Name = "Right Arm",      Value = "Right Arm"},
+    {Name = "Left Leg",       Value = "Left Leg"},
+    {Name = "Right Leg",      Value = "Right Leg"}
 }
-local currentBoneIndex = 1
 
 local function performAutoShot()
     if isClicking then return end
@@ -85,9 +88,7 @@ local function performAutoShot()
             task.wait(0.05)
             VirtualInputManager:SendTouchEvent(0, Enum.UserInputState.End, center.X, center.Y)
         else
-            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-            task.wait(0.05)
-            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+            mouse1click()
         end
         task.wait(0.1)
         isClicking = false
@@ -95,6 +96,13 @@ local function performAutoShot()
 end
 
 local miscCategory = ui.CreateCategory("Misc")
+
+local boneOptions = {}
+local boneNameToValue = {}
+for _, bone in ipairs(R6_Bones) do
+    table.insert(boneOptions, bone.Name)
+    boneNameToValue[bone.Name] = bone.Value
+end
 
 local aimbotSubConfig = {
     {
@@ -121,14 +129,15 @@ local aimbotSubConfig = {
         Callback = function(value) Aim_Settings.MaxDistance = value end
     },
     {
-        Type = "Button",
-        Text = "Cycle R6 Bone (Current: Head)",
+        Type = "Dropdown",
+        Text = "R6 Bone",
+        Options = boneOptions,
+        Default = "Head",
         LayoutOrder = 4,
-        Callback = function()
-            currentBoneIndex = currentBoneIndex + 1
-            if currentBoneIndex > #R6_Bones then currentBoneIndex = 1 end
-            local chosen = R6_Bones[currentBoneIndex]
-            Aim_Settings.TargetPart = chosen.Value
+        Callback = function(name)
+            Aim_Settings.TargetPart = boneNameToValue[name] or "Head"
+            currentTarget = nil
+            currentTargetPart = nil
         end
     }
 }
@@ -136,7 +145,13 @@ local aimbotSubConfig = {
 ui.CreateToggle(
     "Aimbot",
     miscCategory,
-    function(state) Aim_Settings.Enabled = state end,
+    function(state)
+        Aim_Settings.Enabled = state
+        if not state then
+            currentTarget = nil
+            currentTargetPart = nil
+        end
+    end,
     "Automatically locks your camera onto enemies within the selected range. Includes R6 body part filters, custom input distance, and built-in triggerbot tracking.",
     aimbotSubConfig
 )
@@ -233,33 +248,61 @@ local function isTargetVisible(part, char)
 end
 
 local function getClosestPlayerToCursor()
-    local targetPlr, targetPart = nil, nil
-    local shortestDistance = math.huge
     local myChar = localPlayer.Character
     local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
-    if not myHrp then return nil, nil end
+    if not myHrp then
+        currentTarget = nil
+        currentTargetPart = nil
+        return nil, nil
+    end
+
+    local bestPlr, bestPart, bestDist = nil, nil, math.huge
+
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= localPlayer and p.Character then
             local char = p.Character
             local hum = char:FindFirstChildOfClass("Humanoid")
             local part = char:FindFirstChild(Aim_Settings.TargetPart)
             if part and hum and hum.Health > 0 then
-                local distToTarget = (myHrp.Position - part.Position).Magnitude
-                if distToTarget <= Aim_Settings.MaxDistance then
+                local dist = (myHrp.Position - part.Position).Magnitude
+                if dist <= Aim_Settings.MaxDistance then
                     if Aim_Settings.WallCheck and not isTargetVisible(part, char) then continue end
                     local _, onScreen = camera:WorldToViewportPoint(part.Position)
-                    if onScreen then
-                        if distToTarget < shortestDistance then
-                            shortestDistance = distToTarget
-                            targetPlr = p
-                            targetPart = part
-                        end
+                    if onScreen and dist < bestDist then
+                        bestDist = dist
+                        bestPlr = p
+                        bestPart = part
                     end
                 end
             end
         end
     end
-    return targetPlr, targetPart
+
+    if currentTarget and currentTarget.Character then
+        local curChar = currentTarget.Character
+        local curHum = curChar:FindFirstChildOfClass("Humanoid")
+        local curPart = curChar:FindFirstChild(Aim_Settings.TargetPart)
+        if curPart and curHum and curHum.Health > 0 then
+            local curDist = (myHrp.Position - curPart.Position).Magnitude
+            if curDist <= Aim_Settings.MaxDistance then
+                local _, onScreen = camera:WorldToViewportPoint(curPart.Position)
+                if onScreen then
+                    if bestDist < curDist - HYSTERESIS_MARGIN then
+                        currentTarget = bestPlr
+                        currentTargetPart = bestPart
+                    else
+                        currentTarget = currentTarget
+                        currentTargetPart = curPart
+                    end
+                    return currentTarget, currentTargetPart
+                end
+            end
+        end
+    end
+
+    currentTarget = bestPlr
+    currentTargetPart = bestPart
+    return currentTarget, currentTargetPart
 end
 
 local function CreateESP(plr)
@@ -396,11 +439,19 @@ end))
 
 trackConnection(Players.PlayerRemoving:Connect(function(p)
     originalHeadSizes[p] = nil
+    if currentTarget == p then
+        currentTarget = nil
+        currentTargetPart = nil
+    end
 end))
+
+local lastTriggerTime = 0
+local TRIGGER_COOLDOWN = 0.15
 
 local aimConnection
 aimConnection = RunService.RenderStepped:Connect(function()
     if not scriptRunning then aimConnection:Disconnect() return end
+
     if Aim_Settings.Enabled then
         local targetPlr, targetPart = getClosestPlayerToCursor()
         if targetPart then
@@ -415,26 +466,41 @@ aimConnection = RunService.RenderStepped:Connect(function()
             local handResistance = mouseDelta.Magnitude
             local adaptiveSmoothness = Aim_Settings.Smoothness
             if handResistance > 0 then
-                adaptiveSmoothness = math.clamp(Aim_Settings.Smoothness + (handResistance * 0.02), Aim_Settings.Smoothness, 0.85)
+                adaptiveSmoothness = math.clamp(
+                    Aim_Settings.Smoothness + (handResistance * 0.02),
+                    Aim_Settings.Smoothness,
+                    0.85
+                )
             end
             camera.CFrame = camera.CFrame:Lerp(targetCFrame, adaptiveSmoothness)
         end
     end
+
     if Aim_Settings.Triggerbot then
-        local centerRay = camera:ViewportPointToRay(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
-        local raycastParams = RaycastParams.new()
-        raycastParams.FilterDescendantsInstances = {localPlayer.Character, camera}
-        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-        local raycastResult = workspace:Raycast(centerRay.Origin, centerRay.Direction * 1000, raycastParams)
-        if raycastResult and raycastResult.Instance then
-            local hitInstance = raycastResult.Instance
-            local model = hitInstance:FindFirstAncestorOfClass("Model")
-            if model then
-                local player = Players:GetPlayerFromCharacter(model)
-                if player and player ~= localPlayer then
-                    local humanoid = model:FindFirstChildOfClass("Humanoid")
-                    if humanoid and humanoid.Health > 0 then
-                        performAutoShot()
+        local now = tick()
+        if now - lastTriggerTime >= TRIGGER_COOLDOWN then
+            local viewX = camera.ViewportSize.X / 2
+            local viewY = camera.ViewportSize.Y / 2
+            local unitRay = camera:ViewportPointToRay(viewX, viewY)
+            local raycastParams = RaycastParams.new()
+            raycastParams.FilterDescendantsInstances = {localPlayer.Character}
+            raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+            local raycastResult = workspace:Raycast(
+                unitRay.Origin,
+                unitRay.Direction * 2000,
+                raycastParams
+            )
+            if raycastResult and raycastResult.Instance then
+                local hitInstance = raycastResult.Instance
+                local model = hitInstance:FindFirstAncestorOfClass("Model")
+                if model then
+                    local hitPlayer = Players:GetPlayerFromCharacter(model)
+                    if hitPlayer and hitPlayer ~= localPlayer then
+                        local humanoid = model:FindFirstChildOfClass("Humanoid")
+                        if humanoid and humanoid.Health > 0 then
+                            lastTriggerTime = now
+                            performAutoShot()
+                        end
                     end
                 end
             end
@@ -450,6 +516,8 @@ ui.OnClose(function()
     Aim_Settings.Enabled = false
     Aim_Settings.Triggerbot = false
     Aim_Settings.HitboxActive = false
+    currentTarget = nil
+    currentTargetPart = nil
     for k in pairs(ESP_Settings) do ESP_Settings[k] = false end
     for _, conn in ipairs(connections) do
         if conn and conn.Connected then conn:Disconnect() end
