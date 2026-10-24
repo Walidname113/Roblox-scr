@@ -198,6 +198,7 @@ local function createESP(model)
     gui.Name = "ModernUI_ESP"
     gui.AlwaysOnTop = true
     gui.Size = UDim2.fromOffset(220, 100)
+    gui.SizeOffset = Vector2.new(0, 0.5)
     gui.StudsOffset = Vector3.new(0, 3, 0)
     gui.Adornee = getCharacterRoot(model)
     gui.Parent = model
@@ -270,7 +271,6 @@ local function updateESP()
                 label.Text = table.concat(lines, "\n")
                 label.TextColor3 = role == "Killer" and Color3.fromRGB(255, 75, 75) or Color3.fromRGB(100, 180, 255)
                 gui.Size = UDim2.fromOffset(220, math.max(40, #lines * 17))
-                gui.StudsOffset = Vector3.new(0, 2.5 + (#lines - 1) * 0.18, 0)
                 updateHighlight(model, role)
             else
                 removeESP(model)
