@@ -268,8 +268,50 @@ function Window:_fullSize()
     return UDim2.fromOffset(self._size.X, self.Compact and math.min(200, self._size.Y) or self._size.Y)
 end
 
+local function resolveTitle(title)
+    title = tostring(title or "Modern Suite")
+
+    local placeName
+
+    if title:find("{gamename}", 1, true) then
+        local success, info = pcall(function()
+            local MarketplaceService =
+                game:GetService("MarketplaceService")
+
+            return MarketplaceService:GetProductInfoAsync(
+                game.PlaceId,
+                Enum.InfoType.Asset
+            )
+        end)
+
+        if success
+            and type(info) == "table"
+            and type(info.Name) == "string"
+            and info.Name ~= ""
+        then
+            placeName = info.Name
+        else
+            placeName = "Unknown Place"
+        end
+
+        title = title:gsub("{gamename}", function()
+            return placeName
+        end)
+    end
+
+    title = title:gsub("{placeid}", function()
+        return tostring(game.PlaceId)
+    end)
+
+    title = title:gsub("{gameid}", function()
+        return tostring(game.GameId)
+    end)
+
+    return title
+end
+
 function Window:SetTitle(text)
-    self._title.Text = string.upper(tostring(text))
+    self._title.Text = string.upper(resolveTitle(text))
 end
 
 function Window:SetCompact(v)
@@ -1392,7 +1434,7 @@ function module.new(cfg)
     make("Frame", { Size = UDim2.new(1, 0, 0, 1), Position = UDim2.new(0, 0, 1, -1), BackgroundColor3 = Theme.Border }, bar)
     local title = make("TextLabel", {
         Size = UDim2.new(1, -120, 1, 0), Position = UDim2.fromOffset(20, 0),
-        Text = string.upper(cfg.Title or "Modern Suite"), Font = Theme.FontBold, TextSize = 14,
+        Text = string.upper(resolveTitle(cfg.Title or "Modern Suite")), Font = Theme.FontBold, TextSize = 14,
         TextXAlignment = Enum.TextXAlignment.Left,
     }, bar)
     make("UIGradient", { Color = ColorSequence.new(Theme.TextMain, Color3.fromRGB(200, 200, 200)) }, title)
