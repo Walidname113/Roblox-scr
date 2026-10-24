@@ -28,10 +28,10 @@ if MinimizedIcon ~= "" then
     Window:SetMinimizedImage(MinimizedIcon)
 end
 
-local Main = Window:Category({ Name = "Main" })
-local Combat = Window:Category({ Name = "Combat" })
-local Visuals = Window:Category({ Name = "Visuals" })
-local Movement = Window:Category({ Name = "Movement" })
+local Main = Window:Category("Main")
+local Combat = Window:Category("Combat")
+local Visuals = Window:Category("Visuals")
+local Movement = Window:Category("Movement")
 
 local ESP_INTERVAL = 0.2
 local MOVEMENT_INTERVAL = 0.5
