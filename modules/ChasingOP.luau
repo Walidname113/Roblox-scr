@@ -50,7 +50,7 @@ if MinimizedIcon ~= "" then
 end
 
 local Main = Window:Category("Main")
-local Combat = Window:Category("Combat")
+local ESP = Window:Category("ESP")
 local Visuals = Window:Category("Visuals")
 local Movement = Window:Category("Movement")
 
@@ -704,148 +704,57 @@ end
 
 createProfileCard()
 
-local function createNestedESPGroup(title, role, order)
-    local page = Combat._page
-    local group = Instance.new("Frame")
-    group.Name = role .. "ESPGroup"
-    group.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
-    group.BorderSizePixel = 0
-    group.Size = UDim2.new(1, -2, 0, 0)
-    group.AutomaticSize = Enum.AutomaticSize.Y
-    group.LayoutOrder = order
-    group.Parent = page
-    Instance.new("UICorner", group).CornerRadius = UDim.new(0, 8)
+local function createESPGroup(category, title, role)
+    local childrenHolder = nil
+    local parentToggle = nil
 
-    local layout = Instance.new("UIListLayout")
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Padding = UDim.new(0, 4)
-    layout.Parent = group
-
-    local parentButton = Instance.new("TextButton")
-    parentButton.Name = "ParentToggle"
-    parentButton.LayoutOrder = 1
-    parentButton.Size = UDim2.new(1, 0, 0, 42)
-    parentButton.BackgroundColor3 = Color3.fromRGB(32, 32, 40)
-    parentButton.BorderSizePixel = 0
-    parentButton.AutoButtonColor = false
-    parentButton.Text = ""
-    parentButton.Parent = group
-    Instance.new("UICorner", parentButton).CornerRadius = UDim.new(0, 8)
-
-    local parentLabel = Instance.new("TextLabel")
-    parentLabel.BackgroundTransparency = 1
-    parentLabel.Position = UDim2.fromOffset(14, 0)
-    parentLabel.Size = UDim2.new(1, -70, 1, 0)
-    parentLabel.Font = Enum.Font.GothamMedium
-    parentLabel.TextSize = 13
-    parentLabel.TextXAlignment = Enum.TextXAlignment.Left
-    parentLabel.TextColor3 = Color3.fromRGB(240, 240, 245)
-    parentLabel.Text = title
-    parentLabel.Parent = parentButton
-
-    local parentSwitch = Instance.new("Frame")
-    parentSwitch.AnchorPoint = Vector2.new(1, 0.5)
-    parentSwitch.Position = UDim2.new(1, -12, 0.5, 0)
-    parentSwitch.Size = UDim2.fromOffset(34, 18)
-    parentSwitch.BackgroundColor3 = Color3.fromRGB(65, 65, 75)
-    parentSwitch.BorderSizePixel = 0
-    parentSwitch.Parent = parentButton
-    Instance.new("UICorner", parentSwitch).CornerRadius = UDim.new(1, 0)
-
-    local parentKnob = Instance.new("Frame")
-    parentKnob.Position = UDim2.fromOffset(2, 2)
-    parentKnob.Size = UDim2.fromOffset(14, 14)
-    parentKnob.BackgroundColor3 = Color3.fromRGB(245, 245, 245)
-    parentKnob.BorderSizePixel = 0
-    parentKnob.Parent = parentSwitch
-    Instance.new("UICorner", parentKnob).CornerRadius = UDim.new(1, 0)
-
-    local children = Instance.new("Frame")
-    children.Name = "ChildToggles"
-    children.LayoutOrder = 2
-    children.BackgroundTransparency = 1
-    children.Size = UDim2.new(1, -12, 0, 0)
-    children.Position = UDim2.fromOffset(12, 0)
-    children.Visible = false
-    children.Parent = group
-
-    local childLayout = Instance.new("UIListLayout")
-    childLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    childLayout.Padding = UDim.new(0, 4)
-    childLayout.Parent = children
-
-    local function setParentState(enabled)
-        ESPState[role].Enabled = enabled
-        children.Visible = enabled
-        children.Size = UDim2.new(1, -12, 0, enabled and 104 or 0)
-        parentSwitch.BackgroundColor3 = enabled and Color3.fromRGB(70, 140, 255) or Color3.fromRGB(65, 65, 75)
-        parentKnob.Position = enabled and UDim2.new(1, -16, 0, 2) or UDim2.fromOffset(2, 2)
-        updateESP()
-    end
-
-    local function addChildToggle(label, key, orderIndex)
-        local row = Instance.new("TextButton")
-        row.Name = key .. "Toggle"
-        row.LayoutOrder = orderIndex
-        row.Size = UDim2.new(1, 0, 0, 32)
-        row.BackgroundColor3 = Color3.fromRGB(29, 29, 36)
-        row.BorderSizePixel = 0
-        row.AutoButtonColor = false
-        row.Text = ""
-        row.Parent = children
-        Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
-
-        local labelText = Instance.new("TextLabel")
-        labelText.BackgroundTransparency = 1
-        labelText.Position = UDim2.fromOffset(12, 0)
-        labelText.Size = UDim2.new(1, -62, 1, 0)
-        labelText.Font = Enum.Font.Gotham
-        labelText.TextSize = 12
-        labelText.TextXAlignment = Enum.TextXAlignment.Left
-        labelText.TextColor3 = Color3.fromRGB(205, 205, 215)
-        labelText.Text = label
-        labelText.Parent = row
-
-        local switch = Instance.new("Frame")
-        switch.AnchorPoint = Vector2.new(1, 0.5)
-        switch.Position = UDim2.new(1, -10, 0.5, 0)
-        switch.Size = UDim2.fromOffset(28, 16)
-        switch.BackgroundColor3 = Color3.fromRGB(65, 65, 75)
-        switch.BorderSizePixel = 0
-        switch.Parent = row
-        Instance.new("UICorner", switch).CornerRadius = UDim.new(1, 0)
-
-        local knob = Instance.new("Frame")
-        knob.Position = UDim2.fromOffset(2, 2)
-        knob.Size = UDim2.fromOffset(12, 12)
-        knob.BackgroundColor3 = Color3.fromRGB(245, 245, 245)
-        knob.BorderSizePixel = 0
-        knob.Parent = switch
-        Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
-
-        local function setState(enabled)
-            ESPState[role][key] = enabled
-            switch.BackgroundColor3 = enabled and Color3.fromRGB(70, 140, 255) or Color3.fromRGB(65, 65, 75)
-            knob.Position = enabled and UDim2.new(1, -14, 0, 2) or UDim2.fromOffset(2, 2)
-            updateESP()
+    local function setChildrenVisible(visible)
+        if not childrenHolder or not childrenHolder.Parent then
+            return
         end
-
-        row.Activated:Connect(function()
-            setState(not ESPState[role][key])
-        end)
+        childrenHolder.Visible = visible
+        local padding = parentToggle.Frame:FindFirstChildOfClass("UIPadding")
+        if padding then
+            padding.PaddingBottom = UDim.new(0, visible and 10 or 0)
+        end
     end
 
-    addChildToggle("Distance", "Distance", 1)
-    addChildToggle("Health", "Health", 2)
-    addChildToggle("Level", "Level", 3)
+    local function childToggle(text, key)
+        return {
+            Type = "Toggle",
+            Text = text,
+            Default = false,
+            Callback = function(state)
+                ESPState[role][key] = state
+                updateESP()
+            end,
+        }
+    end
 
-    parentButton.Activated:Connect(function()
-        setParentState(not ESPState[role].Enabled)
-    end)
+    parentToggle = category:Toggle({
+        Text = title,
+        Default = false,
+        Callback = function(state)
+            ESPState[role].Enabled = state
+            setChildrenVisible(state)
+            updateESP()
+        end,
+        Sub = {
+            childToggle("Distance", "Distance"),
+            childToggle("Health", "Health"),
+            childToggle("Level", "Level"),
+        },
+    })
+
+    local firstChild = parentToggle.Subs and parentToggle.Subs[1]
+    childrenHolder = firstChild and firstChild.Frame.Parent
+    setChildrenVisible(false)
+
+    return parentToggle
 end
 
-createNestedESPGroup("Killer ESP", "Killer", 1)
-createNestedESPGroup("Survivors ESP", "Survivors", 2)
+createESPGroup(ESP, "Killer ESP", "Killer")
+createESPGroup(ESP, "Survivors ESP", "Survivors")
 
 Visuals:Toggle({
     Text = "Fullbright",
