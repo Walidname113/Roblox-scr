@@ -4,18 +4,45 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
 local LocalPlayer = Players.LocalPlayer
+while not LocalPlayer do
+    task.wait(0.1)
+    LocalPlayer = Players.LocalPlayer
+end
+
 local RequiredGameId = 8157263243
+local MinimizedIcon = ""
 
 if game.GameId ~= RequiredGameId then
     return
 end
 
-local loaded, uiModule = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/Walidname113/Roblox-scr/refs/heads/main/ModernUI_v32.lua"))()
-end)
+LocalPlayer:WaitForChild("PlayerGui")
+
+local uiModule
+local loaded = false
+
+for attempt = 1, 30 do
+    loaded, uiModule = pcall(function()
+        return loadstring(game:HttpGet(
+            "https://raw.githubusercontent.com/Walidname113/Roblox-scr/refs/heads/main/ModernUI_v32.lua"
+        ))()
+    end)
+
+    if loaded and type(uiModule) == "table" and type(uiModule.new) == "function" then
+        break
+    end
+
+    loaded = false
+    task.wait(1)
+end
 
 if not loaded or type(uiModule) ~= "table" or type(uiModule.new) ~= "function" then
+    warn("ModernUI failed to load after 30 attempts")
     return
 end
 
