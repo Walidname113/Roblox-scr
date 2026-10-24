@@ -6,7 +6,6 @@ local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 local RequiredGameId = 8157263243
-local MinimizedIcon = ""
 
 if game.GameId ~= RequiredGameId then
     return
@@ -909,3 +908,5 @@ Window:OnClose(function()
         removeESP(model)
     end
 end)
+
+Window:SetMinimizedImage("")
