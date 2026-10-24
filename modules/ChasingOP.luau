@@ -15,7 +15,6 @@ while not LocalPlayer do
 end
 
 local RequiredGameId = 8157263243
-local MinimizedIcon = ""
 
 if game.GameId ~= RequiredGameId then
     return
@@ -25,18 +24,13 @@ LocalPlayer:WaitForChild("PlayerGui")
 
 local uiModule
 local loaded = false
-
 for attempt = 1, 30 do
     loaded, uiModule = pcall(function()
-        return loadstring(game:HttpGet(
-            "https://raw.githubusercontent.com/Walidname113/Roblox-scr/refs/heads/main/ModernUI_v32.lua"
-        ))()
+        return loadstring(game:HttpGet("https://raw.githubusercontent.com/Walidname113/Roblox-scr/refs/heads/main/ModernUI_v32.lua"))()
     end)
-
     if loaded and type(uiModule) == "table" and type(uiModule.new) == "function" then
         break
     end
-
     loaded = false
     task.wait(1)
 end
@@ -48,7 +42,7 @@ end
 
 local Window = uiModule.new({
     Name = "ModernUI",
-    Title = "Game | By Kiyatsuka v1.0.1",
+    Title = "{gamename} | By Kiyatsuka v1.0.2",
 })
 
 if MinimizedIcon ~= "" then
@@ -64,8 +58,8 @@ local ESP_INTERVAL = 0.2
 local MOVEMENT_INTERVAL = 0.5
 
 local ESPState = {
-    Killer = { Enabled = false, Distance = true, Health = true, Level = true },
-    Survivors = { Enabled = false, Distance = true, Health = true, Level = true },
+    Killer = { Enabled = false, Distance = false, Health = false, Level = false },
+    Survivors = { Enabled = false, Distance = false, Health = false, Level = false },
 }
 
 local ESPObjects = {}
@@ -710,71 +704,148 @@ end
 
 createProfileCard()
 
-Combat:Toggle({
-    Text = "Killer ESP",
-    Default = false,
-    Callback = function(state)
-        ESPState.Killer.Enabled = state
+local function createNestedESPGroup(title, role, order)
+    local page = Combat._page
+    local group = Instance.new("Frame")
+    group.Name = role .. "ESPGroup"
+    group.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
+    group.BorderSizePixel = 0
+    group.Size = UDim2.new(1, -2, 0, 0)
+    group.AutomaticSize = Enum.AutomaticSize.Y
+    group.LayoutOrder = order
+    group.Parent = page
+    Instance.new("UICorner", group).CornerRadius = UDim.new(0, 8)
+
+    local layout = Instance.new("UIListLayout")
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Padding = UDim.new(0, 4)
+    layout.Parent = group
+
+    local parentButton = Instance.new("TextButton")
+    parentButton.Name = "ParentToggle"
+    parentButton.LayoutOrder = 1
+    parentButton.Size = UDim2.new(1, 0, 0, 42)
+    parentButton.BackgroundColor3 = Color3.fromRGB(32, 32, 40)
+    parentButton.BorderSizePixel = 0
+    parentButton.AutoButtonColor = false
+    parentButton.Text = ""
+    parentButton.Parent = group
+    Instance.new("UICorner", parentButton).CornerRadius = UDim.new(0, 8)
+
+    local parentLabel = Instance.new("TextLabel")
+    parentLabel.BackgroundTransparency = 1
+    parentLabel.Position = UDim2.fromOffset(14, 0)
+    parentLabel.Size = UDim2.new(1, -70, 1, 0)
+    parentLabel.Font = Enum.Font.GothamMedium
+    parentLabel.TextSize = 13
+    parentLabel.TextXAlignment = Enum.TextXAlignment.Left
+    parentLabel.TextColor3 = Color3.fromRGB(240, 240, 245)
+    parentLabel.Text = title
+    parentLabel.Parent = parentButton
+
+    local parentSwitch = Instance.new("Frame")
+    parentSwitch.AnchorPoint = Vector2.new(1, 0.5)
+    parentSwitch.Position = UDim2.new(1, -12, 0.5, 0)
+    parentSwitch.Size = UDim2.fromOffset(34, 18)
+    parentSwitch.BackgroundColor3 = Color3.fromRGB(65, 65, 75)
+    parentSwitch.BorderSizePixel = 0
+    parentSwitch.Parent = parentButton
+    Instance.new("UICorner", parentSwitch).CornerRadius = UDim.new(1, 0)
+
+    local parentKnob = Instance.new("Frame")
+    parentKnob.Position = UDim2.fromOffset(2, 2)
+    parentKnob.Size = UDim2.fromOffset(14, 14)
+    parentKnob.BackgroundColor3 = Color3.fromRGB(245, 245, 245)
+    parentKnob.BorderSizePixel = 0
+    parentKnob.Parent = parentSwitch
+    Instance.new("UICorner", parentKnob).CornerRadius = UDim.new(1, 0)
+
+    local children = Instance.new("Frame")
+    children.Name = "ChildToggles"
+    children.LayoutOrder = 2
+    children.BackgroundTransparency = 1
+    children.Size = UDim2.new(1, -12, 0, 0)
+    children.Position = UDim2.fromOffset(12, 0)
+    children.Visible = false
+    children.Parent = group
+
+    local childLayout = Instance.new("UIListLayout")
+    childLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    childLayout.Padding = UDim.new(0, 4)
+    childLayout.Parent = children
+
+    local function setParentState(enabled)
+        ESPState[role].Enabled = enabled
+        children.Visible = enabled
+        children.Size = UDim2.new(1, -12, 0, enabled and 104 or 0)
+        parentSwitch.BackgroundColor3 = enabled and Color3.fromRGB(70, 140, 255) or Color3.fromRGB(65, 65, 75)
+        parentKnob.Position = enabled and UDim2.new(1, -16, 0, 2) or UDim2.fromOffset(2, 2)
         updateESP()
-    end,
-})
+    end
 
-Combat:Toggle({
-    Text = "Survivors ESP",
-    Default = false,
-    Callback = function(state)
-        ESPState.Survivors.Enabled = state
-        updateESP()
-    end,
-})
+    local function addChildToggle(label, key, orderIndex)
+        local row = Instance.new("TextButton")
+        row.Name = key .. "Toggle"
+        row.LayoutOrder = orderIndex
+        row.Size = UDim2.new(1, 0, 0, 32)
+        row.BackgroundColor3 = Color3.fromRGB(29, 29, 36)
+        row.BorderSizePixel = 0
+        row.AutoButtonColor = false
+        row.Text = ""
+        row.Parent = children
+        Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
 
-Combat:Toggle({
-    Text = "Killer Distance",
-    Default = true,
-    Callback = function(state)
-        ESPState.Killer.Distance = state
-    end,
-})
+        local labelText = Instance.new("TextLabel")
+        labelText.BackgroundTransparency = 1
+        labelText.Position = UDim2.fromOffset(12, 0)
+        labelText.Size = UDim2.new(1, -62, 1, 0)
+        labelText.Font = Enum.Font.Gotham
+        labelText.TextSize = 12
+        labelText.TextXAlignment = Enum.TextXAlignment.Left
+        labelText.TextColor3 = Color3.fromRGB(205, 205, 215)
+        labelText.Text = label
+        labelText.Parent = row
 
-Combat:Toggle({
-    Text = "Killer Health",
-    Default = true,
-    Callback = function(state)
-        ESPState.Killer.Health = state
-    end,
-})
+        local switch = Instance.new("Frame")
+        switch.AnchorPoint = Vector2.new(1, 0.5)
+        switch.Position = UDim2.new(1, -10, 0.5, 0)
+        switch.Size = UDim2.fromOffset(28, 16)
+        switch.BackgroundColor3 = Color3.fromRGB(65, 65, 75)
+        switch.BorderSizePixel = 0
+        switch.Parent = row
+        Instance.new("UICorner", switch).CornerRadius = UDim.new(1, 0)
 
-Combat:Toggle({
-    Text = "Killer Level",
-    Default = true,
-    Callback = function(state)
-        ESPState.Killer.Level = state
-    end,
-})
+        local knob = Instance.new("Frame")
+        knob.Position = UDim2.fromOffset(2, 2)
+        knob.Size = UDim2.fromOffset(12, 12)
+        knob.BackgroundColor3 = Color3.fromRGB(245, 245, 245)
+        knob.BorderSizePixel = 0
+        knob.Parent = switch
+        Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
 
-Combat:Toggle({
-    Text = "Survivor Distance",
-    Default = true,
-    Callback = function(state)
-        ESPState.Survivors.Distance = state
-    end,
-})
+        local function setState(enabled)
+            ESPState[role][key] = enabled
+            switch.BackgroundColor3 = enabled and Color3.fromRGB(70, 140, 255) or Color3.fromRGB(65, 65, 75)
+            knob.Position = enabled and UDim2.new(1, -14, 0, 2) or UDim2.fromOffset(2, 2)
+            updateESP()
+        end
 
-Combat:Toggle({
-    Text = "Survivor Health",
-    Default = true,
-    Callback = function(state)
-        ESPState.Survivors.Health = state
-    end,
-})
+        row.Activated:Connect(function()
+            setState(not ESPState[role][key])
+        end)
+    end
 
-Combat:Toggle({
-    Text = "Survivor Level",
-    Default = true,
-    Callback = function(state)
-        ESPState.Survivors.Level = state
-    end,
-})
+    addChildToggle("Distance", "Distance", 1)
+    addChildToggle("Health", "Health", 2)
+    addChildToggle("Level", "Level", 3)
+
+    parentButton.Activated:Connect(function()
+        setParentState(not ESPState[role].Enabled)
+    end)
+end
+
+createNestedESPGroup("Killer ESP", "Killer", 1)
+createNestedESPGroup("Survivors ESP", "Survivors", 2)
 
 Visuals:Toggle({
     Text = "Fullbright",
@@ -868,10 +939,12 @@ Window:Loop(MOVEMENT_INTERVAL, function()
                 speedControl:SetBase(speedBase)
                 speedControl:Set(speedBase, true)
             end
-        elseif speedApplied ~= nil and math.abs(currentHumanoid.WalkSpeed - speedApplied) > 0.01 then
-            speedBase = currentHumanoid.WalkSpeed
-            if speedControl then
-                speedControl:SetBase(speedBase)
+        elseif speedApplied == nil or math.abs(currentHumanoid.WalkSpeed - speedApplied) > 0.01 then
+            if speedApplied ~= nil then
+                speedBase = currentHumanoid.WalkSpeed
+                if speedControl then
+                    speedControl:SetBase(speedBase)
+                end
             end
             applySpeed(speedControl and speedControl.Value or speedBase)
         end
@@ -883,10 +956,12 @@ Window:Loop(MOVEMENT_INTERVAL, function()
                 jumpControl:SetBase(jumpBase)
                 jumpControl:Set(jumpBase, true)
             end
-        elseif jumpApplied ~= nil and math.abs(currentJump - jumpApplied) > 0.01 then
-            jumpBase = currentJump
-            if jumpControl then
-                jumpControl:SetBase(jumpBase)
+        elseif jumpApplied == nil or math.abs(currentJump - jumpApplied) > 0.01 then
+            if jumpApplied ~= nil then
+                jumpBase = currentJump
+                if jumpControl then
+                    jumpControl:SetBase(jumpBase)
+                end
             end
             applyJump(jumpControl and jumpControl.Value or jumpBase)
         end
@@ -899,9 +974,8 @@ Window:Connect(RunService.Stepped, function()
     end
 end)
 
-LocalPlayer.CharacterAdded:Connect(function(character)
-    task.wait(0.5)
-    local newHumanoid = character:FindFirstChildOfClass("Humanoid")
+Window:Connect(LocalPlayer.CharacterAdded, function(character)
+    local newHumanoid = character:WaitForChild("Humanoid", 15)
     if newHumanoid then
         speedBase = newHumanoid.WalkSpeed
         jumpBase = readJumpProperty(newHumanoid)
@@ -935,5 +1009,3 @@ Window:OnClose(function()
         removeESP(model)
     end
 end)
-
-Window:SetMinimizedImage("")
