@@ -4,6 +4,7 @@ local Players          = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService     = game:GetService("TweenService")
 local RunService       = game:GetService("RunService")
+local ContentProvider  = game:GetService("ContentProvider")
 
 local env = (type(getgenv) == "function" and getgenv()) or shared
 
@@ -40,11 +41,6 @@ end
 
 local function isPress(inp)
     return inp.UserInputType == Enum.UserInputType.MouseButton1
-        or inp.UserInputType == Enum.UserInputType.Touch
-end
-
-local function isMove(inp)
-    return inp.UserInputType == Enum.UserInputType.MouseMovement
         or inp.UserInputType == Enum.UserInputType.Touch
 end
 
@@ -123,41 +119,71 @@ local function guarded(label, fn)
     end)
 end
 
-local function onTap(gui, fn)
-    local startPos
-    gui.InputBegan:Connect(function(inp)
-        if isPress(inp) then startPos = inp.Position end
-    end)
-    gui.InputEnded:Connect(function(inp)
-        if isPress(inp) and startPos then
-            local moved = (inp.Position - startPos).Magnitude
-            startPos = nil
-            if moved < 8 then fn() end
-        end
-    end)
-end
-
-local function makeDraggable(frame, handle)
+local function trackInput(inp, onMove)
+    local touch = inp.UserInputType == Enum.UserInputType.Touch
     local moveC, endC
     local function stop()
         if moveC then moveC:Disconnect(); moveC = nil end
         if endC then endC:Disconnect(); endC = nil end
     end
-    handle.InputBegan:Connect(function(inp)
-        if not isPress(inp) then return end
-        stop()
-        local start, origin = inp.Position, frame.Position
-        moveC = UserInputService.InputChanged:Connect(function(i)
-            if isMove(i) then
-                local d = i.Position - start
-                frame.Position = UDim2.new(origin.X.Scale, origin.X.Offset + d.X, origin.Y.Scale, origin.Y.Offset + d.Y)
-            end
-        end)
-        endC = UserInputService.InputEnded:Connect(function(i)
-            if i == inp or isPress(i) then stop() end
-        end)
+    moveC = UserInputService.InputChanged:Connect(function(i)
+        if touch then
+            if i ~= inp then return end
+        elseif i.UserInputType ~= Enum.UserInputType.MouseMovement then
+            return
+        end
+        if inp.UserInputState == Enum.UserInputState.End then
+            stop()
+            return
+        end
+        onMove(i.Position)
+    end)
+    endC = UserInputService.InputEnded:Connect(function(i)
+        if touch then
+            if i == inp then stop() end
+        elseif i.UserInputType == Enum.UserInputType.MouseButton1 then
+            stop()
+        end
     end)
     return stop
+end
+
+local function onTap(gui, fn, maxTime)
+    local pressInp, startPos, startT
+    gui.InputBegan:Connect(function(inp)
+        if isPress(inp) then
+            pressInp, startPos, startT = inp, inp.Position, os.clock()
+        end
+    end)
+    gui.InputEnded:Connect(function(inp)
+        if not startPos or not isPress(inp) then return end
+        if inp.UserInputType == Enum.UserInputType.Touch and inp ~= pressInp then return end
+        local moved = (inp.Position - startPos).Magnitude
+        local held = os.clock() - startT
+        startPos = nil
+        if moved < 8 and (not maxTime or held <= maxTime) then fn() end
+    end)
+end
+
+local function makeDraggable(frame, handle)
+    local activeStop
+    handle.InputBegan:Connect(function(inp)
+        if not isPress(inp) then return end
+        if activeStop then activeStop() end
+        local start, origin = inp.Position, frame.Position
+        local moved = false
+        activeStop = trackInput(inp, function(pos)
+            local d = pos - start
+            if not moved then
+                if d.Magnitude < 4 then return end
+                moved = true
+            end
+            frame.Position = UDim2.new(origin.X.Scale, origin.X.Offset + d.X, origin.Y.Scale, origin.Y.Offset + d.Y)
+        end)
+    end)
+    return function()
+        if activeStop then activeStop(); activeStop = nil end
+    end
 end
 
 function Window:Track(item)
@@ -354,16 +380,29 @@ end
 function Window:SetMinimizedImage(assetId)
     local minF, plus = self._minF, self._plus
     if self._imgLoad then self._imgLoad:Stop(); self._imgLoad = nil end
+    self._imgToken = (self._imgToken or 0) + 1
+    local mine = self._imgToken
+
     local function load(img)
         minF.Image = img
         plus.Visible = true
+        local function done()
+            if self.Alive and self._imgToken == mine then plus.Visible = false end
+        end
         self._imgLoad = self:Spawn(function()
-            for _ = 1, 50 do
-                if minF.IsLoaded then plus.Visible = false; return end
+            pcall(function()
+                ContentProvider:PreloadAsync({ minF }, function(_, status)
+                    if status == Enum.AssetFetchStatus.Success then done() end
+                end)
+            end)
+            for _ = 1, 300 do
+                if self._imgToken ~= mine or not plus.Visible then return end
+                if minF.IsLoaded then done(); return end
                 task.wait(0.1)
             end
         end)
     end
+
     if assetId and assetId ~= "" then
         local s = tostring(assetId)
         load(s:find("^rbx") and s or ("rbxassetid://" .. s))
@@ -740,7 +779,7 @@ local function openColorPicker(win, default, onApply)
         upd()
     end))
 
-    local mode
+    local mode, stopTrack
     local function applyPos(pos)
         if mode == "h" then
             cH = math.clamp((pos.X - hs.AbsolutePosition.X) / hs.AbsoluteSize.X, 0, 1)
@@ -750,18 +789,21 @@ local function openColorPicker(win, default, onApply)
         end
         upd()
     end
+    local function startTrack(inp, m)
+        if stopTrack then stopTrack() end
+        mode = m
+        applyPos(inp.Position)
+        stopTrack = trackInput(inp, applyPos)
+    end
     bind(hs.InputBegan:Connect(function(inp)
-        if isPress(inp) then mode = "h"; applyPos(inp.Position) end
+        if isPress(inp) then startTrack(inp, "h") end
     end))
     bind(rsv.InputBegan:Connect(function(inp)
-        if isPress(inp) then mode = "sv"; applyPos(inp.Position) end
+        if isPress(inp) then startTrack(inp, "sv") end
     end))
-    bind(UserInputService.InputChanged:Connect(function(inp)
-        if mode and isMove(inp) then applyPos(inp.Position) end
-    end))
-    bind(UserInputService.InputEnded:Connect(function(inp)
-        if isPress(inp) then mode = nil end
-    end))
+    bind(function()
+        if stopTrack then stopTrack(); stopTrack = nil end
+    end)
 
     local closed = false
     local function close(save)
@@ -971,10 +1013,9 @@ Builders.Slider = function(win, parent, cfg)
     end
     render()
 
-    local moveC, endC
+    local stopCur
     local function stopDrag()
-        if moveC then moveC:Disconnect(); moveC = nil end
-        if endC then endC:Disconnect(); endC = nil end
+        if stopCur then stopCur(); stopCur = nil end
     end
     local function update(x)
         local sz = bar.AbsoluteSize.X
@@ -990,12 +1031,7 @@ Builders.Slider = function(win, parent, cfg)
         if not isPress(inp) then return end
         stopDrag()
         update(inp.Position.X)
-        moveC = UserInputService.InputChanged:Connect(function(i)
-            if isMove(i) then update(i.Position.X) end
-        end)
-        endC = UserInputService.InputEnded:Connect(function(i)
-            if isPress(i) then stopDrag() end
-        end)
+        stopCur = trackInput(inp, function(pos) update(pos.X) end)
     end)
     win:Track(stopDrag)
 
@@ -1533,7 +1569,7 @@ function module.new(cfg)
 
     win:Track(makeDraggable(main, bar))
     win:Track(makeDraggable(minF, minF))
-    onTap(minF, function() win:Show() end)
+    onTap(minF, function() win:Show() end, 0.35)
 
     if cfg.MinimizedImage ~= nil then win:SetMinimizedImage(cfg.MinimizedImage) end
 
