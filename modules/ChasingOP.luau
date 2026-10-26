@@ -42,7 +42,7 @@ end
 
 local Window = uiModule.new({
     Name = "ModernUI",
-    Title = "{gamename} | By Kiyatsuka v1.0.5",
+    Title = "{gamename} | By Kiyatsuka v1.0.6",
 })
 
 if MinimizedIcon ~= "" then
