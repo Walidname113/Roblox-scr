@@ -693,6 +693,138 @@ end
 
 createProfileCard()
 
+local selectedTeleportPlayer = nil
+local teleportPlayerOptions = {}
+local teleportOptionPlayers = {}
+local teleportDropdown
+
+local function getPlayerCharacter(player)
+    local characters = workspace:FindFirstChild("Characters")
+    local model = characters and characters:FindFirstChild(player.Name)
+    if model and getCharacterRoot(model) then
+        return model
+    end
+    if player.Character and getCharacterRoot(player.Character) then
+        return player.Character
+    end
+    return nil
+end
+
+local function teleportToModel(model)
+    local targetRoot = getCharacterRoot(model)
+    local localCharacter = LocalPlayer.Character
+    local localRoot = getCharacterRoot(localCharacter)
+    if not targetRoot then
+        warn("Teleport failed: target character root not found")
+        return
+    end
+    if not localRoot then
+        warn("Teleport failed: local character root not found")
+        return
+    end
+    localRoot.CFrame = targetRoot.CFrame * CFrame.new(3, 0, 0)
+end
+
+local function refreshTeleportPlayers()
+    local options = {}
+    local lookup = {}
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local option = player.DisplayName .. "\n(@" .. player.Name .. ")"
+            options[#options + 1] = option
+            lookup[option] = player
+        end
+    end
+    table.sort(options, function(a, b)
+        return a:lower() < b:lower()
+    end)
+    teleportPlayerOptions = options
+    teleportOptionPlayers = lookup
+    if teleportDropdown then
+        teleportDropdown:SetOptions(options)
+        local selected = teleportDropdown:Get()
+        selectedTeleportPlayer = selected and teleportOptionPlayers[selected] or nil
+    end
+end
+
+Main:Button({
+    Text = "Teleport to Killer",
+    Callback = function()
+        local killerName = getKillerName()
+        if not killerName then
+            warn("Teleport failed: killer is not available")
+            return
+        end
+        local characters = workspace:FindFirstChild("Characters")
+        local killerModel = characters and characters:FindFirstChild(killerName)
+        if not killerModel then
+            local killerPlayer = Players:FindFirstChild(killerName)
+            killerModel = killerPlayer and getPlayerCharacter(killerPlayer)
+        end
+        if not killerModel then
+            warn("Teleport failed: killer character not found")
+            return
+        end
+        teleportToModel(killerModel)
+    end,
+})
+
+Main:Button({
+    Text = "Random Survivor",
+    Callback = function()
+        local killerName = getKillerName()
+        local candidates = {}
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Name ~= killerName and isInGame(player) then
+                local character = getPlayerCharacter(player)
+                if character and getCharacterRoot(character) then
+                    candidates[#candidates + 1] = character
+                end
+            end
+        end
+        if #candidates == 0 then
+            warn("Random Survivor: no eligible survivors found")
+            return
+        end
+        teleportToModel(candidates[math.random(1, #candidates)])
+    end,
+})
+
+teleportDropdown = Main:Dropdown({
+    Text = "Select player",
+    Options = teleportPlayerOptions,
+    Default = nil,
+    Callback = function(option)
+        selectedTeleportPlayer = option and teleportOptionPlayers[option] or nil
+    end,
+})
+
+Main:Button({
+    Text = "Teleport To",
+    Callback = function()
+        local player = selectedTeleportPlayer
+        if not player or player.Parent ~= Players then
+            warn("Teleport To: select an available player first")
+            return
+        end
+        local character = getPlayerCharacter(player)
+        if not character then
+            warn("Teleport To: selected player's character not found")
+            return
+        end
+        teleportToModel(character)
+    end,
+})
+
+refreshTeleportPlayers()
+Window:Connect(Players.PlayerAdded, refreshTeleportPlayers)
+Window:Connect(Players.PlayerRemoving, function(player)
+    if player == selectedTeleportPlayer then
+        selectedTeleportPlayer = nil
+    end
+    task.defer(refreshTeleportPlayers)
+end)
+
 local function createESPGroup(category, title, role)
     local childrenHolder = nil
     local parentToggle = nil
