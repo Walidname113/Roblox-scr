@@ -42,7 +42,7 @@ end
 
 local Window = uiModule.new({
     Name = "ModernUI",
-    Title = "{gamename} | By Kiyatsuka v1.0.4",
+    Title = "{gamename} | By Kiyatsuka v1.0.2",
 })
 
 if MinimizedIcon ~= "" then
@@ -630,23 +630,12 @@ local function updateNoclip()
         return
     end
 
-    local root = getCharacterRoot(character)
-    local grounded = false
-    if root then
-        local params = RaycastParams.new()
-        params.FilterType = Enum.RaycastFilterType.Exclude
-        params.FilterDescendantsInstances = { character }
-        local result = workspace:Raycast(root.Position, Vector3.new(0, -4.5, 0), params)
-        grounded = result ~= nil
-    end
-
     for _, part in ipairs(character:GetDescendants()) do
         if part:IsA("BasePart") then
             if noclipOriginal[part] == nil then
                 noclipOriginal[part] = part.CanCollide
             end
-            local lowerPart = part.Name:find("Leg") or part.Name:find("Foot") or part.Name == "LeftLowerLeg" or part.Name == "RightLowerLeg"
-            part.CanCollide = grounded and lowerPart ~= nil or false
+            part.CanCollide = false
         end
     end
 end
