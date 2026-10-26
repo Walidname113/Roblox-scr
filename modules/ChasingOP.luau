@@ -3,6 +3,7 @@ local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
 if not game:IsLoaded() then
     game.Loaded:Wait()
@@ -20,7 +21,11 @@ if game.GameId ~= RequiredGameId then
     return
 end
 
-LocalPlayer:WaitForChild("PlayerGui")
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local legacyPlayerPicker = PlayerGui:FindFirstChild("ChasingOPPlayerPicker")
+if legacyPlayerPicker then
+    legacyPlayerPicker:Destroy()
+end
 
 local uiModule
 local loaded = false
@@ -693,16 +698,6 @@ end
 
 createProfileCard()
 
-local selectedTeleportPlayer = nil
-local teleportOptionPlayers = {}
-local playerPickerGui
-local playerPickerPanel
-local playerPickerList
-local playerPickerSearch
-local playerPickerSelectionLabel
-local playerPickerOpen = false
-local playerRowConnections = {}
-
 local function getPlayerCharacter(player)
     local characters = workspace:FindFirstChild("Characters")
     local model = characters and characters:FindFirstChild(player.Name)
@@ -800,287 +795,125 @@ local function teleportToRandomMapObject(folderName, label)
     end
 end
 
-local function clearPlayerRows()
-    for _, connection in ipairs(playerRowConnections) do
-        connection:Disconnect()
-    end
-    table.clear(playerRowConnections)
-    if playerPickerList then
-        for _, child in ipairs(playerPickerList:GetChildren()) do
-            if child:IsA("TextButton") then
-                child:Destroy()
-            end
-        end
-    end
+local MainTheme = {
+    Card = Color3.fromRGB(17, 18, 25),
+    CardHover = Color3.fromRGB(24, 23, 35),
+    Border = Color3.fromRGB(47, 45, 61),
+    Accent = Color3.fromRGB(168, 85, 247),
+    AccentSoft = Color3.fromRGB(111, 65, 171),
+    Text = Color3.fromRGB(246, 243, 252),
+}
+
+local function createMainSection(text)
+    return Main:Label({
+        Text = string.upper(text),
+        Bold = true,
+        TextSize = 11,
+        Color = MainTheme.Accent,
+        Height = 20,
+    })
 end
 
-local function playerMatchesSearch(player, query)
-    if query == "" then
-        return true
+local function createMainButton(config)
+    local widget = Main:Button({
+        Text = config.Text,
+        Description = config.Description,
+        Callback = config.Callback,
+        DescStyle = {
+            Color = Color3.fromRGB(151, 148, 166),
+            TextSize = 11,
+        },
+    })
+
+    local card = widget.Frame
+    local top = card:FindFirstChildWhichIsA("Frame")
+    card.BackgroundColor3 = MainTheme.Card
+    card.BorderSizePixel = 0
+
+    local corner = card:FindFirstChildOfClass("UICorner") or Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = card
+
+    local stroke = card:FindFirstChildOfClass("UIStroke") or Instance.new("UIStroke")
+    stroke.Color = MainTheme.Border
+    stroke.Thickness = 1
+    stroke.Transparency = 0.1
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    stroke.Parent = card
+
+    local gradient = card:FindFirstChildOfClass("UIGradient") or Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(224, 218, 235)),
+    })
+    gradient.Rotation = 25
+    gradient.Parent = card
+
+    if top then
+        local accent = Instance.new("Frame")
+        accent.Name = "MainActionAccent"
+        accent.AnchorPoint = Vector2.new(0, 0.5)
+        accent.Position = UDim2.new(0, 0, 0.5, 0)
+        accent.Size = UDim2.fromOffset(3, 20)
+        accent.BackgroundColor3 = MainTheme.Accent
+        accent.BorderSizePixel = 0
+        accent.ZIndex = 3
+        accent.Parent = top
+        local accentCorner = Instance.new("UICorner")
+        accentCorner.CornerRadius = UDim.new(1, 0)
+        accentCorner.Parent = accent
+
+        local chevron = Instance.new("TextLabel")
+        chevron.Name = "MainActionChevron"
+        chevron.AnchorPoint = Vector2.new(1, 0.5)
+        chevron.Position = UDim2.new(1, -12, 0.5, 0)
+        chevron.Size = UDim2.fromOffset(16, 22)
+        chevron.BackgroundTransparency = 1
+        chevron.Font = Enum.Font.GothamBold
+        chevron.Text = "›"
+        chevron.TextSize = 22
+        chevron.TextColor3 = MainTheme.AccentSoft
+        chevron.ZIndex = 3
+        chevron.Parent = top
+
+        local hitbox = top:FindFirstChildWhichIsA("GuiButton", true)
+        local hoverTarget = hitbox or top
+        Window:Connect(hoverTarget.MouseEnter, function()
+            TweenService:Create(card, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                BackgroundColor3 = MainTheme.CardHover,
+            }):Play()
+            TweenService:Create(stroke, TweenInfo.new(0.16), {
+                Color = MainTheme.Accent,
+                Transparency = 0,
+            }):Play()
+            TweenService:Create(accent, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+                Size = UDim2.fromOffset(4, 28),
+            }):Play()
+            chevron.TextColor3 = MainTheme.Text
+        end)
+        Window:Connect(hoverTarget.MouseLeave, function()
+            TweenService:Create(card, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                BackgroundColor3 = MainTheme.Card,
+            }):Play()
+            TweenService:Create(stroke, TweenInfo.new(0.16), {
+                Color = MainTheme.Border,
+                Transparency = 0.1,
+            }):Play()
+            TweenService:Create(accent, TweenInfo.new(0.16), {
+                Size = UDim2.fromOffset(3, 20),
+            }):Play()
+            chevron.TextColor3 = MainTheme.AccentSoft
+        end)
     end
-    query = query:lower()
-    return player.DisplayName:lower():find(query, 1, true) ~= nil
-        or player.Name:lower():find(query, 1, true) ~= nil
+
+    return widget
 end
 
-local function chooseTeleportPlayer(player)
-    if not player or player.Parent ~= Players then
-        return
-    end
-    selectedTeleportPlayer = player
-    if playerPickerSelectionLabel then
-        playerPickerSelectionLabel.Text = "Selected: " .. player.DisplayName .. "  (@" .. player.Name .. ")"
-    end
-    if playerPickerOpen and playerPickerPanel then
-        playerPickerPanel.Visible = false
-        local backdrop = playerPickerGui and playerPickerGui:FindFirstChild("Backdrop")
-        if backdrop then
-            backdrop.Visible = false
-        end
-        playerPickerOpen = false
-    end
-end
+createMainSection("Players")
 
-local function refreshTeleportPlayers()
-    if not playerPickerList then
-        return
-    end
-    clearPlayerRows()
-    local players = {}
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and playerMatchesSearch(player, playerPickerSearch and playerPickerSearch.Text or "") then
-            players[#players + 1] = player
-        end
-    end
-    table.sort(players, function(a, b)
-        local ad = a.DisplayName:lower()
-        local bd = b.DisplayName:lower()
-        if ad == bd then
-            return a.Name:lower() < b.Name:lower()
-        end
-        return ad < bd
-    end)
-    teleportOptionPlayers = {}
-    for _, player in ipairs(players) do
-        teleportOptionPlayers[player.Name] = player
-        local row = Instance.new("TextButton")
-        row.Name = "Player_" .. player.Name
-        row.Size = UDim2.new(1, -8, 0, 52)
-        row.BackgroundColor3 = Color3.fromRGB(36, 38, 48)
-        row.BorderSizePixel = 0
-        row.AutoButtonColor = false
-        row.Text = ""
-        row.Parent = playerPickerList
-        Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
-
-        local display = Instance.new("TextLabel")
-        display.BackgroundTransparency = 1
-        display.Position = UDim2.fromOffset(12, 6)
-        display.Size = UDim2.new(1, -24, 0, 20)
-        display.Font = Enum.Font.GothamSemibold
-        display.TextSize = 13
-        display.TextColor3 = Color3.fromRGB(245, 245, 250)
-        display.TextXAlignment = Enum.TextXAlignment.Left
-        display.TextTruncate = Enum.TextTruncate.AtEnd
-        display.Text = player.DisplayName
-        display.Parent = row
-
-        local username = Instance.new("TextLabel")
-        username.BackgroundTransparency = 1
-        username.Position = UDim2.fromOffset(12, 27)
-        username.Size = UDim2.new(1, -24, 0, 16)
-        username.Font = Enum.Font.Gotham
-        username.TextSize = 11
-        username.TextColor3 = Color3.fromRGB(155, 162, 178)
-        username.TextXAlignment = Enum.TextXAlignment.Left
-        username.TextTruncate = Enum.TextTruncate.AtEnd
-        username.Text = "@" .. player.Name
-        username.Parent = row
-
-        if player == selectedTeleportPlayer then
-            row.BackgroundColor3 = Color3.fromRGB(42, 72, 112)
-        end
-
-        local press = nil
-        local startPosition = nil
-        local maxMovement = 0
-        local beganTouch = false
-        table.insert(playerRowConnections, row.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-                press = input
-                startPosition = input.Position
-                maxMovement = 0
-                beganTouch = input.UserInputType == Enum.UserInputType.Touch
-            end
-        end))
-        table.insert(playerRowConnections, UserInputService.InputChanged:Connect(function(input)
-            if press and beganTouch and input == press then
-                maxMovement = math.max(maxMovement, (input.Position - startPosition).Magnitude)
-            elseif press and beganTouch and input.UserInputType == Enum.UserInputType.Touch then
-                maxMovement = math.max(maxMovement, (input.Position - startPosition).Magnitude)
-            end
-        end))
-        table.insert(playerRowConnections, UserInputService.InputEnded:Connect(function(input)
-            if not press then
-                return
-            end
-            local matchingEnd = input == press or (beganTouch and input.UserInputType == Enum.UserInputType.Touch)
-            if not matchingEnd then
-                return
-            end
-            local endPosition = input.Position
-            local moved = math.max(maxMovement, (endPosition - startPosition).Magnitude)
-            local rowPosition = row.AbsolutePosition
-            local rowSize = row.AbsoluteSize
-            local inside = endPosition.X >= rowPosition.X and endPosition.X <= rowPosition.X + rowSize.X
-                and endPosition.Y >= rowPosition.Y and endPosition.Y <= rowPosition.Y + rowSize.Y
-            local shouldSelect = moved <= 10 and inside
-            press = nil
-            startPosition = nil
-            beganTouch = false
-            if shouldSelect then
-                chooseTeleportPlayer(player)
-            end
-        end))
-    end
-    playerPickerList.CanvasSize = UDim2.new(0, 0, 0, #players * 58)
-    if playerPickerSelectionLabel then
-        if selectedTeleportPlayer and selectedTeleportPlayer.Parent == Players then
-            playerPickerSelectionLabel.Text = "Selected: " .. selectedTeleportPlayer.DisplayName .. "  (@" .. selectedTeleportPlayer.Name .. ")"
-        else
-            selectedTeleportPlayer = nil
-            playerPickerSelectionLabel.Text = "Selected: none"
-        end
-    end
-end
-
-local function createPlayerPicker()
-    local playerGui = LocalPlayer:WaitForChild("PlayerGui")
-    local old = playerGui:FindFirstChild("ChasingOPPlayerPicker")
-    if old then
-        old:Destroy()
-    end
-    playerPickerGui = Instance.new("ScreenGui")
-    playerPickerGui.Name = "ChasingOPPlayerPicker"
-    playerPickerGui.ResetOnSpawn = false
-    playerPickerGui.IgnoreGuiInset = true
-    playerPickerGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    playerPickerGui.Parent = playerGui
-
-    local backdrop = Instance.new("TextButton")
-    backdrop.Name = "Backdrop"
-    backdrop.Size = UDim2.fromScale(1, 1)
-    backdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    backdrop.BackgroundTransparency = 0.45
-    backdrop.BorderSizePixel = 0
-    backdrop.Text = ""
-    backdrop.Visible = false
-    backdrop.Parent = playerPickerGui
-    backdrop.Activated:Connect(function()
-        playerPickerPanel.Visible = false
-        playerPickerOpen = false
-    end)
-
-    playerPickerPanel = Instance.new("Frame")
-    playerPickerPanel.Name = "PlayerPickerPanel"
-    playerPickerPanel.AnchorPoint = Vector2.new(0.5, 0.5)
-    playerPickerPanel.Position = UDim2.fromScale(0.5, 0.5)
-    playerPickerPanel.Size = UDim2.new(0.88, 0, 0, 390)
-    playerPickerPanel.BackgroundColor3 = Color3.fromRGB(23, 25, 33)
-    playerPickerPanel.BorderSizePixel = 0
-    playerPickerPanel.Visible = false
-    playerPickerPanel.Parent = playerPickerGui
-    playerPickerPanel.ZIndex = 10
-    Instance.new("UICorner", playerPickerPanel).CornerRadius = UDim.new(0, 14)
-    local sizeConstraint = Instance.new("UISizeConstraint")
-    sizeConstraint.MaxSize = Vector2.new(380, 430)
-    sizeConstraint.MinSize = Vector2.new(270, 340)
-    sizeConstraint.Parent = playerPickerPanel
-
-    local title = Instance.new("TextLabel")
-    title.BackgroundTransparency = 1
-    title.Position = UDim2.fromOffset(16, 12)
-    title.Size = UDim2.new(1, -58, 0, 24)
-    title.Font = Enum.Font.GothamBold
-    title.TextSize = 16
-    title.TextColor3 = Color3.fromRGB(245, 245, 250)
-    title.TextXAlignment = Enum.TextXAlignment.Left
-    title.Text = "Select player"
-    title.Parent = playerPickerPanel
-    title.ZIndex = 11
-
-    local close = Instance.new("TextButton")
-    close.AnchorPoint = Vector2.new(1, 0)
-    close.Position = UDim2.new(1, -10, 0, 9)
-    close.Size = UDim2.fromOffset(32, 30)
-    close.BackgroundColor3 = Color3.fromRGB(45, 47, 58)
-    close.BorderSizePixel = 0
-    close.Font = Enum.Font.GothamBold
-    close.TextSize = 17
-    close.TextColor3 = Color3.fromRGB(220, 222, 230)
-    close.Text = "×"
-    close.Parent = playerPickerPanel
-    close.ZIndex = 11
-    Instance.new("UICorner", close).CornerRadius = UDim.new(0, 8)
-    close.Activated:Connect(function()
-        playerPickerPanel.Visible = false
-        backdrop.Visible = false
-        playerPickerOpen = false
-    end)
-
-    playerPickerSearch = Instance.new("TextBox")
-    playerPickerSearch.Position = UDim2.fromOffset(12, 48)
-    playerPickerSearch.Size = UDim2.new(1, -24, 0, 36)
-    playerPickerSearch.BackgroundColor3 = Color3.fromRGB(35, 37, 47)
-    playerPickerSearch.BorderSizePixel = 0
-    playerPickerSearch.ClearTextOnFocus = false
-    playerPickerSearch.Font = Enum.Font.Gotham
-    playerPickerSearch.TextSize = 13
-    playerPickerSearch.TextColor3 = Color3.fromRGB(240, 240, 245)
-    playerPickerSearch.PlaceholderColor3 = Color3.fromRGB(145, 150, 165)
-    playerPickerSearch.PlaceholderText = "Search display name or username..."
-    playerPickerSearch.Text = ""
-    playerPickerSearch.Parent = playerPickerPanel
-    playerPickerSearch.ZIndex = 11
-    Instance.new("UICorner", playerPickerSearch).CornerRadius = UDim.new(0, 8)
-
-    playerPickerList = Instance.new("ScrollingFrame")
-    playerPickerList.Position = UDim2.fromOffset(8, 92)
-    playerPickerList.Size = UDim2.new(1, -16, 1, -154)
-    playerPickerList.BackgroundTransparency = 1
-    playerPickerList.BorderSizePixel = 0
-    playerPickerList.ScrollBarThickness = 4
-    playerPickerList.ScrollBarImageColor3 = Color3.fromRGB(95, 125, 180)
-    playerPickerList.CanvasSize = UDim2.new()
-    playerPickerList.AutomaticCanvasSize = Enum.AutomaticSize.None
-    playerPickerList.ScrollingDirection = Enum.ScrollingDirection.Y
-    playerPickerList.Parent = playerPickerPanel
-    playerPickerList.ZIndex = 11
-    local listLayout = Instance.new("UIListLayout")
-    listLayout.Padding = UDim.new(0, 6)
-    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    listLayout.Parent = playerPickerList
-
-    playerPickerSelectionLabel = Instance.new("TextLabel")
-    playerPickerSelectionLabel.BackgroundTransparency = 1
-    playerPickerSelectionLabel.Position = UDim2.new(0, 14, 1, -51)
-    playerPickerSelectionLabel.Size = UDim2.new(1, -28, 0, 38)
-    playerPickerSelectionLabel.Font = Enum.Font.Gotham
-    playerPickerSelectionLabel.TextSize = 11
-    playerPickerSelectionLabel.TextColor3 = Color3.fromRGB(175, 182, 198)
-    playerPickerSelectionLabel.TextXAlignment = Enum.TextXAlignment.Left
-    playerPickerSelectionLabel.TextYAlignment = Enum.TextYAlignment.Center
-    playerPickerSelectionLabel.TextTruncate = Enum.TextTruncate.AtEnd
-    playerPickerSelectionLabel.Text = "Selected: none"
-    playerPickerSelectionLabel.Parent = playerPickerPanel
-    playerPickerSelectionLabel.ZIndex = 11
-
-    playerPickerSearch:GetPropertyChangedSignal("Text"):Connect(refreshTeleportPlayers)
-    backdrop.ZIndex = 9
-end
-
-Main:Button({
+createMainButton({
     Text = "Teleport to Killer",
+    Description = "Move directly to the current killer.",
     Callback = function()
         local killerName = getKillerName()
         if not killerName then
@@ -1101,8 +934,9 @@ Main:Button({
     end,
 })
 
-Main:Button({
+createMainButton({
     Text = "Random Survivor",
+    Description = "Pick an eligible survivor and teleport to them.",
     Callback = function()
         local killerName = getKillerName()
         local candidates = {}
@@ -1122,26 +956,60 @@ Main:Button({
     end,
 })
 
-Main:Button({
-    Text = "Select Player (Display Name / @Username)",
-    Callback = function()
-        if not playerPickerGui then
-            createPlayerPicker()
-        end
-        playerPickerOpen = not playerPickerOpen
-        playerPickerPanel.Visible = playerPickerOpen
-        local backdrop = playerPickerGui:FindFirstChild("Backdrop")
-        if backdrop then
-            backdrop.Visible = playerPickerOpen
-        end
-        if playerPickerOpen then
-            refreshTeleportPlayers()
-        end
-    end,
+local playerList = Main:PlayerList({
+    Text = "Target player",
+    Description = "Open the list, choose a player, then press Teleport.",
+    DescStyle = {
+        Color = Color3.fromRGB(151, 148, 166),
+        TextSize = 11,
+    },
+    Action = {
+        Type = "Button",
+        Text = "Teleport",
+        Width = 88,
+        Callback = function(player)
+            if not player or player.Parent ~= Players then
+                warn("Teleport To: select an available player first")
+                return
+            end
+            local character = getPlayerCharacter(player)
+            if not character then
+                warn("Teleport To: selected player's character not found")
+                return
+            end
+            teleportToModel(character)
+        end,
+    },
 })
 
-Main:Button({
-    Text = "Teleport to Current Map",
+playerList.Frame.BackgroundColor3 = MainTheme.Card
+local playerListStroke = playerList.Frame:FindFirstChildOfClass("UIStroke")
+if playerListStroke then
+    playerListStroke.Color = MainTheme.Border
+end
+for _, item in ipairs(playerList.Frame:GetDescendants()) do
+    if item:IsA("TextButton") then
+        local itemStroke = item:FindFirstChildOfClass("UIStroke")
+        if item.Text == "Teleport" then
+            item.BackgroundColor3 = MainTheme.Accent
+            item.TextColor3 = MainTheme.Text
+            if itemStroke then
+                itemStroke.Color = MainTheme.AccentSoft
+            end
+        else
+            item.BackgroundColor3 = MainTheme.CardHover
+            if itemStroke then
+                itemStroke.Color = MainTheme.Border
+            end
+        end
+    end
+end
+
+createMainSection("Map")
+
+createMainButton({
+    Text = "Current Map",
+    Description = "Teleport to the active map's pivot point.",
     Callback = function()
         local currentMap = getCurrentMap()
         if not currentMap then
@@ -1152,46 +1020,21 @@ Main:Button({
     end,
 })
 
-Main:Button({
-    Text = "Teleport to Random Phone",
+createMainButton({
+    Text = "Random Phone",
+    Description = "Teleport to a random phone on the active map.",
     Callback = function()
         teleportToRandomMapObject("_Phones", "Teleport to Random Phone")
     end,
 })
 
-Main:Button({
-    Text = "Teleport to Random Power",
+createMainButton({
+    Text = "Random Power",
+    Description = "Teleport to a random power object on the active map.",
     Callback = function()
         teleportToRandomMapObject("_Powers", "Teleport to Random Power")
     end,
 })
-
-Main:Button({
-    Text = "Teleport To",
-    Callback = function()
-        local player = selectedTeleportPlayer
-        if not player or player.Parent ~= Players then
-            warn("Teleport To: select an available player first")
-            return
-        end
-        local character = getPlayerCharacter(player)
-        if not character then
-            warn("Teleport To: selected player's character not found")
-            return
-        end
-        teleportToModel(character)
-    end,
-})
-
-createPlayerPicker()
-refreshTeleportPlayers()
-Window:Connect(Players.PlayerAdded, refreshTeleportPlayers)
-Window:Connect(Players.PlayerRemoving, function(player)
-    if player == selectedTeleportPlayer then
-        selectedTeleportPlayer = nil
-    end
-    task.defer(refreshTeleportPlayers)
-end)
 
 local function createESPGroup(category, title, role)
     local childrenHolder = nil
