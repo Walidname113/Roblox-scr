@@ -42,7 +42,7 @@ end
 
 local Window = uiModule.new({
     Name = "ModernUI",
-    Title = "{gamename} | By Kiyatsuka v1.0.6",
+    Title = "{gamename} | By Kiyatsuka v1.0.7",
 })
 
 if MinimizedIcon ~= "" then
@@ -694,9 +694,14 @@ end
 createProfileCard()
 
 local selectedTeleportPlayer = nil
-local teleportPlayerOptions = {}
 local teleportOptionPlayers = {}
-local teleportDropdown
+local playerPickerGui
+local playerPickerPanel
+local playerPickerList
+local playerPickerSearch
+local playerPickerSelectionLabel
+local playerPickerOpen = false
+local playerRowConnections = {}
 
 local function getPlayerCharacter(player)
     local characters = workspace:FindFirstChild("Characters")
@@ -725,26 +730,353 @@ local function teleportToModel(model)
     localRoot.CFrame = targetRoot.CFrame * CFrame.new(3, 0, 0)
 end
 
-local function refreshTeleportPlayers()
-    local options = {}
-    local lookup = {}
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            local option = player.DisplayName .. "\n(@" .. player.Name .. ")"
-            options[#options + 1] = option
-            lookup[option] = player
+local function teleportToCFrame(targetCFrame, label)
+    local localRoot = getCharacterRoot(LocalPlayer.Character)
+    if not localRoot then
+        warn((label or "Teleport") .. ": local character root not found")
+        return
+    end
+    localRoot.CFrame = targetCFrame * CFrame.new(0, 3, 0)
+end
+
+local function getCurrentMap()
+    local mapFolder = workspace:FindFirstChild("Map")
+    if not mapFolder then
+        return nil
+    end
+    for _, child in ipairs(mapFolder:GetChildren()) do
+        if child.Name ~= "Lobby" and child:IsA("Model") then
+            return child
         end
     end
-    table.sort(options, function(a, b)
-        return a:lower() < b:lower()
-    end)
-    teleportPlayerOptions = options
-    teleportOptionPlayers = lookup
-    if teleportDropdown then
-        teleportDropdown:SetOptions(options)
-        local selected = teleportDropdown:Get()
-        selectedTeleportPlayer = selected and teleportOptionPlayers[selected] or nil
+    return nil
+end
+
+local function getInstanceCFrame(instance)
+    if instance:IsA("BasePart") then
+        return instance.CFrame
     end
+    if instance:IsA("Model") then
+        return instance:GetPivot()
+    end
+    local part = instance:FindFirstChildWhichIsA("BasePart", true)
+    return part and part.CFrame or nil
+end
+
+local function teleportToRandomMapObject(folderName, label)
+    local currentMap = getCurrentMap()
+    if not currentMap then
+        warn(label .. ": current map was not found")
+        return
+    end
+    local folder = currentMap:FindFirstChild(folderName)
+    if not folder then
+        warn(label .. ": " .. folderName .. " was not found on " .. currentMap.Name)
+        return
+    end
+    local candidates = {}
+    for _, object in ipairs(folder:GetChildren()) do
+        if getInstanceCFrame(object) then
+            candidates[#candidates + 1] = object
+        end
+    end
+    if #candidates == 0 then
+        for _, object in ipairs(folder:GetDescendants()) do
+            if object:IsA("BasePart") then
+                candidates[#candidates + 1] = object
+            end
+        end
+    end
+    if #candidates == 0 then
+        warn(label .. ": no teleportable objects found")
+        return
+    end
+    local target = candidates[math.random(1, #candidates)]
+    local targetCFrame = getInstanceCFrame(target)
+    if targetCFrame then
+        teleportToCFrame(targetCFrame, label)
+    else
+        warn(label .. ": selected object has no position")
+    end
+end
+
+local function clearPlayerRows()
+    for _, connection in ipairs(playerRowConnections) do
+        connection:Disconnect()
+    end
+    table.clear(playerRowConnections)
+    if playerPickerList then
+        for _, child in ipairs(playerPickerList:GetChildren()) do
+            if child:IsA("TextButton") then
+                child:Destroy()
+            end
+        end
+    end
+end
+
+local function playerMatchesSearch(player, query)
+    if query == "" then
+        return true
+    end
+    query = query:lower()
+    return player.DisplayName:lower():find(query, 1, true) ~= nil
+        or player.Name:lower():find(query, 1, true) ~= nil
+end
+
+local function chooseTeleportPlayer(player)
+    if not player or player.Parent ~= Players then
+        return
+    end
+    selectedTeleportPlayer = player
+    if playerPickerSelectionLabel then
+        playerPickerSelectionLabel.Text = "Selected: " .. player.DisplayName .. "  (@" .. player.Name .. ")"
+    end
+    if playerPickerOpen and playerPickerPanel then
+        playerPickerPanel.Visible = false
+        local backdrop = playerPickerGui and playerPickerGui:FindFirstChild("Backdrop")
+        if backdrop then
+            backdrop.Visible = false
+        end
+        playerPickerOpen = false
+    end
+end
+
+local function refreshTeleportPlayers()
+    if not playerPickerList then
+        return
+    end
+    clearPlayerRows()
+    local players = {}
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and playerMatchesSearch(player, playerPickerSearch and playerPickerSearch.Text or "") then
+            players[#players + 1] = player
+        end
+    end
+    table.sort(players, function(a, b)
+        local ad = a.DisplayName:lower()
+        local bd = b.DisplayName:lower()
+        if ad == bd then
+            return a.Name:lower() < b.Name:lower()
+        end
+        return ad < bd
+    end)
+    teleportOptionPlayers = {}
+    for _, player in ipairs(players) do
+        teleportOptionPlayers[player.Name] = player
+        local row = Instance.new("TextButton")
+        row.Name = "Player_" .. player.Name
+        row.Size = UDim2.new(1, -8, 0, 52)
+        row.BackgroundColor3 = Color3.fromRGB(36, 38, 48)
+        row.BorderSizePixel = 0
+        row.AutoButtonColor = false
+        row.Text = ""
+        row.Parent = playerPickerList
+        Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
+
+        local display = Instance.new("TextLabel")
+        display.BackgroundTransparency = 1
+        display.Position = UDim2.fromOffset(12, 6)
+        display.Size = UDim2.new(1, -24, 0, 20)
+        display.Font = Enum.Font.GothamSemibold
+        display.TextSize = 13
+        display.TextColor3 = Color3.fromRGB(245, 245, 250)
+        display.TextXAlignment = Enum.TextXAlignment.Left
+        display.TextTruncate = Enum.TextTruncate.AtEnd
+        display.Text = player.DisplayName
+        display.Parent = row
+
+        local username = Instance.new("TextLabel")
+        username.BackgroundTransparency = 1
+        username.Position = UDim2.fromOffset(12, 27)
+        username.Size = UDim2.new(1, -24, 0, 16)
+        username.Font = Enum.Font.Gotham
+        username.TextSize = 11
+        username.TextColor3 = Color3.fromRGB(155, 162, 178)
+        username.TextXAlignment = Enum.TextXAlignment.Left
+        username.TextTruncate = Enum.TextTruncate.AtEnd
+        username.Text = "@" .. player.Name
+        username.Parent = row
+
+        if player == selectedTeleportPlayer then
+            row.BackgroundColor3 = Color3.fromRGB(42, 72, 112)
+        end
+
+        local press = nil
+        local startPosition = nil
+        local maxMovement = 0
+        local beganTouch = false
+        table.insert(playerRowConnections, row.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+                press = input
+                startPosition = input.Position
+                maxMovement = 0
+                beganTouch = input.UserInputType == Enum.UserInputType.Touch
+            end
+        end))
+        table.insert(playerRowConnections, UserInputService.InputChanged:Connect(function(input)
+            if press and beganTouch and input == press then
+                maxMovement = math.max(maxMovement, (input.Position - startPosition).Magnitude)
+            elseif press and beganTouch and input.UserInputType == Enum.UserInputType.Touch then
+                maxMovement = math.max(maxMovement, (input.Position - startPosition).Magnitude)
+            end
+        end))
+        table.insert(playerRowConnections, UserInputService.InputEnded:Connect(function(input)
+            if not press then
+                return
+            end
+            local matchingEnd = input == press or (beganTouch and input.UserInputType == Enum.UserInputType.Touch)
+            if not matchingEnd then
+                return
+            end
+            local endPosition = input.Position
+            local moved = math.max(maxMovement, (endPosition - startPosition).Magnitude)
+            local rowPosition = row.AbsolutePosition
+            local rowSize = row.AbsoluteSize
+            local inside = endPosition.X >= rowPosition.X and endPosition.X <= rowPosition.X + rowSize.X
+                and endPosition.Y >= rowPosition.Y and endPosition.Y <= rowPosition.Y + rowSize.Y
+            local shouldSelect = moved <= 10 and inside
+            press = nil
+            startPosition = nil
+            beganTouch = false
+            if shouldSelect then
+                chooseTeleportPlayer(player)
+            end
+        end))
+    end
+    playerPickerList.CanvasSize = UDim2.new(0, 0, 0, #players * 58)
+    if playerPickerSelectionLabel then
+        if selectedTeleportPlayer and selectedTeleportPlayer.Parent == Players then
+            playerPickerSelectionLabel.Text = "Selected: " .. selectedTeleportPlayer.DisplayName .. "  (@" .. selectedTeleportPlayer.Name .. ")"
+        else
+            selectedTeleportPlayer = nil
+            playerPickerSelectionLabel.Text = "Selected: none"
+        end
+    end
+end
+
+local function createPlayerPicker()
+    local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+    local old = playerGui:FindFirstChild("ChasingOPPlayerPicker")
+    if old then
+        old:Destroy()
+    end
+    playerPickerGui = Instance.new("ScreenGui")
+    playerPickerGui.Name = "ChasingOPPlayerPicker"
+    playerPickerGui.ResetOnSpawn = false
+    playerPickerGui.IgnoreGuiInset = true
+    playerPickerGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    playerPickerGui.Parent = playerGui
+
+    local backdrop = Instance.new("TextButton")
+    backdrop.Name = "Backdrop"
+    backdrop.Size = UDim2.fromScale(1, 1)
+    backdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    backdrop.BackgroundTransparency = 0.45
+    backdrop.BorderSizePixel = 0
+    backdrop.Text = ""
+    backdrop.Visible = false
+    backdrop.Parent = playerPickerGui
+    backdrop.Activated:Connect(function()
+        playerPickerPanel.Visible = false
+        playerPickerOpen = false
+    end)
+
+    playerPickerPanel = Instance.new("Frame")
+    playerPickerPanel.Name = "PlayerPickerPanel"
+    playerPickerPanel.AnchorPoint = Vector2.new(0.5, 0.5)
+    playerPickerPanel.Position = UDim2.fromScale(0.5, 0.5)
+    playerPickerPanel.Size = UDim2.new(0.88, 0, 0, 390)
+    playerPickerPanel.BackgroundColor3 = Color3.fromRGB(23, 25, 33)
+    playerPickerPanel.BorderSizePixel = 0
+    playerPickerPanel.Visible = false
+    playerPickerPanel.Parent = playerPickerGui
+    playerPickerPanel.ZIndex = 10
+    Instance.new("UICorner", playerPickerPanel).CornerRadius = UDim.new(0, 14)
+    local sizeConstraint = Instance.new("UISizeConstraint")
+    sizeConstraint.MaxSize = Vector2.new(380, 430)
+    sizeConstraint.MinSize = Vector2.new(270, 340)
+    sizeConstraint.Parent = playerPickerPanel
+
+    local title = Instance.new("TextLabel")
+    title.BackgroundTransparency = 1
+    title.Position = UDim2.fromOffset(16, 12)
+    title.Size = UDim2.new(1, -58, 0, 24)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 16
+    title.TextColor3 = Color3.fromRGB(245, 245, 250)
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Text = "Select player"
+    title.Parent = playerPickerPanel
+    title.ZIndex = 11
+
+    local close = Instance.new("TextButton")
+    close.AnchorPoint = Vector2.new(1, 0)
+    close.Position = UDim2.new(1, -10, 0, 9)
+    close.Size = UDim2.fromOffset(32, 30)
+    close.BackgroundColor3 = Color3.fromRGB(45, 47, 58)
+    close.BorderSizePixel = 0
+    close.Font = Enum.Font.GothamBold
+    close.TextSize = 17
+    close.TextColor3 = Color3.fromRGB(220, 222, 230)
+    close.Text = "×"
+    close.Parent = playerPickerPanel
+    close.ZIndex = 11
+    Instance.new("UICorner", close).CornerRadius = UDim.new(0, 8)
+    close.Activated:Connect(function()
+        playerPickerPanel.Visible = false
+        backdrop.Visible = false
+        playerPickerOpen = false
+    end)
+
+    playerPickerSearch = Instance.new("TextBox")
+    playerPickerSearch.Position = UDim2.fromOffset(12, 48)
+    playerPickerSearch.Size = UDim2.new(1, -24, 0, 36)
+    playerPickerSearch.BackgroundColor3 = Color3.fromRGB(35, 37, 47)
+    playerPickerSearch.BorderSizePixel = 0
+    playerPickerSearch.ClearTextOnFocus = false
+    playerPickerSearch.Font = Enum.Font.Gotham
+    playerPickerSearch.TextSize = 13
+    playerPickerSearch.TextColor3 = Color3.fromRGB(240, 240, 245)
+    playerPickerSearch.PlaceholderColor3 = Color3.fromRGB(145, 150, 165)
+    playerPickerSearch.PlaceholderText = "Search display name or username..."
+    playerPickerSearch.Text = ""
+    playerPickerSearch.Parent = playerPickerPanel
+    playerPickerSearch.ZIndex = 11
+    Instance.new("UICorner", playerPickerSearch).CornerRadius = UDim.new(0, 8)
+
+    playerPickerList = Instance.new("ScrollingFrame")
+    playerPickerList.Position = UDim2.fromOffset(8, 92)
+    playerPickerList.Size = UDim2.new(1, -16, 1, -154)
+    playerPickerList.BackgroundTransparency = 1
+    playerPickerList.BorderSizePixel = 0
+    playerPickerList.ScrollBarThickness = 4
+    playerPickerList.ScrollBarImageColor3 = Color3.fromRGB(95, 125, 180)
+    playerPickerList.CanvasSize = UDim2.new()
+    playerPickerList.AutomaticCanvasSize = Enum.AutomaticSize.None
+    playerPickerList.ScrollingDirection = Enum.ScrollingDirection.Y
+    playerPickerList.Parent = playerPickerPanel
+    playerPickerList.ZIndex = 11
+    local listLayout = Instance.new("UIListLayout")
+    listLayout.Padding = UDim.new(0, 6)
+    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    listLayout.Parent = playerPickerList
+
+    playerPickerSelectionLabel = Instance.new("TextLabel")
+    playerPickerSelectionLabel.BackgroundTransparency = 1
+    playerPickerSelectionLabel.Position = UDim2.new(0, 14, 1, -51)
+    playerPickerSelectionLabel.Size = UDim2.new(1, -28, 0, 38)
+    playerPickerSelectionLabel.Font = Enum.Font.Gotham
+    playerPickerSelectionLabel.TextSize = 11
+    playerPickerSelectionLabel.TextColor3 = Color3.fromRGB(175, 182, 198)
+    playerPickerSelectionLabel.TextXAlignment = Enum.TextXAlignment.Left
+    playerPickerSelectionLabel.TextYAlignment = Enum.TextYAlignment.Center
+    playerPickerSelectionLabel.TextTruncate = Enum.TextTruncate.AtEnd
+    playerPickerSelectionLabel.Text = "Selected: none"
+    playerPickerSelectionLabel.Parent = playerPickerPanel
+    playerPickerSelectionLabel.ZIndex = 11
+
+    playerPickerSearch:GetPropertyChangedSignal("Text"):Connect(refreshTeleportPlayers)
+    backdrop.ZIndex = 9
 end
 
 Main:Button({
@@ -790,12 +1122,47 @@ Main:Button({
     end,
 })
 
-teleportDropdown = Main:Dropdown({
-    Text = "Select player",
-    Options = teleportPlayerOptions,
-    Default = nil,
-    Callback = function(option)
-        selectedTeleportPlayer = option and teleportOptionPlayers[option] or nil
+Main:Button({
+    Text = "Select Player (Display Name / @Username)",
+    Callback = function()
+        if not playerPickerGui then
+            createPlayerPicker()
+        end
+        playerPickerOpen = not playerPickerOpen
+        playerPickerPanel.Visible = playerPickerOpen
+        local backdrop = playerPickerGui:FindFirstChild("Backdrop")
+        if backdrop then
+            backdrop.Visible = playerPickerOpen
+        end
+        if playerPickerOpen then
+            refreshTeleportPlayers()
+        end
+    end,
+})
+
+Main:Button({
+    Text = "Teleport to Current Map",
+    Callback = function()
+        local currentMap = getCurrentMap()
+        if not currentMap then
+            warn("Teleport to Current Map: current map was not found")
+            return
+        end
+        teleportToCFrame(currentMap:GetPivot(), "Teleport to Current Map")
+    end,
+})
+
+Main:Button({
+    Text = "Teleport to Random Phone",
+    Callback = function()
+        teleportToRandomMapObject("_Phones", "Teleport to Random Phone")
+    end,
+})
+
+Main:Button({
+    Text = "Teleport to Random Power",
+    Callback = function()
+        teleportToRandomMapObject("_Powers", "Teleport to Random Power")
     end,
 })
 
@@ -816,6 +1183,7 @@ Main:Button({
     end,
 })
 
+createPlayerPicker()
 refreshTeleportPlayers()
 Window:Connect(Players.PlayerAdded, refreshTeleportPlayers)
 Window:Connect(Players.PlayerRemoving, function(player)
