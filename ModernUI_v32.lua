@@ -119,12 +119,14 @@ local function guarded(label, fn)
     end)
 end
 
-local function trackInput(inp, onMove)
+local function trackInput(inp, onMove, onEnd)
     local touch = inp.UserInputType == Enum.UserInputType.Touch
     local moveC, endC
     local function stop()
+        local had = moveC ~= nil or endC ~= nil
         if moveC then moveC:Disconnect(); moveC = nil end
         if endC then endC:Disconnect(); endC = nil end
+        if had and onEnd then onEnd() end
     end
     moveC = UserInputService.InputChanged:Connect(function(i)
         if touch then
@@ -148,42 +150,121 @@ local function trackInput(inp, onMove)
     return stop
 end
 
-local function onTap(gui, fn, maxTime)
-    local pressInp, startPos, startT
-    gui.InputBegan:Connect(function(inp)
-        if isPress(inp) then
-            pressInp, startPos, startT = inp, inp.Position, os.clock()
-        end
-    end)
-    gui.InputEnded:Connect(function(inp)
-        if not startPos or not isPress(inp) then return end
-        if inp.UserInputType == Enum.UserInputType.Touch and inp ~= pressInp then return end
-        local moved = (inp.Position - startPos).Magnitude
-        local held = os.clock() - startT
-        startPos = nil
-        if moved < 8 and (not maxTime or held <= maxTime) then fn() end
-    end)
-end
+local function onTap(gui, fn, maxTime, taps, onPartial)
+    taps = taps or 1
+    local pressInp, startPos, startT, stopWatch
+    local maxMoved = 0
+    local count, lastT = 0, 0
 
-local function makeDraggable(frame, handle)
-    local activeStop
-    handle.InputBegan:Connect(function(inp)
-        if not isPress(inp) then return end
-        if activeStop then activeStop() end
-        local start, origin = inp.Position, frame.Position
-        local moved = false
-        activeStop = trackInput(inp, function(pos)
-            local d = pos - start
-            if not moved then
-                if d.Magnitude < 4 then return end
-                moved = true
+    local function clearPress()
+        if stopWatch then stopWatch(); stopWatch = nil end
+        pressInp, startPos, startT = nil, nil, nil
+        maxMoved = 0
+    end
+
+    gui.InputBegan:Connect(function(inp)
+        if not isPress(inp) or startPos then return end
+        pressInp, startPos, startT = inp, inp.Position, os.clock()
+        maxMoved = 0
+        stopWatch = trackInput(inp, function(pos)
+            if startPos and inp == pressInp then
+                maxMoved = math.max(maxMoved, (pos - startPos).Magnitude)
             end
-            frame.Position = UDim2.new(origin.X.Scale, origin.X.Offset + d.X, origin.Y.Scale, origin.Y.Offset + d.Y)
         end)
     end)
+
+    gui.InputEnded:Connect(function(inp)
+        if not startPos or not isPress(inp) then return end
+        if inp.UserInputType ~= pressInp.UserInputType then return end
+        if inp.UserInputType == Enum.UserInputType.Touch and inp ~= pressInp then return end
+
+        local moved = math.max(maxMoved, (inp.Position - startPos).Magnitude)
+        local held = os.clock() - startT
+        clearPress()
+        if moved >= 8 or (maxTime and held > maxTime) then
+            count = 0
+            return
+        end
+        if taps <= 1 then
+            fn()
+            return
+        end
+        local now = os.clock()
+        if now - lastT <= 0.45 then count = count + 1 else count = 1 end
+        lastT = now
+        if count >= taps then
+            count = 0
+            fn()
+        elseif onPartial then
+            onPartial()
+        end
+    end)
+
+    -- Allows a drag recognizer to cancel the tap from the same gesture.
     return function()
-        if activeStop then activeStop(); activeStop = nil end
+        if startPos then clearPress() end
+        count = 0
     end
+end
+
+local function makeDraggable(frame, handle, opts)
+    opts = opts or {}
+    local hold = opts.Hold
+    local token = 0
+    local activeStop
+
+    local function finish()
+        token = token + 1
+        local stop = activeStop
+        activeStop = nil
+        if stop then stop() end
+    end
+
+    handle.InputBegan:Connect(function(inp)
+        if not isPress(inp) or activeStop then return end
+        token = token + 1
+        local mine = token
+        local start, origin = inp.Position, frame.Position
+        local t0 = os.clock()
+        local armed, dead, dragging = hold == nil, false, false
+
+        local function beginDrag()
+            if dragging then return end
+            dragging = true
+            if opts.OnDragStart then opts.OnDragStart() end
+        end
+
+        if hold and opts.OnArm then
+            task.delay(hold, function()
+                if token == mine and not dead then opts.OnArm(true) end
+            end)
+        end
+
+        activeStop = trackInput(inp, function(pos)
+            if dead then return end
+            if not armed then
+                if os.clock() - t0 >= hold then
+                    armed = true
+                    start, origin = pos, frame.Position
+                    beginDrag()
+                elseif (pos - start).Magnitude > 8 then
+                    -- The finger is performing another gesture (camera/joystick).
+                    dead = true
+                end
+                return
+            end
+            local d = pos - start
+            if d.Magnitude == 0 then return end
+            beginDrag()
+            frame.Position = UDim2.new(origin.X.Scale, origin.X.Offset + d.X, origin.Y.Scale, origin.Y.Offset + d.Y)
+        end, function()
+            dead = true
+            if token == mine then activeStop = nil end
+            if opts.OnArm then opts.OnArm(false) end
+            if dragging and opts.OnDragEnd then opts.OnDragEnd() end
+        end)
+    end)
+    return finish
 end
 
 function Window:Track(item)
@@ -383,33 +464,49 @@ function Window:SetMinimizedImage(assetId)
     self._imgToken = (self._imgToken or 0) + 1
     local mine = self._imgToken
 
-    local function load(img)
-        minF.Image = img
-        plus.Visible = true
-        local function done()
-            if self.Alive and self._imgToken == mine then plus.Visible = false end
+    local sources = {}
+    if assetId ~= nil and assetId ~= "" then
+        local s = tostring(assetId)
+        sources[1] = s:find("^rbx") and s or ("rbxassetid://" .. s)
+    else
+        if game.GameId ~= 0 then
+            sources[#sources + 1] = "rbxthumb://type=GameIcon&id=" .. game.GameId .. "&w=150&h=150"
         end
-        self._imgLoad = self:Spawn(function()
-            pcall(function()
-                ContentProvider:PreloadAsync({ minF }, function(_, status)
-                    if status == Enum.AssetFetchStatus.Success then done() end
-                end)
-            end)
-            for _ = 1, 300 do
-                if self._imgToken ~= mine or not plus.Visible then return end
-                if minF.IsLoaded then done(); return end
-                task.wait(0.1)
-            end
-        end)
+        if game.PlaceId ~= 0 then
+            sources[#sources + 1] = "rbxthumb://type=Asset&id=" .. game.PlaceId .. "&w=150&h=150"
+        end
     end
 
-    if assetId and assetId ~= "" then
-        local s = tostring(assetId)
-        load(s:find("^rbx") and s or ("rbxassetid://" .. s))
-    elseif game.PlaceId ~= 0 then
-        load("rbxthumb://type=Asset&id=" .. game.PlaceId .. "&w=150&h=150")
+    if #sources == 0 then
+        minF.Image = ""
+        plus.Visible = true
+        return
     end
+
+    self._imgLoad = self:Spawn(function()
+        local lastStatus
+        for _, src in ipairs(sources) do
+            if self._imgToken ~= mine then return end
+            minF.Image = src
+            plus.Visible = false
+            local status
+            pcall(function()
+                ContentProvider:PreloadAsync({ minF }, function(_, s) status = s end)
+            end)
+            if status ~= Enum.AssetFetchStatus.Failure and status ~= Enum.AssetFetchStatus.TimedOut then
+                return
+            end
+            lastStatus = status
+        end
+        if self._imgToken == mine then
+            minF.Image = ""
+            plus.Visible = true
+            warn("[ModernUI] minimized icon failed: " .. table.concat(sources, ", ") .. " (" .. tostring(lastStatus) .. ")")
+        end
+    end)
 end
+
+Window.SetMinimizedIcon = Window.SetMinimizedImage
 
 function Window:RequestClose()
     if not self.Alive then return end
@@ -1568,8 +1665,15 @@ function module.new(cfg)
     win._catFrame, win._content, win._popups = catFrame, content, popups
 
     win:Track(makeDraggable(main, bar))
-    win:Track(makeDraggable(minF, minF))
-    onTap(minF, function() win:Show() end, 0.35)
+
+    local cancelMinTap
+    win:Track(makeDraggable(minF, minF, {
+        Hold = 0.25,
+        OnDragStart = function()
+            if cancelMinTap then cancelMinTap() end
+        end,
+    }))
+    cancelMinTap = onTap(minF, function() win:Show() end, 0.35)
 
     if cfg.MinimizedImage ~= nil then win:SetMinimizedImage(cfg.MinimizedImage) end
 
