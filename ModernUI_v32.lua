@@ -200,7 +200,6 @@ local function onTap(gui, fn, maxTime, taps, onPartial)
         end
     end)
 
-    -- Allows a drag recognizer to cancel the tap from the same gesture.
     return function()
         if startPos then clearPress() end
         count = 0
@@ -248,7 +247,6 @@ local function makeDraggable(frame, handle, opts)
                     start, origin = pos, frame.Position
                     beginDrag()
                 elseif (pos - start).Magnitude > 8 then
-                    -- The finger is performing another gesture (camera/joystick).
                     dead = true
                 end
                 return
@@ -463,6 +461,12 @@ function Window:SetMinimizedImage(assetId)
     if self._imgLoad then self._imgLoad:Stop(); self._imgLoad = nil end
     self._imgToken = (self._imgToken or 0) + 1
     local mine = self._imgToken
+
+    if assetId == false then
+        minF.Image = ""
+        plus.Visible = true
+        return
+    end
 
     local sources = {}
     if assetId ~= nil and assetId ~= "" then
