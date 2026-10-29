@@ -47,7 +47,7 @@ end
 
 local Window = uiModule.new({
     Name = "ModernUI",
-    Title = "{gamename} | By Kiyatsuka v1.0.9",
+    Title = "{gamename} | By Kiyatsuka v1.1.0",
 })
 
 if MinimizedIcon ~= "" then
@@ -56,6 +56,7 @@ end
 
 local Main = Window:Category("Main")
 local ESP = Window:Category("ESP")
+local Halloween = Window:Category("Halloween Event")
 local Visuals = Window:Category("Visuals")
 local Movement = Window:Category("Movement")
 
@@ -1887,6 +1888,148 @@ setHolderVisible(smartToggle, smartChildrenHolder, false)
 createESPGroup(ESP, "Killer ESP", "Killer")
 createESPGroup(ESP, "Survivors ESP", "Survivors")
 
+local HalloweenState = { Enabled = false, Pumpkin = false, XP = false, Cash = false }
+local HalloweenHighlights = {}
+local HALLOWEEN_CONFIG = {
+    Pumpkin = {
+        Path = { "Pumpkin Coin", "Pumpkin Coin" },
+        Fill = Color3.fromRGB(255, 140, 0),
+        Outline = Color3.fromRGB(150, 70, 0),
+    },
+    XP = {
+        Path = { "XP", "Part" },
+        Fill = Color3.fromRGB(170, 70, 255),
+        Outline = Color3.fromRGB(70, 0, 130),
+    },
+    Cash = {
+        Path = { "Cash" },
+        Fill = Color3.fromRGB(60, 220, 90),
+        Outline = Color3.fromRGB(0, 100, 30),
+    },
+}
+
+local function getDropObjects()
+    local cantQuery = workspace:FindFirstChild("_CantQuery")
+    return cantQuery and cantQuery:FindFirstChild("DropObjects")
+end
+
+local function collectHalloweenTargets(root, path, depth, result)
+    local name = path[depth]
+    for _, child in ipairs(root:GetChildren()) do
+        if child.Name == name then
+            if depth == #path then
+                result[#result + 1] = child
+            else
+                collectHalloweenTargets(child, path, depth + 1, result)
+            end
+        end
+    end
+end
+
+local function isAdorneeable(instance)
+    return instance:IsA("BasePart") or instance:IsA("Model")
+end
+
+local function expandHalloweenTarget(target, result)
+    if isAdorneeable(target) then
+        result[#result + 1] = target
+        return
+    end
+    for _, child in ipairs(target:GetChildren()) do
+        if isAdorneeable(child) then
+            result[#result + 1] = child
+        end
+    end
+end
+
+local function applyHalloweenHighlight(adornee, config)
+    local highlight = HalloweenHighlights[adornee]
+    if not highlight or not highlight.Parent then
+        highlight = Instance.new("Highlight")
+        highlight.Name = "ModernUI_Halloween_Highlight"
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        highlight.FillTransparency = 0.82
+        highlight.OutlineTransparency = 0.1
+        highlight.Adornee = adornee
+        highlight.Parent = adornee
+        HalloweenHighlights[adornee] = highlight
+    end
+    highlight.FillColor = config.Fill
+    highlight.OutlineColor = config.Outline
+end
+
+local function clearHalloween()
+    for adornee, highlight in pairs(HalloweenHighlights) do
+        highlight:Destroy()
+        HalloweenHighlights[adornee] = nil
+    end
+end
+
+local function updateHalloween()
+    if not HalloweenState.Enabled then
+        clearHalloween()
+        return
+    end
+    local alive = {}
+    local dropObjects = getDropObjects()
+    if dropObjects then
+        for kind, config in pairs(HALLOWEEN_CONFIG) do
+            if HalloweenState[kind] then
+                local targets = {}
+                collectHalloweenTargets(dropObjects, config.Path, 1, targets)
+                local adornees = {}
+                for _, target in ipairs(targets) do
+                    expandHalloweenTarget(target, adornees)
+                end
+                for _, adornee in ipairs(adornees) do
+                    alive[adornee] = true
+                    applyHalloweenHighlight(adornee, config)
+                end
+            end
+        end
+    end
+    for adornee, highlight in pairs(HalloweenHighlights) do
+        if not alive[adornee] or not adornee.Parent then
+            highlight:Destroy()
+            HalloweenHighlights[adornee] = nil
+        end
+    end
+end
+
+local halloweenToggle = nil
+local halloweenChildrenHolder = nil
+
+local function halloweenSub(text, key)
+    return {
+        Type = "Toggle",
+        Text = text,
+        Default = false,
+        Callback = function(state)
+            HalloweenState[key] = state
+            updateHalloween()
+        end,
+    }
+end
+
+halloweenToggle = Halloween:Toggle({
+    Text = "ESP Halloween Objects",
+    Default = false,
+    Callback = function(state)
+        HalloweenState.Enabled = state
+        setHolderVisible(halloweenToggle, halloweenChildrenHolder, state)
+        updateHalloween()
+    end,
+    Sub = {
+        halloweenSub("Pumpkin's ESP", "Pumpkin"),
+        halloweenSub("XP ESP", "XP"),
+        halloweenSub("Cash ESP", "Cash"),
+    },
+})
+
+local halloweenFirstChild = halloweenToggle.Subs and halloweenToggle.Subs[1]
+halloweenChildrenHolder = halloweenFirstChild and halloweenFirstChild.Frame.Parent
+setHolderVisible(halloweenToggle, halloweenChildrenHolder, false)
+
 Visuals:Toggle({
     Text = "Fullbright",
     Default = false,
@@ -1970,6 +2113,8 @@ Window:Loop(ESP_INTERVAL, function()
             removeESP(model)
         end
     end
+
+    pcall(updateHalloween)
 
     if noFogEnabled then
         setNoFog(true)
@@ -2060,6 +2205,7 @@ Window:OnClose(function()
     end
     noclipEnabled = false
     restoreNoclip()
+    clearHalloween()
     for model in pairs(ESPObjects) do
         removeESP(model)
     end
