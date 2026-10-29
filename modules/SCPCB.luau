@@ -151,6 +151,636 @@ local function getHealthColor(percent)
     )
 end
 
+
+local UserInputService = game:GetService("UserInputService")
+local AIM_MAX_DISTANCE = 100
+local AIM_DISTANCE_TOLERANCE = 10
+local AIM_ACQUIRE_ANGLE = 10
+local PRETARGET_ANGLE = 12
+local AIM_SMOOTHING = 0.28
+local AIM_UPDATE_NAME = "SCPRB_Aimbot_Update"
+local AIM_GUI_NAME = "SCPRB_Aimbot_Controls"
+local AIM_STATUS_GUI_NAME = "SCPRB_Aimbot_Status"
+
+local aimEnabled = false
+local choseCorner = true
+local choseNearest = false
+local wallCheck = true
+local teamCheck = true
+local blockMovement = false
+local forcedLock = false
+local currentTarget = nil
+local preTarget = nil
+local suppressedTarget = nil
+local aimState = "Waiting"
+local lostStateUntil = 0
+local aimToggle
+local aimCornerToggle
+local aimNearestToggle
+local aimWallToggle
+local aimTeamToggle
+local aimGui
+local aimPanel
+local aimStatusGui
+local aimStatusLabels = {}
+local aimStatusValues = {}
+local aimGuiConnections = {}
+local aimGuiPosition = UDim2.new(1, -214, 1, -158)
+
+local function disconnectAimGuiConnections()
+    for _, connection in ipairs(aimGuiConnections) do
+        connection:Disconnect()
+    end
+    table.clear(aimGuiConnections)
+end
+
+local function getAimTargetPart(player)
+    local character, humanoid, root = getCharacterData(player)
+    if not character or humanoid.Health <= 0 then return nil end
+    local part = character:FindFirstChild("Head") or root
+    if not part or not part:IsA("BasePart") then return nil end
+    return part, character, humanoid, root
+end
+
+local function getTargetDistance(player, part)
+    local character = LocalPlayer.Character
+    local localRoot = character and (
+        character:FindFirstChild("HumanoidRootPart")
+        or character.PrimaryPart
+        or character:FindFirstChild("Head")
+    )
+    if not localRoot or not part then return math.huge end
+    return (localRoot.Position - part.Position).Magnitude
+end
+
+local function getTargetAngle(part)
+    local camera = Workspace.CurrentCamera
+    if not camera or not part then return math.huge end
+    local offset = part.Position - camera.CFrame.Position
+    if offset.Magnitude <= 0 then return 0 end
+    local dot = math.clamp(camera.CFrame.LookVector:Dot(offset.Unit), -1, 1)
+    return math.deg(math.acos(dot))
+end
+
+local function isTargetVisible(player, part, character)
+    local camera = Workspace.CurrentCamera
+    if not camera or not part then return false end
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    local exclude = {}
+    if LocalPlayer.Character then table.insert(exclude, LocalPlayer.Character) end
+    if character then table.insert(exclude, character) end
+    params.FilterDescendantsInstances = exclude
+    params.IgnoreWater = true
+    local direction = part.Position - camera.CFrame.Position
+    local result = Workspace:Raycast(camera.CFrame.Position, direction, params)
+    return result == nil
+end
+
+local function normalizeTeamName(team)
+    if not team then return "" end
+    return string.lower(team.Name):gsub("[^%w]", "")
+end
+
+local function classifyTeam(team)
+    local name = normalizeTeamName(team)
+    if name == "" then return "unknown" end
+    if name == "lobby" then return "lobby" end
+    if string.find(name, "classd", 1, true) or name == "cd" then return "cdci" end
+    if string.find(name, "chaos", 1, true) or name == "ci" or string.find(name, "insurgency", 1, true) then return "cdci" end
+    if string.find(name, "staff", 1, true) or name == "fp" or string.find(name, "foundationpersonnel", 1, true) then return "foundation" end
+    if string.find(name, "security", 1, true) or name == "sd" then return "foundation" end
+    if name == "mtf" or string.find(name, "mobiletaskforce", 1, true) then return "foundation" end
+    if name == "scp" or name == "scps" or string.find(name, "scp", 1, true) then return "scpserpent" end
+    if string.find(name, "serpent", 1, true) or name == "sh" then return "scpserpent" end
+    if name == "goc" or string.find(name, "globaloccult", 1, true) then return "goc" end
+    return "unknown"
+end
+
+local function isHostileTeam(targetTeam, localTeam)
+    if not targetTeam or not localTeam then return true end
+    if targetTeam == localTeam then return false end
+
+    local targetGroup = classifyTeam(targetTeam)
+    local localGroup = classifyTeam(localTeam)
+
+    if targetGroup == "lobby" then return false end
+    if targetGroup == "unknown" or localGroup == "unknown" then
+        return targetTeam ~= localTeam
+    end
+    if targetGroup == localGroup then return false end
+
+    if targetGroup == "goc" then
+        return localGroup == "scpserpent"
+    end
+    if localGroup == "goc" then
+        return targetGroup == "scpserpent"
+    end
+
+    return true
+end
+
+local function isTargetAllowed(player, part, character, distance, force)
+    if not player or player == LocalPlayer or not part or not character then return false end
+    if player.Team and classifyTeam(player.Team) == "lobby" then return false end
+    if distance > AIM_MAX_DISTANCE + AIM_DISTANCE_TOLERANCE then return false end
+    if not force and teamCheck and not isHostileTeam(player.Team, LocalPlayer.Team) then
+        return false
+    end
+    if not force and wallCheck and not isTargetVisible(player, part, character) then
+        return false
+    end
+    return true
+end
+
+local function getPreTargetCandidate()
+    local bestPlayer, bestAngle, bestDistance = nil, PRETARGET_ANGLE, math.huge
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and not (player.Team and player.Team.Name == LOBBY_TEAM_NAME) then
+            local part, character = getAimTargetPart(player)
+            if part and character then
+                local distance = getTargetDistance(player, part)
+                local angle = getTargetAngle(part)
+                if distance <= AIM_MAX_DISTANCE + AIM_DISTANCE_TOLERANCE and angle <= PRETARGET_ANGLE then
+                    if angle < bestAngle - 0.15
+                        or (math.abs(angle - bestAngle) <= 0.15 and distance < bestDistance) then
+                        bestPlayer = player
+                        bestAngle = angle
+                        bestDistance = distance
+                    end
+                end
+            end
+        end
+    end
+    return bestPlayer
+end
+
+local function getAutomaticTarget()
+    if not choseCorner and not choseNearest then return nil end
+    local candidates = {}
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local part, character = getAimTargetPart(player)
+            if part and character then
+                local distance = getTargetDistance(player, part)
+                local angle = getTargetAngle(part)
+                if isTargetAllowed(player, part, character, distance, false)
+                    and (not choseCorner or angle <= AIM_ACQUIRE_ANGLE) then
+                    candidates[#candidates + 1] = {
+                        Player = player,
+                        Part = part,
+                        Character = character,
+                        Distance = distance,
+                        Angle = angle,
+                    }
+                end
+            end
+        end
+    end
+    table.sort(candidates, function(a, b)
+        if choseCorner and choseNearest then
+            if math.abs(a.Angle - b.Angle) > 0.75 then
+                return a.Angle < b.Angle
+            end
+            return a.Distance < b.Distance
+        elseif choseCorner then
+            return a.Angle < b.Angle
+        else
+            return a.Distance < b.Distance
+        end
+    end)
+    return candidates[1] and candidates[1].Player or nil
+end
+
+local function setAimState(state)
+    aimState = state
+    if state == "Lost" then
+        lostStateUntil = os.clock() + 1.2
+    end
+end
+
+local function clearAimTarget(clearPreTarget)
+    currentTarget = nil
+    forcedLock = false
+    if clearPreTarget then
+        preTarget = nil
+        suppressedTarget = nil
+    end
+    setAimState("Lost")
+end
+
+local function createAimStatus()
+    if aimStatusGui then aimStatusGui:Destroy() end
+    aimStatusGui = Instance.new("ScreenGui")
+    aimStatusGui.Name = AIM_STATUS_GUI_NAME
+    aimStatusGui.ResetOnSpawn = false
+    aimStatusGui.IgnoreGuiInset = true
+    aimStatusGui.DisplayOrder = 20
+    aimStatusGui.Parent = CoreGui
+
+    local holder = Instance.new("Frame")
+    holder.Name = "Status"
+    holder.BackgroundTransparency = 1
+    holder.BorderSizePixel = 0
+    holder.Position = UDim2.new(0, 18, 0.5, -72)
+    holder.Size = UDim2.fromOffset(360, 72)
+    holder.Parent = aimStatusGui
+
+    local font = Font.new(
+        "rbxasset://fonts/families/PressStart2P.json",
+        Enum.FontWeight.Regular,
+        Enum.FontStyle.Normal
+    )
+    local rows = {
+        {Key = "Lock", Prefix = "Lock: "},
+        {Key = "Target", Prefix = "Target: "},
+        {Key = "State", Prefix = "State: "},
+    }
+    table.clear(aimStatusLabels)
+    table.clear(aimStatusValues)
+    for index, row in ipairs(rows) do
+        local label = Instance.new("TextLabel")
+        label.Name = row.Key
+        label.BackgroundTransparency = 1
+        label.BorderSizePixel = 0
+        label.Position = UDim2.fromOffset(0, (index - 1) * 23)
+        label.Size = UDim2.fromOffset(360, 22)
+        label.FontFace = font
+        label.TextSize = 9
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.TextYAlignment = Enum.TextYAlignment.Center
+        label.TextColor3 = Color3.new(1, 1, 1)
+        label.TextStrokeTransparency = 0.5
+        label.Text = row.Prefix
+        label.Parent = holder
+        aimStatusLabels[row.Key] = label
+        aimStatusValues[row.Key] = row.Prefix
+    end
+end
+
+local function updateAimStatus()
+    if not aimStatusGui or not aimStatusGui.Parent then return end
+    local lockText, lockColor
+    if not aimEnabled then
+        lockText, lockColor = "OFF", Color3.fromRGB(255, 70, 70)
+    elseif currentTarget then
+        lockText, lockColor = "ON", Color3.fromRGB(80, 255, 100)
+    elseif not choseCorner and not choseNearest then
+        lockText, lockColor = "OFF", Color3.fromRGB(255, 70, 70)
+    elseif preTarget then
+        lockText, lockColor = "Pre-target", Color3.fromRGB(255, 220, 65)
+    else
+        lockText, lockColor = "ON", Color3.fromRGB(80, 255, 100)
+    end
+
+    local targetText = "Nothing"
+    local targetColor = Color3.fromRGB(255, 70, 70)
+    local targetPlayer = currentTarget
+    if targetPlayer and targetPlayer.Parent == Players then
+        targetText = targetPlayer.DisplayName .. " (@" .. targetPlayer.Name .. ")"
+        targetColor = Color3.fromRGB(80, 255, 100)
+    end
+
+    local stateText, stateColor
+    if currentTarget then
+        stateText, stateColor = "Locked", Color3.fromRGB(80, 255, 100)
+    elseif preTarget then
+        stateText, stateColor = "Pre-State", Color3.fromRGB(255, 220, 65)
+    elseif aimState == "Lost" and os.clock() < lostStateUntil then
+        stateText, stateColor = "Lost", Color3.fromRGB(255, 70, 70)
+    else
+        stateText, stateColor = "Waiting", Color3.new(1, 1, 1)
+    end
+
+    aimStatusLabels.Lock.Text = "Lock: " .. lockText
+    aimStatusLabels.Lock.TextColor3 = lockColor
+    aimStatusLabels.Target.Text = "Target: " .. targetText
+    aimStatusLabels.Target.TextColor3 = targetColor
+    aimStatusLabels.State.Text = "State: " .. stateText
+    aimStatusLabels.State.TextColor3 = stateColor
+end
+
+local function makeAimButton(parent, text, position, size)
+    local button = Instance.new("TextButton")
+    button.AutoButtonColor = true
+    button.BackgroundColor3 = Color3.fromRGB(39, 39, 42)
+    button.BorderSizePixel = 0
+    button.Position = position
+    button.Size = size
+    button.Font = Enum.Font.Gotham
+    button.Text = text
+    button.TextSize = 11
+    button.TextColor3 = Color3.fromRGB(240, 240, 242)
+    button.Parent = parent
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 5)
+    corner.Parent = button
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(65, 65, 70)
+    stroke.Thickness = 1
+    stroke.Parent = button
+    return button
+end
+
+local function destroyAimGui()
+    disconnectAimGuiConnections()
+    if aimGui then aimGui:Destroy() end
+    if aimStatusGui then aimStatusGui:Destroy() end
+    aimGui = nil
+    aimPanel = nil
+    aimStatusGui = nil
+    table.clear(aimStatusLabels)
+    table.clear(aimStatusValues)
+end
+
+local function resetAimSettingsToDefaults()
+    choseCorner = true
+    choseNearest = false
+    wallCheck = true
+    teamCheck = true
+    if aimCornerToggle then aimCornerToggle:Set(true, true) end
+    if aimNearestToggle then aimNearestToggle:Set(false, true) end
+    if aimWallToggle then aimWallToggle:Set(true, true) end
+    if aimTeamToggle then aimTeamToggle:Set(true, true) end
+end
+
+local function closeAimGuiConfirmed()
+    aimEnabled = false
+    currentTarget = nil
+    preTarget = nil
+    suppressedTarget = nil
+    forcedLock = false
+    setAimState("Waiting")
+    if aimToggle then aimToggle:Set(false, true) end
+    resetAimSettingsToDefaults()
+    destroyAimGui()
+end
+
+local function createAimGui()
+    destroyAimGui()
+    aimGui = Instance.new("ScreenGui")
+    aimGui.Name = AIM_GUI_NAME
+    aimGui.ResetOnSpawn = false
+    aimGui.IgnoreGuiInset = true
+    aimGui.DisplayOrder = 15
+    aimGui.Parent = CoreGui
+
+    aimPanel = Instance.new("Frame")
+    aimPanel.Name = "Controls"
+    aimPanel.Size = UDim2.fromOffset(202, 116)
+    aimPanel.Position = aimGuiPosition
+    aimPanel.BackgroundColor3 = Color3.fromRGB(27, 27, 30)
+    aimPanel.BorderSizePixel = 0
+    aimPanel.Parent = aimGui
+    local panelCorner = Instance.new("UICorner")
+    panelCorner.CornerRadius = UDim.new(0, 7)
+    panelCorner.Parent = aimPanel
+    local panelStroke = Instance.new("UIStroke")
+    panelStroke.Color = Color3.fromRGB(62, 62, 67)
+    panelStroke.Thickness = 1
+    panelStroke.Parent = aimPanel
+
+    local header = Instance.new("TextLabel")
+    header.Name = "Header"
+    header.Position = UDim2.fromOffset(8, 3)
+    header.Size = UDim2.new(1, -45, 0, 22)
+    header.BackgroundTransparency = 1
+    header.Font = Enum.Font.GothamSemibold
+    header.Text = "Aimbot controls"
+    header.TextSize = 12
+    header.TextXAlignment = Enum.TextXAlignment.Left
+    header.TextColor3 = Color3.fromRGB(242, 242, 244)
+    header.Parent = aimPanel
+
+    local closeButton = makeAimButton(aimPanel, "×", UDim2.new(1, -28, 0, 4), UDim2.fromOffset(22, 20))
+    closeButton.TextSize = 16
+    local resetButton = makeAimButton(aimPanel, "Lock reset", UDim2.fromOffset(8, 32), UDim2.fromOffset(90, 29))
+    local forceButton = makeAimButton(aimPanel, "Forced lock", UDim2.fromOffset(104, 32), UDim2.fromOffset(90, 29))
+    local moveButton = makeAimButton(aimPanel, "Block movement: OFF", UDim2.fromOffset(8, 68), UDim2.fromOffset(186, 28))
+    moveButton.TextSize = 10
+
+    local confirmFrame = Instance.new("Frame")
+    confirmFrame.Name = "ConfirmClose"
+    confirmFrame.Visible = false
+    confirmFrame.ZIndex = 5
+    confirmFrame.Position = UDim2.fromOffset(8, 26)
+    confirmFrame.Size = UDim2.new(1, -16, 1, -34)
+    confirmFrame.BackgroundColor3 = Color3.fromRGB(31, 31, 34)
+    confirmFrame.BorderSizePixel = 0
+    confirmFrame.Parent = aimPanel
+    local confirmCorner = Instance.new("UICorner")
+    confirmCorner.CornerRadius = UDim.new(0, 5)
+    confirmCorner.Parent = confirmFrame
+    local confirmText = Instance.new("TextLabel")
+    confirmText.BackgroundTransparency = 1
+    confirmText.Position = UDim2.fromOffset(5, 3)
+    confirmText.Size = UDim2.new(1, -10, 0, 25)
+    confirmText.Font = Enum.Font.Gotham
+    confirmText.Text = "Close and reset Aimbot?"
+    confirmText.TextSize = 11
+    confirmText.TextColor3 = Color3.fromRGB(245, 245, 245)
+    confirmText.ZIndex = 6
+    confirmText.Parent = confirmFrame
+    local yesButton = makeAimButton(confirmFrame, "Confirm", UDim2.new(0, 5, 0, 34), UDim2.new(0.5, -7, 0, 25))
+    yesButton.ZIndex = 6
+    local noButton = makeAimButton(confirmFrame, "Cancel", UDim2.new(0.5, 2, 0, 34), UDim2.new(0.5, -7, 0, 25))
+    noButton.ZIndex = 6
+    for _, object in ipairs(confirmFrame:GetDescendants()) do
+        if object:IsA("GuiObject") then object.ZIndex = math.max(object.ZIndex, 6) end
+    end
+
+    local dragging = false
+    local dragInput
+    local dragStart
+    local startPosition
+    local function updateDrag(input)
+        local delta = input.Position - dragStart
+        aimPanel.Position = UDim2.new(
+            startPosition.X.Scale,
+            startPosition.X.Offset + delta.X,
+            startPosition.Y.Scale,
+            startPosition.Y.Offset + delta.Y
+        )
+        aimGuiPosition = aimPanel.Position
+    end
+
+    table.insert(aimGuiConnections, header.InputBegan:Connect(function(input)
+        if blockMovement then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPosition = aimPanel.Position
+            dragInput = input
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end))
+    table.insert(aimGuiConnections, UserInputService.InputChanged:Connect(function(input)
+        if dragging and not blockMovement
+            and (input.UserInputType == Enum.UserInputType.MouseMovement
+                or input.UserInputType == Enum.UserInputType.Touch) then
+            updateDrag(input)
+        end
+    end))
+
+    table.insert(aimGuiConnections, resetButton.Activated:Connect(function()
+        suppressedTarget = preTarget or currentTarget
+        currentTarget = nil
+        forcedLock = false
+        setAimState("Lost")
+    end))
+    table.insert(aimGuiConnections, forceButton.Activated:Connect(function()
+        if preTarget and preTarget.Parent == Players then
+            local part, character = getAimTargetPart(preTarget)
+            local distance = part and getTargetDistance(preTarget, part) or math.huge
+            if part and character and distance <= AIM_MAX_DISTANCE + AIM_DISTANCE_TOLERANCE then
+                currentTarget = preTarget
+                suppressedTarget = nil
+                forcedLock = true
+                setAimState("Locked")
+            end
+        end
+    end))
+    table.insert(aimGuiConnections, moveButton.Activated:Connect(function()
+        blockMovement = not blockMovement
+        closeButton.Active = not blockMovement
+        closeButton.AutoButtonColor = not blockMovement
+        moveButton.Text = "Block movement: " .. (blockMovement and "ON" or "OFF")
+        moveButton.BackgroundColor3 = blockMovement
+            and Color3.fromRGB(65, 65, 70)
+            or Color3.fromRGB(39, 39, 42)
+    end))
+    table.insert(aimGuiConnections, closeButton.Activated:Connect(function()
+        if blockMovement then return end
+        confirmFrame.Visible = true
+    end))
+    table.insert(aimGuiConnections, noButton.Activated:Connect(function()
+        confirmFrame.Visible = false
+    end))
+    table.insert(aimGuiConnections, yesButton.Activated:Connect(function()
+        if blockMovement then return end
+        closeAimGuiConfirmed()
+    end))
+
+    createAimStatus()
+end
+
+local function setAimbotEnabled(enabled)
+    aimEnabled = enabled
+    currentTarget = nil
+    preTarget = nil
+    suppressedTarget = nil
+    forcedLock = false
+    blockMovement = false
+    setAimState("Waiting")
+    if enabled then
+        createAimGui()
+    else
+        destroyAimGui()
+    end
+end
+
+local aimbotToggle = Main:Toggle({
+    Text = "Aimbot",
+    Default = false,
+    Sub = {
+        {
+            Type = "Toggle",
+            Text = "Chose Corner",
+            Default = true,
+            Callback = function(state) choseCorner = state end,
+        },
+        {
+            Type = "Toggle",
+            Text = "Chose nearest",
+            Default = false,
+            Callback = function(state) choseNearest = state end,
+        },
+        {
+            Type = "Toggle",
+            Text = "Wall check",
+            Default = true,
+            Callback = function(state) wallCheck = state end,
+        },
+        {
+            Type = "Toggle",
+            Text = "Team check",
+            Default = true,
+            Callback = function(state) teamCheck = state end,
+        },
+    },
+    Callback = function(state)
+        setAimbotEnabled(state)
+    end,
+})
+
+aimToggle = aimbotToggle
+aimCornerToggle = aimbotToggle.Subs and aimbotToggle.Subs[1]
+aimNearestToggle = aimbotToggle.Subs and aimbotToggle.Subs[2]
+aimWallToggle = aimbotToggle.Subs and aimbotToggle.Subs[3]
+aimTeamToggle = aimbotToggle.Subs and aimbotToggle.Subs[4]
+
+RunService:UnbindFromRenderStep(AIM_UPDATE_NAME)
+RunService:BindToRenderStep(AIM_UPDATE_NAME, Enum.RenderPriority.Camera.Value + 2, function(deltaTime)
+    if not aimEnabled then return end
+    local nextPreTarget = getPreTargetCandidate()
+    if nextPreTarget ~= preTarget then
+        preTarget = nextPreTarget
+        if suppressedTarget and preTarget ~= suppressedTarget then
+            suppressedTarget = nil
+        end
+    end
+
+    if currentTarget then
+        local part, character = getAimTargetPart(currentTarget)
+        local distance = part and getTargetDistance(currentTarget, part) or math.huge
+        local aliveAndPresent = currentTarget.Parent == Players and part ~= nil and character ~= nil
+        local visible = part and character and isTargetVisible(currentTarget, part, character)
+        local allowed = aliveAndPresent
+            and distance <= AIM_MAX_DISTANCE + AIM_DISTANCE_TOLERANCE
+            and (forcedLock or not teamCheck or isHostileTeam(currentTarget.Team, LocalPlayer.Team))
+            and (forcedLock or not wallCheck or visible)
+        if not allowed then
+            if wallCheck and not forcedLock and not visible then
+                suppressedTarget = preTarget or currentTarget
+            end
+            clearAimTarget(false)
+        else
+            local camera = Workspace.CurrentCamera
+            if camera then
+                local goal = CFrame.lookAt(camera.CFrame.Position, part.Position)
+                camera.CFrame = camera.CFrame:Lerp(goal, math.clamp(AIM_SMOOTHING * (deltaTime * 60), 0, 1))
+            end
+            setAimState("Locked")
+        end
+    elseif choseCorner or choseNearest then
+        if preTarget and preTarget == suppressedTarget then
+            setAimState("Lost")
+        else
+            local candidate = getAutomaticTarget()
+            if candidate and candidate ~= suppressedTarget then
+                local part = getAimTargetPart(candidate)
+                if part then
+                    currentTarget = candidate
+                    forcedLock = false
+                    setAimState("Locked")
+                end
+            elseif preTarget then
+                setAimState("Pre-State")
+            elseif aimState ~= "Lost" or os.clock() >= lostStateUntil then
+                setAimState("Waiting")
+            end
+        end
+    else
+        currentTarget = nil
+        forcedLock = false
+        setAimState("Waiting")
+    end
+    updateAimStatus()
+end)
+
 local function isSCP966(player)
     return player:GetAttribute(SCP966_ROLE_ATTRIBUTE) == SCP966_ROLE_NAME
 end
@@ -624,6 +1254,12 @@ end)
 
 Window:OnClose(function()
     allEnabled = false
+    aimEnabled = false
+    currentTarget = nil
+    preTarget = nil
+    forcedLock = false
+    destroyAimGui()
+    RunService:UnbindFromRenderStep(AIM_UPDATE_NAME)
     RunService:UnbindFromRenderStep(PROXY_UPDATE_NAME)
 
     for player in pairs(proxies) do removeProxy(player) end
