@@ -47,7 +47,7 @@ end
 
 local Window = uiModule.new({
     Name = "ModernUI",
-    Title = "{gamename} | By Kiyatsuka v1.0.7",
+    Title = "{gamename} | By Kiyatsuka v1.0.8",
 })
 
 if MinimizedIcon ~= "" then
@@ -357,6 +357,50 @@ local function setNoFog(enabled)
                 item.Haze = state.Haze
             end
         end
+    end
+end
+
+local FREE_ZOOM_MIN = 0.5
+local FREE_ZOOM_MAX = 100000
+local freeZoomEnabled = false
+local freeZoomOriginal = nil
+
+local function setFreeZoom(enabled)
+    if enabled then
+        if not freeZoomOriginal then
+            freeZoomOriginal = {
+                Min = LocalPlayer.CameraMinZoomDistance,
+                Max = LocalPlayer.CameraMaxZoomDistance,
+                Mode = LocalPlayer.CameraMode,
+            }
+        end
+        freeZoomEnabled = true
+    else
+        freeZoomEnabled = false
+        if freeZoomOriginal then
+            local original = freeZoomOriginal
+            freeZoomOriginal = nil
+            pcall(function()
+                LocalPlayer.CameraMaxZoomDistance = original.Max
+                LocalPlayer.CameraMinZoomDistance = original.Min
+                LocalPlayer.CameraMode = original.Mode
+            end)
+        end
+    end
+end
+
+local function updateFreeZoom()
+    if not freeZoomEnabled then
+        return
+    end
+    if LocalPlayer.CameraMaxZoomDistance ~= FREE_ZOOM_MAX then
+        LocalPlayer.CameraMaxZoomDistance = FREE_ZOOM_MAX
+    end
+    if LocalPlayer.CameraMinZoomDistance ~= FREE_ZOOM_MIN then
+        LocalPlayer.CameraMinZoomDistance = FREE_ZOOM_MIN
+    end
+    if LocalPlayer.CameraMode ~= Enum.CameraMode.Classic then
+        LocalPlayer.CameraMode = Enum.CameraMode.Classic
     end
 end
 
@@ -909,6 +953,655 @@ local function createMainButton(config)
     return widget
 end
 
+local TAP_SLOP = 10
+local PICKER_ROW_HEIGHT = 44
+local PICKER_ROW_GAP = 4
+local PICKER_MAX_ROWS = 6
+local PICKER_LIST_PADDING = 6
+local PICKER_HEADER_HEIGHT = 48
+local BOUND_TELEPORT_OFFSET = CFrame.new(0, 0, 3)
+local MutedText = Color3.fromRGB(151, 148, 166)
+
+local boundTeleportEnabled = false
+local boundToggle = nil
+local spectateTarget = nil
+local teleportPicker = nil
+local spectatePicker = nil
+
+local function safeCall(callback, ...)
+    local ok, err = pcall(callback, ...)
+    if not ok then
+        warn("[ChasingOP] " .. tostring(err))
+    end
+end
+
+local function isPressInput(input)
+    return input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch
+end
+
+local function newGui(className, props, parent)
+    local instance = Instance.new(className)
+    if instance:IsA("GuiObject") then
+        instance.BorderSizePixel = 0
+        instance.BackgroundTransparency = (props.BackgroundColor3 and props.BackgroundTransparency == nil) and 0 or 1
+        if instance:IsA("GuiButton") then
+            instance.AutoButtonColor = false
+        end
+    end
+    if instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox") then
+        instance.Text = ""
+        instance.Font = Enum.Font.Gotham
+        instance.TextSize = 13
+        instance.TextColor3 = MainTheme.Text
+    end
+    for key, value in pairs(props) do
+        instance[key] = value
+    end
+    instance.Parent = parent
+    return instance
+end
+
+local function roundify(instance, radius)
+    return newGui("UICorner", { CornerRadius = UDim.new(0, radius) }, instance)
+end
+
+local function outline(instance, color, transparency)
+    return newGui("UIStroke", {
+        Color = color,
+        Thickness = 1,
+        Transparency = transparency or 0,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+    }, instance)
+end
+
+local function tweenProperty(instance, duration, props)
+    local tween = TweenService:Create(instance, TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props)
+    tween:Play()
+    return tween
+end
+
+local function createScrollGuard(scroller)
+    local guard = { LastMove = 0 }
+    scroller:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+        guard.LastMove = os.clock()
+    end)
+    function guard.Begin()
+        return {
+            Canvas = scroller.CanvasPosition.Y,
+            Settling = os.clock() - guard.LastMove < 0.15,
+        }
+    end
+    function guard.Valid(snapshot)
+        return not snapshot.Settling and math.abs(scroller.CanvasPosition.Y - snapshot.Canvas) < 2
+    end
+    return guard
+end
+
+local function bindTap(gui, callback, guard)
+    local origin = nil
+    local snapshot = nil
+    gui.InputBegan:Connect(function(input)
+        if isPressInput(input) then
+            origin = input.Position
+            snapshot = guard and guard.Begin() or nil
+        end
+    end)
+    gui.InputEnded:Connect(function(input)
+        if not isPressInput(input) or not origin then
+            return
+        end
+        local moved = (input.Position - origin).Magnitude
+        local valid = moved < TAP_SLOP and (not guard or guard.Valid(snapshot))
+        origin = nil
+        snapshot = nil
+        if valid then
+            callback()
+        end
+    end)
+end
+
+local pageGuard = createScrollGuard(Main._page)
+
+local function reserveLayoutOrder(category)
+    local placeholder = category:Label({ Text = "", Height = 0 })
+    local order = placeholder.Frame.LayoutOrder
+    placeholder:Destroy()
+    return order
+end
+
+local function playerDisplayText(player)
+    if player.DisplayName ~= player.Name then
+        return player.DisplayName .. " (@" .. player.Name .. ")"
+    end
+    return player.Name
+end
+
+local function playerThumbnail(player)
+    return "rbxthumb://type=AvatarHeadShot&id=" .. tostring(player.UserId) .. "&w=48&h=48"
+end
+
+local function collectPlayers()
+    local result = {}
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            result[#result + 1] = player
+        end
+    end
+    table.sort(result, function(a, b)
+        local left = a.DisplayName:lower()
+        local right = b.DisplayName:lower()
+        if left == right then
+            return a.Name:lower() < b.Name:lower()
+        end
+        return left < right
+    end)
+    return result
+end
+
+local function createPlayerPicker(config)
+    local picker = {}
+    local selected = nil
+    local actions = config.Actions or {}
+    local inline = config.Inline == true and #actions > 0
+    local inlineWidth = 92
+    local step = PICKER_ROW_HEIGHT + PICKER_ROW_GAP
+
+    local card = newGui("Frame", {
+        Name = config.Name,
+        Size = UDim2.new(1, 0, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundColor3 = MainTheme.Card,
+        LayoutOrder = config.Order,
+    }, Main._page)
+    roundify(card, 10)
+    outline(card, MainTheme.Border, 0.1)
+    newGui("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder }, card)
+    newGui("UIPadding", { PaddingBottom = UDim.new(0, 12) }, card)
+
+    local header = newGui("Frame", {
+        Size = UDim2.new(1, 0, 0, 50),
+        LayoutOrder = 1,
+    }, card)
+
+    local selector = newGui("TextButton", {
+        Name = "Selector",
+        Size = UDim2.new(1, -(24 + (inline and inlineWidth + 8 or 0)), 0, 34),
+        Position = UDim2.new(0, 12, 0.5, -17),
+        BackgroundColor3 = MainTheme.CardHover,
+    }, header)
+    roundify(selector, 8)
+    local selectorStroke = outline(selector, MainTheme.Border, 0)
+
+    local avatar = newGui("ImageLabel", {
+        Size = UDim2.fromOffset(22, 22),
+        Position = UDim2.new(0, 8, 0.5, -11),
+        BackgroundColor3 = MainTheme.Card,
+        Visible = false,
+    }, selector)
+    roundify(avatar, 11)
+
+    local selectorText = newGui("TextLabel", {
+        Position = UDim2.fromOffset(12, 0),
+        Size = UDim2.new(1, -36, 1, 0),
+        Font = Enum.Font.GothamMedium,
+        TextSize = 12,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+    }, selector)
+
+    newGui("TextLabel", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -10, 0.5, 0),
+        Size = UDim2.fromOffset(14, 14),
+        Text = "▼",
+        TextSize = 9,
+        TextColor3 = MainTheme.AccentSoft,
+    }, selector)
+
+    selector.MouseEnter:Connect(function()
+        tweenProperty(selectorStroke, 0.16, { Color = MainTheme.Accent })
+    end)
+    selector.MouseLeave:Connect(function()
+        tweenProperty(selectorStroke, 0.16, { Color = MainTheme.Border })
+    end)
+
+    local function refreshSelector()
+        if selected then
+            avatar.Image = playerThumbnail(selected)
+            avatar.Visible = true
+            selectorText.Position = UDim2.fromOffset(38, 0)
+            selectorText.Size = UDim2.new(1, -62, 1, 0)
+            selectorText.Text = config.Label .. ": " .. playerDisplayText(selected)
+            selectorText.TextColor3 = MainTheme.Text
+        else
+            avatar.Visible = false
+            selectorText.Position = UDim2.fromOffset(12, 0)
+            selectorText.Size = UDim2.new(1, -36, 1, 0)
+            selectorText.Text = config.Empty or (config.Label .. ": ---")
+            selectorText.TextColor3 = MutedText
+        end
+    end
+    refreshSelector()
+
+    local function choose(player)
+        if player == selected then
+            return
+        end
+        selected = player
+        refreshSelector()
+        if config.OnChange then
+            safeCall(config.OnChange, player)
+        end
+    end
+
+    local function createActionButton(parent, action, size, position)
+        local primary = action.Primary == true
+        local base = primary and MainTheme.Accent or MainTheme.CardHover
+        local hover = primary and Color3.fromRGB(186, 117, 250) or MainTheme.Border
+        local button = newGui("TextButton", {
+            Size = size,
+            Position = position,
+            BackgroundColor3 = base,
+            Text = action.Text,
+            Font = Enum.Font.GothamBold,
+            TextSize = 12,
+            TextColor3 = MainTheme.Text,
+        }, parent)
+        roundify(button, 8)
+        outline(button, primary and MainTheme.AccentSoft or MainTheme.Border, 0)
+        button.MouseEnter:Connect(function()
+            tweenProperty(button, 0.16, { BackgroundColor3 = hover })
+        end)
+        button.MouseLeave:Connect(function()
+            tweenProperty(button, 0.16, { BackgroundColor3 = base })
+        end)
+        bindTap(button, function()
+            tweenProperty(button, 0.08, { BackgroundColor3 = MainTheme.AccentSoft }).Completed:Once(function()
+                tweenProperty(button, 0.16, { BackgroundColor3 = base })
+            end)
+            safeCall(action.Callback, selected)
+        end, pageGuard)
+        return button
+    end
+
+    if inline then
+        createActionButton(
+            header,
+            actions[1],
+            UDim2.fromOffset(inlineWidth, 34),
+            UDim2.new(1, -(12 + inlineWidth), 0.5, -17)
+        )
+    elseif #actions > 0 then
+        local row = newGui("Frame", {
+            Size = UDim2.new(1, 0, 0, 34),
+            LayoutOrder = 2,
+        }, card)
+        local holder = newGui("Frame", {
+            Position = UDim2.fromOffset(12, 0),
+            Size = UDim2.new(1, -24, 1, 0),
+        }, row)
+        newGui("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            Padding = UDim.new(0, 8),
+        }, holder)
+        local count = #actions
+        for index, action in ipairs(actions) do
+            local button = createActionButton(
+                holder,
+                action,
+                UDim2.new(1 / count, -8 * (count - 1) / count, 1, 0),
+                UDim2.new()
+            )
+            button.LayoutOrder = index
+        end
+    end
+
+    if type(config.Description) == "string" and config.Description ~= "" then
+        local holder = newGui("Frame", {
+            Size = UDim2.new(1, 0, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
+            LayoutOrder = 3,
+        }, card)
+        newGui("UIPadding", {
+            PaddingLeft = UDim.new(0, 14),
+            PaddingRight = UDim.new(0, 14),
+        }, holder)
+        newGui("TextLabel", {
+            Size = UDim2.new(1, 0, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
+            Text = config.Description,
+            TextColor3 = MutedText,
+            TextSize = 11,
+            TextWrapped = true,
+            TextXAlignment = Enum.TextXAlignment.Left,
+        }, holder)
+    end
+
+    local function openList()
+        Window:_closePopup()
+        local layer = Window._popups
+        local players = collectPlayers()
+        local killerName = getKillerName()
+
+        local dim = newGui("TextButton", {
+            Size = UDim2.new(1, 0, 1, 0),
+            ZIndex = 1,
+        }, layer)
+
+        local anchorPosition = selector.AbsolutePosition
+        local anchorSize = selector.AbsoluteSize
+        local viewport = layer.AbsoluteSize
+        local width = math.max(anchorSize.X, 240)
+        local visibleRows = math.clamp(#players + 1, 2, PICKER_MAX_ROWS)
+        local listHeight = visibleRows * step - PICKER_ROW_GAP + PICKER_LIST_PADDING * 2
+        local panelHeight = PICKER_HEADER_HEIGHT + listHeight + 8
+        local below = viewport.Y - (anchorPosition.Y + anchorSize.Y + 4) - 8
+        local above = anchorPosition.Y - 4 - 8
+        local placeBelow = panelHeight <= below or below >= above
+        local space = placeBelow and below or above
+        if panelHeight > space then
+            listHeight = math.max(2 * step, listHeight - (panelHeight - space))
+            panelHeight = PICKER_HEADER_HEIGHT + listHeight + 8
+        end
+        local y = placeBelow and (anchorPosition.Y + anchorSize.Y + 4) or (anchorPosition.Y - 4 - panelHeight)
+        y = math.max(y, 8)
+        local x = math.clamp(anchorPosition.X, 8, math.max(8, viewport.X - width - 8))
+
+        local panel = newGui("Frame", {
+            Size = UDim2.fromOffset(width, panelHeight),
+            Position = UDim2.fromOffset(x, y),
+            BackgroundColor3 = MainTheme.Card,
+            Active = true,
+            ZIndex = 2,
+        }, layer)
+        roundify(panel, 10)
+        outline(panel, MainTheme.Accent, 0.2)
+
+        local search = newGui("TextBox", {
+            Position = UDim2.fromOffset(8, 8),
+            Size = UDim2.new(1, -16, 0, 32),
+            BackgroundColor3 = MainTheme.CardHover,
+            PlaceholderText = "Search player...",
+            PlaceholderColor3 = Color3.fromRGB(110, 108, 125),
+            ClearTextOnFocus = false,
+            TextSize = 12,
+            TextXAlignment = Enum.TextXAlignment.Left,
+        }, panel)
+        roundify(search, 8)
+        outline(search, MainTheme.Border, 0)
+        newGui("UIPadding", {
+            PaddingLeft = UDim.new(0, 10),
+            PaddingRight = UDim.new(0, 10),
+        }, search)
+
+        local list = newGui("ScrollingFrame", {
+            Position = UDim2.fromOffset(0, PICKER_HEADER_HEIGHT),
+            Size = UDim2.new(1, 0, 0, listHeight),
+            ScrollBarThickness = 3,
+            ScrollBarImageColor3 = MainTheme.Accent,
+            ScrollingDirection = Enum.ScrollingDirection.Y,
+            CanvasSize = UDim2.new(),
+        }, panel)
+        newGui("UIListLayout", {
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            Padding = UDim.new(0, PICKER_ROW_GAP),
+        }, list)
+        newGui("UIPadding", {
+            PaddingTop = UDim.new(0, PICKER_LIST_PADDING),
+            PaddingBottom = UDim.new(0, PICKER_LIST_PADDING),
+            PaddingLeft = UDim.new(0, 8),
+            PaddingRight = UDim.new(0, 8),
+        }, list)
+
+        local listGuard = createScrollGuard(list)
+
+        local closed = false
+        local function close()
+            if closed then
+                return
+            end
+            closed = true
+            if Window._popupClose == close then
+                Window._popupClose = nil
+            end
+            dim:Destroy()
+            panel:Destroy()
+        end
+        Window._popupClose = close
+        dim.Activated:Connect(close)
+
+        local function addRow(order, player)
+            local isNone = player == nil
+            local isSelected = (isNone and selected == nil) or (not isNone and player == selected)
+            local row = newGui("TextButton", {
+                Name = isNone and "None" or player.Name,
+                Size = UDim2.new(1, 0, 0, PICKER_ROW_HEIGHT),
+                LayoutOrder = order,
+                BackgroundColor3 = isSelected and MainTheme.AccentSoft or MainTheme.CardHover,
+                BackgroundTransparency = isSelected and 0.55 or 1,
+            }, list)
+            roundify(row, 8)
+            if isSelected then
+                outline(row, MainTheme.Accent, 0.3)
+            end
+            row.MouseEnter:Connect(function()
+                if not isSelected then
+                    tweenProperty(row, 0.12, { BackgroundTransparency = 0.35 })
+                end
+            end)
+            row.MouseLeave:Connect(function()
+                if not isSelected then
+                    tweenProperty(row, 0.12, { BackgroundTransparency = 1 })
+                end
+            end)
+
+            if isNone then
+                newGui("TextLabel", {
+                    Position = UDim2.fromOffset(14, 0),
+                    Size = UDim2.new(1, -28, 1, 0),
+                    Text = "None",
+                    Font = Enum.Font.GothamMedium,
+                    TextSize = 12,
+                    TextColor3 = MutedText,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                }, row)
+            else
+                local thumb = newGui("ImageLabel", {
+                    Position = UDim2.new(0, 8, 0.5, -15),
+                    Size = UDim2.fromOffset(30, 30),
+                    BackgroundColor3 = MainTheme.Card,
+                    Image = playerThumbnail(player),
+                }, row)
+                roundify(thumb, 15)
+
+                local sameName = player.DisplayName == player.Name
+                newGui("TextLabel", {
+                    Position = UDim2.fromOffset(48, sameName and 0 or 6),
+                    Size = UDim2.new(1, -112, 0, sameName and PICKER_ROW_HEIGHT or 17),
+                    Text = player.DisplayName,
+                    Font = Enum.Font.GothamBold,
+                    TextSize = 13,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    TextTruncate = Enum.TextTruncate.AtEnd,
+                }, row)
+                if not sameName then
+                    newGui("TextLabel", {
+                        Position = UDim2.fromOffset(48, 23),
+                        Size = UDim2.new(1, -112, 0, 14),
+                        Text = "@" .. player.Name,
+                        TextSize = 11,
+                        TextColor3 = MutedText,
+                        TextXAlignment = Enum.TextXAlignment.Left,
+                        TextTruncate = Enum.TextTruncate.AtEnd,
+                    }, row)
+                end
+                if killerName and player.Name == killerName then
+                    local badge = newGui("TextLabel", {
+                        AnchorPoint = Vector2.new(1, 0.5),
+                        Position = UDim2.new(1, isSelected and -30 or -8, 0.5, 0),
+                        Size = UDim2.fromOffset(54, 18),
+                        BackgroundColor3 = Color3.fromRGB(255, 45, 45),
+                        BackgroundTransparency = 0.75,
+                        Text = "KILLER",
+                        Font = Enum.Font.GothamBold,
+                        TextSize = 10,
+                        TextColor3 = Color3.fromRGB(255, 110, 110),
+                    }, row)
+                    roundify(badge, 9)
+                end
+                if isSelected then
+                    newGui("TextLabel", {
+                        AnchorPoint = Vector2.new(1, 0.5),
+                        Position = UDim2.new(1, -10, 0.5, 0),
+                        Size = UDim2.fromOffset(16, 16),
+                        Text = "✓",
+                        Font = Enum.Font.GothamBold,
+                        TextSize = 14,
+                        TextColor3 = MainTheme.Accent,
+                    }, row)
+                end
+            end
+
+            bindTap(row, function()
+                close()
+                choose(player)
+            end, listGuard)
+        end
+
+        local function rebuild()
+            for _, child in ipairs(list:GetChildren()) do
+                if child:IsA("GuiObject") then
+                    child:Destroy()
+                end
+            end
+            local query = string.lower(search.Text)
+            local entries = {}
+            if query == "" then
+                entries[#entries + 1] = { None = true }
+            end
+            for _, player in ipairs(players) do
+                if query == ""
+                    or string.find(string.lower(player.DisplayName), query, 1, true)
+                    or string.find(string.lower(player.Name), query, 1, true)
+                then
+                    entries[#entries + 1] = { Player = player }
+                end
+            end
+
+            local selectedIndex = nil
+            if #entries == 0 then
+                newGui("TextLabel", {
+                    Size = UDim2.new(1, 0, 0, PICKER_ROW_HEIGHT),
+                    Text = "No players found",
+                    TextSize = 12,
+                    TextColor3 = MutedText,
+                }, list)
+            end
+            for index, entry in ipairs(entries) do
+                if (entry.None and selected == nil) or (entry.Player and entry.Player == selected) then
+                    selectedIndex = index
+                end
+                addRow(index, entry.Player)
+            end
+
+            list.CanvasSize = UDim2.fromOffset(0, math.max(#entries, 1) * step - PICKER_ROW_GAP + PICKER_LIST_PADDING * 2)
+            return selectedIndex
+        end
+
+        local selectedIndex = rebuild()
+        if selectedIndex and selectedIndex > 2 then
+            list.CanvasPosition = Vector2.new(0, (selectedIndex - 2) * step)
+        end
+
+        search:GetPropertyChangedSignal("Text"):Connect(function()
+            list.CanvasPosition = Vector2.zero
+            rebuild()
+        end)
+    end
+
+    bindTap(selector, openList, pageGuard)
+
+    Window:Connect(Players.PlayerRemoving, function(player)
+        if selected == player then
+            choose(nil)
+        end
+    end)
+
+    picker.Frame = card
+    function picker.Get()
+        return selected
+    end
+    function picker.Set(player)
+        choose(player)
+    end
+    return picker
+end
+
+local function updateBoundTeleport()
+    if not boundTeleportEnabled or not teleportPicker then
+        return
+    end
+    local target = teleportPicker.Get()
+    if not target or target.Parent ~= Players then
+        return
+    end
+    local character = getPlayerCharacter(target)
+    local targetRoot = character and getCharacterRoot(character)
+    local localRoot = getCharacterRoot(LocalPlayer.Character)
+    if not targetRoot or not localRoot then
+        return
+    end
+    localRoot.CFrame = targetRoot.CFrame * BOUND_TELEPORT_OFFSET
+    localRoot.AssemblyLinearVelocity = Vector3.zero
+    localRoot.AssemblyAngularVelocity = Vector3.zero
+end
+
+local function getSpectateHumanoid(player)
+    local character = getPlayerCharacter(player)
+    return character and character:FindFirstChildOfClass("Humanoid")
+end
+
+local function stopSpectate()
+    spectateTarget = nil
+    local camera = workspace.CurrentCamera
+    local humanoid = getHumanoid()
+    if camera and humanoid then
+        camera.CameraSubject = humanoid
+    end
+end
+
+local function startSpectate(player)
+    if not player or player.Parent ~= Players then
+        warn("Spectate: select an available player first")
+        return
+    end
+    local camera = workspace.CurrentCamera
+    local humanoid = getSpectateHumanoid(player)
+    if not camera or not humanoid then
+        warn("Spectate: selected player's character not found")
+        return
+    end
+    spectateTarget = player
+    camera.CameraSubject = humanoid
+end
+
+local function updateSpectate()
+    if not spectateTarget then
+        return
+    end
+    if spectateTarget.Parent ~= Players then
+        stopSpectate()
+        return
+    end
+    local camera = workspace.CurrentCamera
+    local humanoid = getSpectateHumanoid(spectateTarget)
+    if camera and humanoid and camera.CameraSubject ~= humanoid then
+        camera.CameraSubject = humanoid
+    end
+end
+
 createMainSection("Players")
 
 createMainButton({
@@ -956,54 +1649,72 @@ createMainButton({
     end,
 })
 
-local playerList = Main:PlayerList({
-    Text = "Target player",
+teleportPicker = createPlayerPicker({
+    Name = "TeleportPlayerPicker",
+    Order = reserveLayoutOrder(Main),
+    Label = "Target player",
     Description = "Open the list, choose a player, then press Teleport.",
-    DescStyle = {
-        Color = Color3.fromRGB(151, 148, 166),
-        TextSize = 11,
+    Inline = true,
+    Actions = {
+        {
+            Text = "Teleport",
+            Primary = true,
+            Callback = function(player)
+                if not player or player.Parent ~= Players then
+                    warn("Teleport To: select an available player first")
+                    return
+                end
+                local character = getPlayerCharacter(player)
+                if not character then
+                    warn("Teleport To: selected player's character not found")
+                    return
+                end
+                teleportToModel(character)
+            end,
+        },
     },
-    Action = {
-        Type = "Button",
-        Text = "Teleport",
-        Width = 88,
-        Callback = function(player)
-            if not player or player.Parent ~= Players then
-                warn("Teleport To: select an available player first")
-                return
-            end
-            local character = getPlayerCharacter(player)
-            if not character then
-                warn("Teleport To: selected player's character not found")
-                return
-            end
-            teleportToModel(character)
-        end,
-    },
-})
-
-playerList.Frame.BackgroundColor3 = MainTheme.Card
-local playerListStroke = playerList.Frame:FindFirstChildOfClass("UIStroke")
-if playerListStroke then
-    playerListStroke.Color = MainTheme.Border
-end
-for _, item in ipairs(playerList.Frame:GetDescendants()) do
-    if item:IsA("TextButton") then
-        local itemStroke = item:FindFirstChildOfClass("UIStroke")
-        if item.Text == "Teleport" then
-            item.BackgroundColor3 = MainTheme.Accent
-            item.TextColor3 = MainTheme.Text
-            if itemStroke then
-                itemStroke.Color = MainTheme.AccentSoft
-            end
-        else
-            item.BackgroundColor3 = MainTheme.CardHover
-            if itemStroke then
-                itemStroke.Color = MainTheme.Border
+    OnChange = function(player)
+        if player == nil and boundTeleportEnabled then
+            boundTeleportEnabled = false
+            if boundToggle then
+                boundToggle:Set(false, true)
             end
         end
-    end
-end
+    end,
+})
+
+boundToggle = Main:Toggle({
+    Text = "Bound teleport",
+    Description = "Keep teleporting behind the selected target player while enabled.",
+    Default = false,
+    Callback = function(state)
+        if state then
+            local target = teleportPicker and teleportPicker.Get()
+            if not target or target.Parent ~= Players then
+                warn("Bound teleport: select an available player first")
+                boundTeleportEnabled = false
+                if boundToggle then
+                    boundToggle:Set(false, true)
+                end
+                return
+            end
+        end
+        boundTeleportEnabled = state
+    end,
+})
+
+createMainSection("Spectate")
+
+spectatePicker = createPlayerPicker({
+    Name = "SpectatePlayerPicker",
+    Order = reserveLayoutOrder(Main),
+    Label = "Spectate at",
+    Empty = "Spectate at...",
+    Actions = {
+        { Text = "Spectate", Primary = true, Callback = startSpectate },
+        { Text = "Unspectate", Callback = stopSpectate },
+    },
+})
 
 createMainSection("Map")
 
@@ -1098,6 +1809,12 @@ Visuals:Toggle({
     Text = "No Fog",
     Default = false,
     Callback = setNoFog,
+})
+
+Visuals:Toggle({
+    Text = "Free Zoom",
+    Default = false,
+    Callback = setFreeZoom,
 })
 
 Movement:Toggle({
@@ -1215,6 +1932,15 @@ Window:Connect(RunService.Stepped, function()
     end
 end)
 
+Window:Connect(RunService.Heartbeat, function()
+    updateBoundTeleport()
+end)
+
+Window:Connect(RunService.RenderStepped, function()
+    updateSpectate()
+    pcall(updateFreeZoom)
+end)
+
 Window:Connect(LocalPlayer.CharacterAdded, function(character)
     local newHumanoid = character:WaitForChild("Humanoid", 15)
     if newHumanoid then
@@ -1234,6 +1960,9 @@ end)
 Window:OnClose(function()
     setFullbright(false)
     setNoFog(false)
+    setFreeZoom(false)
+    boundTeleportEnabled = false
+    stopSpectate()
     speedEnabled = false
     jumpEnabled = false
     local currentHumanoid = getHumanoid()
