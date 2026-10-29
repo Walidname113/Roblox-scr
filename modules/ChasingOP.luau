@@ -47,7 +47,7 @@ end
 
 local Window = uiModule.new({
     Name = "ModernUI",
-    Title = "{gamename} | By Kiyatsuka v1.1.0",
+    Title = "{gamename} | By Kiyatsuka v1.2.0",
 })
 
 if MinimizedIcon ~= "" then
@@ -1888,8 +1888,16 @@ setHolderVisible(smartToggle, smartChildrenHolder, false)
 createESPGroup(ESP, "Killer ESP", "Killer")
 createESPGroup(ESP, "Survivors ESP", "Survivors")
 
+local HIGHLIGHT_LIMIT = 31
+local AUTO_COLLECT_INTERVAL = 0.1
+local AUTO_COLLECT_BATCH = 15
+
 local HalloweenState = { Enabled = false, Pumpkin = false, XP = false, Cash = false }
-local HalloweenHighlights = {}
+local HalloweenEntries = {}
+local autoCollectEnabled = false
+local autoCollectBusy = false
+local autoCollectWarned = false
+
 local HALLOWEEN_CONFIG = {
     Pumpkin = {
         Path = { "Pumpkin Coin", "Pumpkin Coin" },
@@ -1942,27 +1950,93 @@ local function expandHalloweenTarget(target, result)
     end
 end
 
-local function applyHalloweenHighlight(adornee, config)
-    local highlight = HalloweenHighlights[adornee]
-    if not highlight or not highlight.Parent then
-        highlight = Instance.new("Highlight")
-        highlight.Name = "ModernUI_Halloween_Highlight"
-        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-        highlight.FillTransparency = 0.82
-        highlight.OutlineTransparency = 0.1
-        highlight.Adornee = adornee
-        highlight.Parent = adornee
-        HalloweenHighlights[adornee] = highlight
+local function getHalloweenAdornees(dropObjects, config)
+    local targets = {}
+    collectHalloweenTargets(dropObjects, config.Path, 1, targets)
+    local adornees = {}
+    for _, target in ipairs(targets) do
+        expandHalloweenTarget(target, adornees)
     end
-    highlight.FillColor = config.Fill
-    highlight.OutlineColor = config.Outline
+    return adornees
+end
+
+local function destroyHalloweenEntry(adornee)
+    local entry = HalloweenEntries[adornee]
+    if entry then
+        for _, object in ipairs(entry.Objects) do
+            object:Destroy()
+        end
+        HalloweenEntries[adornee] = nil
+    end
+end
+
+local function entryValid(entry)
+    for _, object in ipairs(entry.Objects) do
+        if not object.Parent then
+            return false
+        end
+    end
+    return true
+end
+
+local function createHighlightEntry(adornee)
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ModernUI_Halloween_Highlight"
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.FillTransparency = 0.82
+    highlight.OutlineTransparency = 0.1
+    highlight.Adornee = adornee
+    highlight.Parent = adornee
+    return { Mode = "Highlight", Objects = { highlight } }
+end
+
+local function createAdornEntry(adornee)
+    local box = Instance.new("BoxHandleAdornment")
+    box.Name = "ModernUI_Halloween_Fill"
+    box.AlwaysOnTop = true
+    box.ZIndex = 5
+    box.Transparency = 0.82
+    box.Size = adornee.Size
+    box.Adornee = adornee
+    box.Parent = adornee
+    local outline = Instance.new("SelectionBox")
+    outline.Name = "ModernUI_Halloween_Outline"
+    outline.LineThickness = 0.03
+    outline.SurfaceTransparency = 1
+    outline.Transparency = 0.1
+    outline.Adornee = adornee
+    outline.Parent = adornee
+    return { Mode = "Adorn", Objects = { box, outline } }
+end
+
+local function paintHalloweenEntry(entry, adornee, config)
+    for _, object in ipairs(entry.Objects) do
+        if object:IsA("Highlight") then
+            object.FillColor = config.Fill
+            object.OutlineColor = config.Outline
+        elseif object:IsA("BoxHandleAdornment") then
+            object.Color3 = config.Fill
+            object.Size = adornee.Size
+        elseif object:IsA("SelectionBox") then
+            object.Color3 = config.Fill
+        end
+    end
 end
 
 local function clearHalloween()
-    for adornee, highlight in pairs(HalloweenHighlights) do
-        highlight:Destroy()
-        HalloweenHighlights[adornee] = nil
+    for adornee in pairs(HalloweenEntries) do
+        destroyHalloweenEntry(adornee)
     end
+end
+
+local function countPlayerHighlights()
+    local count = 0
+    for _, highlight in pairs(ESPHighlights) do
+        if highlight and highlight.Parent then
+            count = count + 1
+        end
+    end
+    return count
 end
 
 local function updateHalloween()
@@ -1970,29 +2044,146 @@ local function updateHalloween()
         clearHalloween()
         return
     end
+
     local alive = {}
+    local ordered = {}
     local dropObjects = getDropObjects()
     if dropObjects then
         for kind, config in pairs(HALLOWEEN_CONFIG) do
             if HalloweenState[kind] then
-                local targets = {}
-                collectHalloweenTargets(dropObjects, config.Path, 1, targets)
-                local adornees = {}
-                for _, target in ipairs(targets) do
-                    expandHalloweenTarget(target, adornees)
-                end
-                for _, adornee in ipairs(adornees) do
-                    alive[adornee] = true
-                    applyHalloweenHighlight(adornee, config)
+                for _, adornee in ipairs(getHalloweenAdornees(dropObjects, config)) do
+                    alive[adornee] = config
+                    ordered[#ordered + 1] = adornee
                 end
             end
         end
     end
-    for adornee, highlight in pairs(HalloweenHighlights) do
-        if not alive[adornee] or not adornee.Parent then
-            highlight:Destroy()
-            HalloweenHighlights[adornee] = nil
+
+    for adornee, entry in pairs(HalloweenEntries) do
+        if not alive[adornee] or not adornee.Parent or not entryValid(entry) then
+            destroyHalloweenEntry(adornee)
         end
+    end
+
+    local budget = math.max(0, HIGHLIGHT_LIMIT - countPlayerHighlights())
+    local used = 0
+    for _, entry in pairs(HalloweenEntries) do
+        if entry.Mode == "Highlight" then
+            used = used + 1
+        end
+    end
+
+    if used > budget then
+        for adornee, entry in pairs(HalloweenEntries) do
+            if used <= budget then
+                break
+            end
+            if entry.Mode == "Highlight" and adornee:IsA("BasePart") then
+                destroyHalloweenEntry(adornee)
+                used = used - 1
+            end
+        end
+    end
+
+    for _, adornee in ipairs(ordered) do
+        local config = alive[adornee]
+        local entry = HalloweenEntries[adornee]
+        if not entry then
+            if used < budget or not adornee:IsA("BasePart") then
+                entry = createHighlightEntry(adornee)
+                used = used + 1
+            else
+                entry = createAdornEntry(adornee)
+            end
+            HalloweenEntries[adornee] = entry
+        elseif entry.Mode == "Adorn" and used < budget then
+            destroyHalloweenEntry(adornee)
+            entry = createHighlightEntry(adornee)
+            HalloweenEntries[adornee] = entry
+            used = used + 1
+        end
+        paintHalloweenEntry(entry, adornee, config)
+    end
+end
+
+local function getCollectParts(root)
+    local parts = {}
+    local dropObjects = getDropObjects()
+    if not dropObjects then
+        return parts
+    end
+    for _, config in pairs(HALLOWEEN_CONFIG) do
+        for _, adornee in ipairs(getHalloweenAdornees(dropObjects, config)) do
+            local part = adornee
+            if adornee:IsA("Model") then
+                part = adornee.PrimaryPart or adornee:FindFirstChildWhichIsA("BasePart", true)
+            end
+            if part and part.Parent then
+                parts[#parts + 1] = part
+            end
+        end
+    end
+    local origin = root.Position
+    table.sort(parts, function(left, right)
+        return (left.Position - origin).Magnitude < (right.Position - origin).Magnitude
+    end)
+    return parts
+end
+
+local function collectWithTouch(root, parts)
+    local limit = math.min(#parts, AUTO_COLLECT_BATCH)
+    for index = 1, limit do
+        local part = parts[index]
+        if part.Parent then
+            firetouchinterest(root, part, 0)
+            firetouchinterest(root, part, 1)
+        end
+    end
+end
+
+local function collectWithTeleport(root, parts)
+    local part = parts[1]
+    if not part or not part.Parent or autoCollectBusy then
+        return
+    end
+    autoCollectBusy = true
+    task.spawn(function()
+        local origin = root.CFrame
+        root.CFrame = part.CFrame
+        RunService.Heartbeat:Wait()
+        if root.Parent then
+            root.CFrame = origin
+            root.AssemblyLinearVelocity = Vector3.zero
+        end
+        autoCollectBusy = false
+    end)
+end
+
+local function updateAutoCollect()
+    if not autoCollectEnabled then
+        return
+    end
+    local character = LocalPlayer.Character
+    local root = getCharacterRoot(character)
+    if not root then
+        return
+    end
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid and humanoid.Health <= 0 then
+        return
+    end
+    local parts = getCollectParts(root)
+    if #parts == 0 then
+        return
+    end
+    if type(firetouchinterest) == "function" then
+        collectWithTouch(root, parts)
+    else
+        if not autoCollectWarned then
+            autoCollectWarned = true
+            warn("Auto-collection: firetouchinterest is unavailable, using teleport fallback")
+        end
+        collectWithTeleport(root, parts)
     end
 end
 
@@ -2029,6 +2220,18 @@ halloweenToggle = Halloween:Toggle({
 local halloweenFirstChild = halloweenToggle.Subs and halloweenToggle.Subs[1]
 halloweenChildrenHolder = halloweenFirstChild and halloweenFirstChild.Frame.Parent
 setHolderVisible(halloweenToggle, halloweenChildrenHolder, false)
+
+Halloween:Toggle({
+    Text = "Auto-collection XP, Cash, Pumpkins (test)",
+    Default = false,
+    Callback = function(state)
+        autoCollectEnabled = state
+    end,
+})
+
+Window:Loop(AUTO_COLLECT_INTERVAL, function()
+    pcall(updateAutoCollect)
+end)
 
 Visuals:Toggle({
     Text = "Fullbright",
@@ -2205,6 +2408,7 @@ Window:OnClose(function()
     end
     noclipEnabled = false
     restoreNoclip()
+    autoCollectEnabled = false
     clearHalloween()
     for model in pairs(ESPObjects) do
         removeESP(model)
