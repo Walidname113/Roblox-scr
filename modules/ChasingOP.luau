@@ -47,7 +47,7 @@ end
 
 local Window = uiModule.new({
     Name = "ModernUI",
-    Title = "{gamename} | By Kiyatsuka v1.0.8",
+    Title = "{gamename} | By Kiyatsuka v1.0.9",
 })
 
 if MinimizedIcon ~= "" then
@@ -66,6 +66,10 @@ local ESPState = {
     Killer = { Enabled = false, Distance = false, Health = false, Level = false },
     Survivors = { Enabled = false, Distance = false, Health = false, Level = false },
 }
+
+local smartESPEnabled = false
+local smartUsePresets = false
+local SMART_DEFAULT_INFO = { Distance = true, Health = false, Level = false }
 
 local ESPObjects = {}
 local ESPHighlights = {}
@@ -162,6 +166,20 @@ local function getCharacterRole(model)
     return nil
 end
 
+local function getSmartTargetRole()
+    local killerName = getKillerName()
+    if not killerName then
+        return nil
+    end
+    if LocalPlayer.Name == killerName then
+        return "Survivors"
+    end
+    if isInGame(LocalPlayer) then
+        return "Killer"
+    end
+    return nil
+end
+
 local function removeESP(model)
     local gui = ESPObjects[model]
     if gui then
@@ -176,7 +194,7 @@ local function removeESP(model)
 end
 
 local function updateHighlight(model, role)
-    local enabled = role and ESPState[role] and ESPState[role].Enabled
+    local enabled = role ~= nil
     if not enabled then
         if ESPHighlights[model] then
             ESPHighlights[model]:Destroy()
@@ -229,14 +247,24 @@ local function updateESP()
         return
     end
 
-    local killerName = getKillerName()
+    local smartTarget = smartESPEnabled and getSmartTargetRole() or nil
     local activeModels = {}
 
     for _, model in ipairs(characters:GetChildren()) do
         if model:IsA("Model") and model ~= LocalPlayer.Character then
             local role = getCharacterRole(model)
             local player = Players:FindFirstChild(model.Name)
-            local allowed = role and ESPState[role].Enabled
+            local state = nil
+            local allowed = false
+            if role then
+                if smartESPEnabled then
+                    allowed = role == smartTarget
+                    state = smartUsePresets and ESPState[role] or SMART_DEFAULT_INFO
+                else
+                    allowed = ESPState[role].Enabled
+                    state = ESPState[role]
+                end
+            end
             if role == "Survivors" and player and not isInGame(player) then
                 allowed = false
             end
@@ -246,7 +274,6 @@ local function updateESP()
                 gui.Adornee = getCharacterRoot(model)
                 local label = gui:FindFirstChild("Label")
                 local lines = { model.Name }
-                local state = ESPState[role]
                 local root = getCharacterRoot(model)
                 local localRoot = getCharacterRoot(LocalPlayer.Character)
                 if state.Distance and root and localRoot then
@@ -1099,6 +1126,34 @@ local function collectPlayers()
     return result
 end
 
+local PLAYER_TAGS = {
+    Killer = {
+        Text = "KILLER",
+        Fill = Color3.fromRGB(255, 45, 45),
+        Ink = Color3.fromRGB(255, 110, 110),
+    },
+    Survivor = {
+        Text = "SURVIVOR",
+        Fill = Color3.fromRGB(50, 135, 255),
+        Ink = Color3.fromRGB(100, 180, 255),
+    },
+    Lobby = {
+        Text = "LOBBY",
+        Fill = Color3.fromRGB(255, 255, 255),
+        Ink = Color3.fromRGB(255, 255, 255),
+    },
+}
+
+local function getPlayerTag(player, killerName)
+    if killerName and player.Name == killerName then
+        return PLAYER_TAGS.Killer
+    end
+    if isInGame(player) then
+        return PLAYER_TAGS.Survivor
+    end
+    return PLAYER_TAGS.Lobby
+end
+
 local function createPlayerPicker(config)
     local picker = {}
     local selected = nil
@@ -1419,7 +1474,7 @@ local function createPlayerPicker(config)
                 local sameName = player.DisplayName == player.Name
                 newGui("TextLabel", {
                     Position = UDim2.fromOffset(48, sameName and 0 or 6),
-                    Size = UDim2.new(1, -112, 0, sameName and PICKER_ROW_HEIGHT or 17),
+                    Size = UDim2.new(1, -144, 0, sameName and PICKER_ROW_HEIGHT or 17),
                     Text = player.DisplayName,
                     Font = Enum.Font.GothamBold,
                     TextSize = 13,
@@ -1429,7 +1484,7 @@ local function createPlayerPicker(config)
                 if not sameName then
                     newGui("TextLabel", {
                         Position = UDim2.fromOffset(48, 23),
-                        Size = UDim2.new(1, -112, 0, 14),
+                        Size = UDim2.new(1, -144, 0, 14),
                         Text = "@" .. player.Name,
                         TextSize = 11,
                         TextColor3 = MutedText,
@@ -1437,20 +1492,19 @@ local function createPlayerPicker(config)
                         TextTruncate = Enum.TextTruncate.AtEnd,
                     }, row)
                 end
-                if killerName and player.Name == killerName then
-                    local badge = newGui("TextLabel", {
-                        AnchorPoint = Vector2.new(1, 0.5),
-                        Position = UDim2.new(1, isSelected and -30 or -8, 0.5, 0),
-                        Size = UDim2.fromOffset(54, 18),
-                        BackgroundColor3 = Color3.fromRGB(255, 45, 45),
-                        BackgroundTransparency = 0.75,
-                        Text = "KILLER",
-                        Font = Enum.Font.GothamBold,
-                        TextSize = 10,
-                        TextColor3 = Color3.fromRGB(255, 110, 110),
-                    }, row)
-                    roundify(badge, 9)
-                end
+                local tag = getPlayerTag(player, killerName)
+                local badge = newGui("TextLabel", {
+                    AnchorPoint = Vector2.new(1, 0.5),
+                    Position = UDim2.new(1, isSelected and -30 or -8, 0.5, 0),
+                    Size = UDim2.fromOffset(62, 18),
+                    BackgroundColor3 = tag.Fill,
+                    BackgroundTransparency = 0.78,
+                    Text = tag.Text,
+                    Font = Enum.Font.GothamBold,
+                    TextSize = 10,
+                    TextColor3 = tag.Ink,
+                }, row)
+                roundify(badge, 9)
                 if isSelected then
                     newGui("TextLabel", {
                         AnchorPoint = Vector2.new(1, 0.5),
@@ -1604,51 +1658,6 @@ end
 
 createMainSection("Players")
 
-createMainButton({
-    Text = "Teleport to Killer",
-    Description = "Move directly to the current killer.",
-    Callback = function()
-        local killerName = getKillerName()
-        if not killerName then
-            warn("Teleport failed: killer is not available")
-            return
-        end
-        local characters = workspace:FindFirstChild("Characters")
-        local killerModel = characters and characters:FindFirstChild(killerName)
-        if not killerModel then
-            local killerPlayer = Players:FindFirstChild(killerName)
-            killerModel = killerPlayer and getPlayerCharacter(killerPlayer)
-        end
-        if not killerModel then
-            warn("Teleport failed: killer character not found")
-            return
-        end
-        teleportToModel(killerModel)
-    end,
-})
-
-createMainButton({
-    Text = "Random Survivor",
-    Description = "Pick an eligible survivor and teleport to them.",
-    Callback = function()
-        local killerName = getKillerName()
-        local candidates = {}
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Name ~= killerName and isInGame(player) then
-                local character = getPlayerCharacter(player)
-                if character and getCharacterRoot(character) then
-                    candidates[#candidates + 1] = character
-                end
-            end
-        end
-        if #candidates == 0 then
-            warn("Random Survivor: no eligible survivors found")
-            return
-        end
-        teleportToModel(candidates[math.random(1, #candidates)])
-    end,
-})
-
 teleportPicker = createPlayerPicker({
     Name = "TeleportPlayerPicker",
     Order = reserveLayoutOrder(Main),
@@ -1747,20 +1756,50 @@ createMainButton({
     end,
 })
 
-local function createESPGroup(category, title, role)
-    local childrenHolder = nil
-    local parentToggle = nil
+local ESP_INFO_KEYS = { "Distance", "Health", "Level" }
+local ESPGroups = {}
 
-    local function setChildrenVisible(visible)
-        if not childrenHolder or not childrenHolder.Parent then
+local function refreshESPGroups()
+    for _, group in ipairs(ESPGroups) do
+        group.Refresh()
+    end
+end
+
+local function makeLockable(widget)
+    local nativeSet = widget.Set
+    local lock = { Locked = false }
+    function widget.Set(self, value, silent)
+        if lock.Locked then
             return
         end
-        childrenHolder.Visible = visible
-        local padding = parentToggle.Frame:FindFirstChildOfClass("UIPadding")
-        if padding then
-            padding.PaddingBottom = UDim.new(0, visible and 10 or 0)
-        end
+        return nativeSet(self, value, silent)
     end
+    function lock.Force(value)
+        local previous = lock.Locked
+        lock.Locked = false
+        nativeSet(widget, value and true or false, true)
+        lock.Locked = previous
+    end
+    return lock
+end
+
+local function setHolderVisible(toggle, holder, visible)
+    if not holder or not holder.Parent then
+        return
+    end
+    holder.Visible = visible
+    local padding = toggle.Frame:FindFirstChildOfClass("UIPadding")
+    if padding then
+        padding.PaddingBottom = UDim.new(0, visible and 10 or 0)
+    end
+end
+
+local function createESPGroup(category, title, role)
+    local group = {}
+    local parentToggle = nil
+    local parentLock = nil
+    local childrenHolder = nil
+    local subLocks = {}
 
     local function childToggle(text, key)
         return {
@@ -1779,7 +1818,7 @@ local function createESPGroup(category, title, role)
         Default = false,
         Callback = function(state)
             ESPState[role].Enabled = state
-            setChildrenVisible(state)
+            group.Refresh()
             updateESP()
         end,
         Sub = {
@@ -1789,12 +1828,61 @@ local function createESPGroup(category, title, role)
         },
     })
 
+    parentLock = makeLockable(parentToggle)
+    for index, subToggle in ipairs(parentToggle.Subs) do
+        subLocks[index] = makeLockable(subToggle)
+    end
     local firstChild = parentToggle.Subs and parentToggle.Subs[1]
     childrenHolder = firstChild and firstChild.Frame.Parent
-    setChildrenVisible(false)
 
+    function group.Refresh()
+        local smart = smartESPEnabled
+        local info = ESPState[role]
+        parentLock.Force(info.Enabled and not smart)
+        parentLock.Locked = smart
+        local subsShown = (not smart and info.Enabled) or (smart and smartUsePresets)
+        setHolderVisible(parentToggle, childrenHolder, subsShown)
+        local subsOn = (not smart) or smartUsePresets
+        for index, key in ipairs(ESP_INFO_KEYS) do
+            subLocks[index].Force(subsOn and info[key])
+            subLocks[index].Locked = smart and not smartUsePresets
+        end
+    end
+
+    ESPGroups[#ESPGroups + 1] = group
+    group.Refresh()
     return parentToggle
 end
+
+local smartToggle = nil
+local smartChildrenHolder = nil
+
+smartToggle = ESP:Toggle({
+    Text = "Smart ESP",
+    Default = false,
+    Callback = function(state)
+        smartESPEnabled = state
+        setHolderVisible(smartToggle, smartChildrenHolder, state)
+        refreshESPGroups()
+        updateESP()
+    end,
+    Sub = {
+        {
+            Type = "Toggle",
+            Text = "Use your sub-toggle presets",
+            Default = false,
+            Callback = function(state)
+                smartUsePresets = state
+                refreshESPGroups()
+                updateESP()
+            end,
+        },
+    },
+})
+
+local smartFirstChild = smartToggle.Subs and smartToggle.Subs[1]
+smartChildrenHolder = smartFirstChild and smartFirstChild.Frame.Parent
+setHolderVisible(smartToggle, smartChildrenHolder, false)
 
 createESPGroup(ESP, "Killer ESP", "Killer")
 createESPGroup(ESP, "Survivors ESP", "Survivors")
@@ -1872,7 +1960,7 @@ speedControl.Enabled = speedEnabled
 jumpControl.Enabled = jumpEnabled
 
 Window:Loop(ESP_INTERVAL, function()
-    if ESPState.Killer.Enabled or ESPState.Survivors.Enabled then
+    if smartESPEnabled or ESPState.Killer.Enabled or ESPState.Survivors.Enabled then
         updateESP()
     else
         for model in pairs(ESPObjects) do
