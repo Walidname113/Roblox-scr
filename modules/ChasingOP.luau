@@ -47,7 +47,7 @@ end
 
 local Window = uiModule.new({
     Name = "ModernUI",
-    Title = "{gamename} | By Kiyatsuka v1.2.0",
+    Title = "{gamename} | By Kiyatsuka v1.3.0",
 })
 
 if MinimizedIcon ~= "" then
@@ -1889,143 +1889,83 @@ createESPGroup(ESP, "Killer ESP", "Killer")
 createESPGroup(ESP, "Survivors ESP", "Survivors")
 
 local HIGHLIGHT_LIMIT = 31
-local AUTO_COLLECT_INTERVAL = 0.1
-local AUTO_COLLECT_BATCH = 15
+local PUMPKIN_ESP_LIMIT = 20
+local PUMPKIN_TELEPORT_DELAY = 0.15
+local AUTO_COLLECT_INTERVAL = 0.2
+local PUMPKIN_PATH = { "Pumpkin Coin", "Pumpkin Coin" }
+local PUMPKIN_FILL = Color3.fromRGB(255, 140, 0)
+local PUMPKIN_OUTLINE = Color3.fromRGB(150, 70, 0)
 
-local HalloweenState = { Enabled = false, Pumpkin = false, XP = false, Cash = false }
-local HalloweenEntries = {}
+local pumpkinEspEnabled = false
+local pumpkinHighlights = {}
 local autoCollectEnabled = false
-local autoCollectBusy = false
-local autoCollectWarned = false
-
-local HALLOWEEN_CONFIG = {
-    Pumpkin = {
-        Path = { "Pumpkin Coin", "Pumpkin Coin" },
-        Fill = Color3.fromRGB(255, 140, 0),
-        Outline = Color3.fromRGB(150, 70, 0),
-    },
-    XP = {
-        Path = { "XP", "Part" },
-        Fill = Color3.fromRGB(170, 70, 255),
-        Outline = Color3.fromRGB(70, 0, 130),
-    },
-    Cash = {
-        Path = { "Cash" },
-        Fill = Color3.fromRGB(60, 220, 90),
-        Outline = Color3.fromRGB(0, 100, 30),
-    },
-}
+local autoCollectRunning = false
 
 local function getDropObjects()
     local cantQuery = workspace:FindFirstChild("_CantQuery")
     return cantQuery and cantQuery:FindFirstChild("DropObjects")
 end
 
-local function collectHalloweenTargets(root, path, depth, result)
+local function collectByPath(root, path, depth, result)
     local name = path[depth]
     for _, child in ipairs(root:GetChildren()) do
         if child.Name == name then
             if depth == #path then
                 result[#result + 1] = child
             else
-                collectHalloweenTargets(child, path, depth + 1, result)
+                collectByPath(child, path, depth + 1, result)
             end
         end
     end
 end
 
-local function isAdorneeable(instance)
-    return instance:IsA("BasePart") or instance:IsA("Model")
-end
-
-local function expandHalloweenTarget(target, result)
-    if isAdorneeable(target) then
-        result[#result + 1] = target
-        return
+local function getPumpkins()
+    local pumpkins = {}
+    local dropObjects = getDropObjects()
+    if not dropObjects then
+        return pumpkins
     end
-    for _, child in ipairs(target:GetChildren()) do
-        if isAdorneeable(child) then
-            result[#result + 1] = child
-        end
-    end
-end
-
-local function getHalloweenAdornees(dropObjects, config)
     local targets = {}
-    collectHalloweenTargets(dropObjects, config.Path, 1, targets)
-    local adornees = {}
+    collectByPath(dropObjects, PUMPKIN_PATH, 1, targets)
     for _, target in ipairs(targets) do
-        expandHalloweenTarget(target, adornees)
-    end
-    return adornees
-end
-
-local function destroyHalloweenEntry(adornee)
-    local entry = HalloweenEntries[adornee]
-    if entry then
-        for _, object in ipairs(entry.Objects) do
-            object:Destroy()
-        end
-        HalloweenEntries[adornee] = nil
-    end
-end
-
-local function entryValid(entry)
-    for _, object in ipairs(entry.Objects) do
-        if not object.Parent then
-            return false
+        if target:IsA("BasePart") or target:IsA("Model") then
+            pumpkins[#pumpkins + 1] = target
+        else
+            for _, child in ipairs(target:GetChildren()) do
+                if child:IsA("BasePart") or child:IsA("Model") then
+                    pumpkins[#pumpkins + 1] = child
+                end
+            end
         end
     end
-    return true
+    return pumpkins
 end
 
-local function createHighlightEntry(adornee)
-    local highlight = Instance.new("Highlight")
-    highlight.Name = "ModernUI_Halloween_Highlight"
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.FillTransparency = 0.82
-    highlight.OutlineTransparency = 0.1
-    highlight.Adornee = adornee
-    highlight.Parent = adornee
-    return { Mode = "Highlight", Objects = { highlight } }
+local function getPumpkinPosition(pumpkin)
+    if pumpkin:IsA("BasePart") then
+        return pumpkin.Position
+    end
+    return pumpkin:GetPivot().Position
 end
 
-local function createAdornEntry(adornee)
-    local box = Instance.new("BoxHandleAdornment")
-    box.Name = "ModernUI_Halloween_Fill"
-    box.AlwaysOnTop = true
-    box.ZIndex = 5
-    box.Transparency = 0.82
-    box.Size = adornee.Size
-    box.Adornee = adornee
-    box.Parent = adornee
-    local outline = Instance.new("SelectionBox")
-    outline.Name = "ModernUI_Halloween_Outline"
-    outline.LineThickness = 0.03
-    outline.SurfaceTransparency = 1
-    outline.Transparency = 0.1
-    outline.Adornee = adornee
-    outline.Parent = adornee
-    return { Mode = "Adorn", Objects = { box, outline } }
+local function getPumpkinCFrame(pumpkin)
+    if pumpkin:IsA("BasePart") then
+        return pumpkin.CFrame
+    end
+    return pumpkin:GetPivot()
 end
 
-local function paintHalloweenEntry(entry, adornee, config)
-    for _, object in ipairs(entry.Objects) do
-        if object:IsA("Highlight") then
-            object.FillColor = config.Fill
-            object.OutlineColor = config.Outline
-        elseif object:IsA("BoxHandleAdornment") then
-            object.Color3 = config.Fill
-            object.Size = adornee.Size
-        elseif object:IsA("SelectionBox") then
-            object.Color3 = config.Fill
-        end
+local function destroyPumpkinHighlight(pumpkin)
+    local highlight = pumpkinHighlights[pumpkin]
+    if highlight then
+        highlight:Destroy()
+        pumpkinHighlights[pumpkin] = nil
     end
 end
 
 local function clearHalloween()
-    for adornee in pairs(HalloweenEntries) do
-        destroyHalloweenEntry(adornee)
+    for pumpkin in pairs(pumpkinHighlights) do
+        destroyPumpkinHighlight(pumpkin)
     end
 end
 
@@ -2040,189 +1980,155 @@ local function countPlayerHighlights()
 end
 
 local function updateHalloween()
-    if not HalloweenState.Enabled then
+    if not pumpkinEspEnabled then
         clearHalloween()
         return
     end
 
-    local alive = {}
-    local ordered = {}
-    local dropObjects = getDropObjects()
-    if dropObjects then
-        for kind, config in pairs(HALLOWEEN_CONFIG) do
-            if HalloweenState[kind] then
-                for _, adornee in ipairs(getHalloweenAdornees(dropObjects, config)) do
-                    alive[adornee] = config
-                    ordered[#ordered + 1] = adornee
-                end
-            end
-        end
+    local root = getCharacterRoot(LocalPlayer.Character)
+    if not root then
+        clearHalloween()
+        return
     end
 
-    for adornee, entry in pairs(HalloweenEntries) do
-        if not alive[adornee] or not adornee.Parent or not entryValid(entry) then
-            destroyHalloweenEntry(adornee)
-        end
-    end
-
-    local budget = math.max(0, HIGHLIGHT_LIMIT - countPlayerHighlights())
-    local used = 0
-    for _, entry in pairs(HalloweenEntries) do
-        if entry.Mode == "Highlight" then
-            used = used + 1
-        end
-    end
-
-    if used > budget then
-        for adornee, entry in pairs(HalloweenEntries) do
-            if used <= budget then
-                break
-            end
-            if entry.Mode == "Highlight" and adornee:IsA("BasePart") then
-                destroyHalloweenEntry(adornee)
-                used = used - 1
-            end
-        end
-    end
-
-    for _, adornee in ipairs(ordered) do
-        local config = alive[adornee]
-        local entry = HalloweenEntries[adornee]
-        if not entry then
-            if used < budget or not adornee:IsA("BasePart") then
-                entry = createHighlightEntry(adornee)
-                used = used + 1
-            else
-                entry = createAdornEntry(adornee)
-            end
-            HalloweenEntries[adornee] = entry
-        elseif entry.Mode == "Adorn" and used < budget then
-            destroyHalloweenEntry(adornee)
-            entry = createHighlightEntry(adornee)
-            HalloweenEntries[adornee] = entry
-            used = used + 1
-        end
-        paintHalloweenEntry(entry, adornee, config)
-    end
-end
-
-local function getCollectParts(root)
-    local parts = {}
-    local dropObjects = getDropObjects()
-    if not dropObjects then
-        return parts
-    end
-    for _, config in pairs(HALLOWEEN_CONFIG) do
-        for _, adornee in ipairs(getHalloweenAdornees(dropObjects, config)) do
-            local part = adornee
-            if adornee:IsA("Model") then
-                part = adornee.PrimaryPart or adornee:FindFirstChildWhichIsA("BasePart", true)
-            end
-            if part and part.Parent then
-                parts[#parts + 1] = part
-            end
-        end
-    end
     local origin = root.Position
-    table.sort(parts, function(left, right)
-        return (left.Position - origin).Magnitude < (right.Position - origin).Magnitude
+    local entries = {}
+    for _, pumpkin in ipairs(getPumpkins()) do
+        if pumpkin.Parent then
+            entries[#entries + 1] = {
+                Pumpkin = pumpkin,
+                Distance = (getPumpkinPosition(pumpkin) - origin).Magnitude,
+            }
+        end
+    end
+    table.sort(entries, function(left, right)
+        return left.Distance < right.Distance
     end)
-    return parts
-end
 
-local function collectWithTouch(root, parts)
-    local limit = math.min(#parts, AUTO_COLLECT_BATCH)
-    for index = 1, limit do
-        local part = parts[index]
-        if part.Parent then
-            firetouchinterest(root, part, 0)
-            firetouchinterest(root, part, 1)
+    local limit = math.min(PUMPKIN_ESP_LIMIT, math.max(0, HIGHLIGHT_LIMIT - countPlayerHighlights()))
+    local selected = {}
+    for index = 1, math.min(limit, #entries) do
+        selected[entries[index].Pumpkin] = true
+    end
+
+    for pumpkin, highlight in pairs(pumpkinHighlights) do
+        if not selected[pumpkin] or not pumpkin.Parent or not highlight.Parent then
+            destroyPumpkinHighlight(pumpkin)
+        end
+    end
+
+    for pumpkin in pairs(selected) do
+        local highlight = pumpkinHighlights[pumpkin]
+        if not highlight then
+            highlight = Instance.new("Highlight")
+            highlight.Name = "ModernUI_Pumpkin_Highlight"
+            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            highlight.FillTransparency = 0.82
+            highlight.OutlineTransparency = 0.1
+            highlight.FillColor = PUMPKIN_FILL
+            highlight.OutlineColor = PUMPKIN_OUTLINE
+            highlight.Adornee = pumpkin
+            highlight.Parent = pumpkin
+            pumpkinHighlights[pumpkin] = highlight
         end
     end
 end
 
-local function collectWithTeleport(root, parts)
-    local part = parts[1]
-    if not part or not part.Parent or autoCollectBusy then
-        return
-    end
-    autoCollectBusy = true
-    task.spawn(function()
-        local origin = root.CFrame
-        root.CFrame = part.CFrame
-        RunService.Heartbeat:Wait()
-        if root.Parent then
-            root.CFrame = origin
-            root.AssemblyLinearVelocity = Vector3.zero
-        end
-        autoCollectBusy = false
-    end)
-end
-
-local function updateAutoCollect()
-    if not autoCollectEnabled then
-        return
+local function canAutoCollect()
+    if not autoCollectEnabled or not isInGame(LocalPlayer) then
+        return false
     end
     local character = LocalPlayer.Character
     local root = getCharacterRoot(character)
     if not root then
-        return
+        return false
     end
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     if humanoid and humanoid.Health <= 0 then
+        return false
+    end
+    return true
+end
+
+local function runCollectCycle()
+    local root = getCharacterRoot(LocalPlayer.Character)
+    if not root then
         return
     end
-    local parts = getCollectParts(root)
-    if #parts == 0 then
+    local pumpkins = getPumpkins()
+    if #pumpkins == 0 then
         return
     end
-    if type(firetouchinterest) == "function" then
-        collectWithTouch(root, parts)
-    else
-        if not autoCollectWarned then
-            autoCollectWarned = true
-            warn("Auto-collection: firetouchinterest is unavailable, using teleport fallback")
+
+    autoCollectRunning = true
+    local startCFrame = root.CFrame
+    local moved = false
+    local current = root.Position
+
+    while #pumpkins > 0 and canAutoCollect() do
+        local bestIndex = nil
+        local bestDistance = math.huge
+        for index = #pumpkins, 1, -1 do
+            local pumpkin = pumpkins[index]
+            if not pumpkin.Parent then
+                table.remove(pumpkins, index)
+            else
+                local distance = (getPumpkinPosition(pumpkin) - current).Magnitude
+                if distance < bestDistance then
+                    bestDistance = distance
+                    bestIndex = index
+                end
+            end
         end
-        collectWithTeleport(root, parts)
+        if not bestIndex then
+            break
+        end
+        local pumpkin = table.remove(pumpkins, bestIndex)
+        local currentRoot = getCharacterRoot(LocalPlayer.Character)
+        if not currentRoot then
+            break
+        end
+        currentRoot.CFrame = getPumpkinCFrame(pumpkin)
+        currentRoot.AssemblyLinearVelocity = Vector3.zero
+        moved = true
+        current = getPumpkinPosition(pumpkin)
+        task.wait(PUMPKIN_TELEPORT_DELAY)
     end
+
+    local finalRoot = getCharacterRoot(LocalPlayer.Character)
+    if moved and finalRoot and isInGame(LocalPlayer) then
+        finalRoot.CFrame = startCFrame
+        finalRoot.AssemblyLinearVelocity = Vector3.zero
+    end
+    autoCollectRunning = false
 end
 
-local halloweenToggle = nil
-local halloweenChildrenHolder = nil
-
-local function halloweenSub(text, key)
-    return {
-        Type = "Toggle",
-        Text = text,
-        Default = false,
-        Callback = function(state)
-            HalloweenState[key] = state
-            updateHalloween()
-        end,
-    }
+local function updateAutoCollect()
+    if autoCollectRunning or not canAutoCollect() then
+        return
+    end
+    task.spawn(function()
+        local ok, err = pcall(runCollectCycle)
+        if not ok then
+            warn("Auto-collect pumpkins: " .. tostring(err))
+        end
+        autoCollectRunning = false
+    end)
 end
-
-halloweenToggle = Halloween:Toggle({
-    Text = "ESP Halloween Objects",
-    Default = false,
-    Callback = function(state)
-        HalloweenState.Enabled = state
-        setHolderVisible(halloweenToggle, halloweenChildrenHolder, state)
-        updateHalloween()
-    end,
-    Sub = {
-        halloweenSub("Pumpkin's ESP", "Pumpkin"),
-        halloweenSub("XP ESP", "XP"),
-        halloweenSub("Cash ESP", "Cash"),
-    },
-})
-
-local halloweenFirstChild = halloweenToggle.Subs and halloweenToggle.Subs[1]
-halloweenChildrenHolder = halloweenFirstChild and halloweenFirstChild.Frame.Parent
-setHolderVisible(halloweenToggle, halloweenChildrenHolder, false)
 
 Halloween:Toggle({
-    Text = "Auto-collection XP, Cash, Pumpkins (test)",
+    Text = "Pumpkin's ESP",
+    Description = "Highlights the 20 nearest pumpkins through walls.",
+    Default = false,
+    Callback = function(state)
+        pumpkinEspEnabled = state
+        updateHalloween()
+    end,
+})
+
+Halloween:Toggle({
+    Text = "Auto-collect Pumpkins",
+    Description = "Only on match.",
     Default = false,
     Callback = function(state)
         autoCollectEnabled = state
