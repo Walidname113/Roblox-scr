@@ -47,7 +47,7 @@ end
 
 local Window = uiModule.new({
     Name = "ModernUI",
-    Title = "{gamename} | By Kiyatsuka v1.3.0",
+    Title = "{gamename} | By Kiyatsuka v1.4.0",
 })
 
 if MinimizedIcon ~= "" then
@@ -88,6 +88,7 @@ local jumpBase = 50
 local speedApplied = nil
 local jumpApplied = nil
 local noclipEnabled = false
+local collectNoclipActive = false
 local noclipOriginal = {}
 local originalMovement = {}
 
@@ -702,7 +703,7 @@ local function updateNoclip()
     if not character then
         return
     end
-    if not noclipEnabled then
+    if not noclipEnabled and not collectNoclipActive then
         restoreNoclip()
         return
     end
@@ -1890,8 +1891,11 @@ createESPGroup(ESP, "Survivors ESP", "Survivors")
 
 local HIGHLIGHT_LIMIT = 31
 local PUMPKIN_ESP_LIMIT = 20
-local PUMPKIN_TELEPORT_DELAY = 0.15
 local AUTO_COLLECT_INTERVAL = 0.2
+local COLLECT_DEPTH = 40
+local COLLECT_SPEED = 140
+local COLLECT_WALK_TIME = 0.4
+local COLLECT_WALK_INTERVAL = 0.05
 local PUMPKIN_PATH = { "Pumpkin Coin", "Pumpkin Coin" }
 local PUMPKIN_FILL = Color3.fromRGB(255, 140, 0)
 local PUMPKIN_OUTLINE = Color3.fromRGB(150, 70, 0)
@@ -1946,13 +1950,6 @@ local function getPumpkinPosition(pumpkin)
         return pumpkin.Position
     end
     return pumpkin:GetPivot().Position
-end
-
-local function getPumpkinCFrame(pumpkin)
-    if pumpkin:IsA("BasePart") then
-        return pumpkin.CFrame
-    end
-    return pumpkin:GetPivot()
 end
 
 local function destroyPumpkinHighlight(pumpkin)
@@ -2050,55 +2047,130 @@ local function canAutoCollect()
     return true
 end
 
-local function runCollectCycle()
-    local root = getCharacterRoot(LocalPlayer.Character)
-    if not root then
-        return
+local function flyTo(target)
+    while canAutoCollect() do
+        local dt = RunService.Heartbeat:Wait()
+        local root = getCharacterRoot(LocalPlayer.Character)
+        if not root then
+            return false
+        end
+        local offset = target - root.Position
+        local distance = offset.Magnitude
+        local step = COLLECT_SPEED * dt
+        local rotation = root.CFrame.Rotation
+        if distance <= step then
+            root.CFrame = CFrame.new(target) * rotation
+            root.AssemblyLinearVelocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
+            return true
+        end
+        root.CFrame = CFrame.new(root.Position + offset.Unit * step) * rotation
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
     end
-    local pumpkins = getPumpkins()
-    if #pumpkins == 0 then
+    return false
+end
+
+local function holdAt(position, duration)
+    local elapsed = 0
+    while elapsed < duration and canAutoCollect() do
+        elapsed = elapsed + RunService.Heartbeat:Wait()
+        local root = getCharacterRoot(LocalPlayer.Character)
+        if not root then
+            return false
+        end
+        root.CFrame = CFrame.new(position) * root.CFrame.Rotation
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+    end
+    return canAutoCollect()
+end
+
+local function walkInside(pumpkin, center)
+    local amplitude = 1
+    if pumpkin:IsA("BasePart") then
+        amplitude = math.clamp(math.min(pumpkin.Size.X, pumpkin.Size.Z) * 0.25, 0.2, 1.5)
+    end
+    local elapsed = 0
+    local sinceFlip = 0
+    local sign = 1
+    while elapsed < COLLECT_WALK_TIME and canAutoCollect() do
+        local dt = RunService.Heartbeat:Wait()
+        elapsed = elapsed + dt
+        sinceFlip = sinceFlip + dt
+        if sinceFlip >= COLLECT_WALK_INTERVAL then
+            sinceFlip = 0
+            sign = -sign
+        end
+        local character = LocalPlayer.Character
+        local root = getCharacterRoot(character)
+        if not root then
+            return false
+        end
+        root.CFrame = CFrame.new(center + Vector3.new(sign * amplitude, 0, 0)) * root.CFrame.Rotation
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid:Move(Vector3.new(sign, 0, 0), false)
+        end
+    end
+    local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid:Move(Vector3.zero, false)
+    end
+    return canAutoCollect()
+end
+
+local function runCollectCycle()
+    local character = LocalPlayer.Character
+    local root = getCharacterRoot(character)
+    if not root then
         return
     end
 
     autoCollectRunning = true
-    local startCFrame = root.CFrame
-    local moved = false
-    local current = root.Position
+    collectNoclipActive = true
 
-    while #pumpkins > 0 and canAutoCollect() do
-        local bestIndex = nil
-        local bestDistance = math.huge
-        for index = #pumpkins, 1, -1 do
-            local pumpkin = pumpkins[index]
-            if not pumpkin.Parent then
-                table.remove(pumpkins, index)
-            else
-                local distance = (getPumpkinPosition(pumpkin) - current).Magnitude
-                if distance < bestDistance then
-                    bestDistance = distance
-                    bestIndex = index
-                end
+    local startCFrame = root.CFrame
+    local home = Vector3.new(startCFrame.X, startCFrame.Y - COLLECT_DEPTH, startCFrame.Z)
+
+    local active = flyTo(home)
+    while active and canAutoCollect() do
+        local pumpkins = getPumpkins()
+        table.sort(pumpkins, function(left, right)
+            return (getPumpkinPosition(left) - home).Magnitude < (getPumpkinPosition(right) - home).Magnitude
+        end)
+
+        if #pumpkins == 0 then
+            active = holdAt(home, 0.2)
+        end
+
+        for _, pumpkin in ipairs(pumpkins) do
+            if not active or not canAutoCollect() then
+                active = false
+                break
+            end
+            if pumpkin.Parent then
+                local target = getPumpkinPosition(pumpkin)
+                local under = Vector3.new(target.X, home.Y, target.Z)
+                active = flyTo(under)
+                    and flyTo(target)
+                    and walkInside(pumpkin, target)
+                    and flyTo(under)
+                    and flyTo(home)
             end
         end
-        if not bestIndex then
-            break
-        end
-        local pumpkin = table.remove(pumpkins, bestIndex)
-        local currentRoot = getCharacterRoot(LocalPlayer.Character)
-        if not currentRoot then
-            break
-        end
-        currentRoot.CFrame = getPumpkinCFrame(pumpkin)
-        currentRoot.AssemblyLinearVelocity = Vector3.zero
-        moved = true
-        current = getPumpkinPosition(pumpkin)
-        task.wait(PUMPKIN_TELEPORT_DELAY)
     end
 
-    local finalRoot = getCharacterRoot(LocalPlayer.Character)
-    if moved and finalRoot and isInGame(LocalPlayer) then
+    collectNoclipActive = false
+    local finalCharacter = LocalPlayer.Character
+    local finalRoot = getCharacterRoot(finalCharacter)
+    local humanoid = finalCharacter and finalCharacter:FindFirstChildOfClass("Humanoid")
+    if finalCharacter == character and finalRoot and humanoid and humanoid.Health > 0 and isInGame(LocalPlayer) then
         finalRoot.CFrame = startCFrame
         finalRoot.AssemblyLinearVelocity = Vector3.zero
+        finalRoot.AssemblyAngularVelocity = Vector3.zero
     end
     autoCollectRunning = false
 end
@@ -2109,10 +2181,11 @@ local function updateAutoCollect()
     end
     task.spawn(function()
         local ok, err = pcall(runCollectCycle)
+        collectNoclipActive = false
+        autoCollectRunning = false
         if not ok then
             warn("Auto-collect pumpkins: " .. tostring(err))
         end
-        autoCollectRunning = false
     end)
 end
 
@@ -2269,7 +2342,7 @@ Window:Loop(MOVEMENT_INTERVAL, function()
 end)
 
 Window:Connect(RunService.Stepped, function()
-    if noclipEnabled then
+    if noclipEnabled or collectNoclipActive then
         updateNoclip()
     end
 end)
@@ -2315,6 +2388,7 @@ Window:OnClose(function()
     noclipEnabled = false
     restoreNoclip()
     autoCollectEnabled = false
+    collectNoclipActive = false
     clearHalloween()
     for model in pairs(ESPObjects) do
         removeESP(model)
