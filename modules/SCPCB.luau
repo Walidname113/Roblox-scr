@@ -15,11 +15,17 @@ local Teams = game:GetService("Teams")
 local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
 if not LocalPlayer then return end
 
 local UPDATE_INTERVAL = 0.1
+local MOVEMENT_INTERVAL = 0.5
+local HIGHLIGHT_RANGE = 700
+local MAX_HIGHLIGHTS = 31
+local NO_FOG_DISTANCE = 1000000
 local LOBBY_TEAM_NAME = "Lobby"
 local SCP966_ROLE_ATTRIBUTE = "Role"
 local SCP966_ROLE_NAME = "SCP-966"
@@ -66,10 +72,10 @@ end
 
 Window = uiModule.new({
     Name = "SCPRB_ModernUI",
-    Title = "SCP:RB | By Kiyatsuka v2.0",
+    Title = "{gamename} | By Kiyatsuka v2.1",
 })
 
-if MINIMIZED_ICON ~= "" then Window:SetMinimizedImage(MINIMIZED_ICON) end
+Window:SetMinimizedImage(MINIMIZED_ICON)
 
 local Main = Window:Category("Main")
 local ESP = Window:Category("ESP")
@@ -152,7 +158,6 @@ local function getHealthColor(percent)
 end
 
 
-local UserInputService = game:GetService("UserInputService")
 local AIM_MAX_DISTANCE = 100
 local AIM_DISTANCE_TOLERANCE = 10
 local AIM_ACQUIRE_ANGLE = 10
@@ -1164,6 +1169,11 @@ Window:Loop(UPDATE_INTERVAL, function()
         localCharacter:FindFirstChild("HumanoidRootPart")
         or localCharacter.PrimaryPart
     )
+    local camera = Workspace.CurrentCamera
+    local origin = localRoot and localRoot.Position or (camera and camera.CFrame.Position)
+
+    local entries = {}
+    local candidates = {}
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player == LocalPlayer then continue end
@@ -1174,67 +1184,91 @@ Window:Loop(UPDATE_INTERVAL, function()
             and humanoid.Health > 0
             and player.Team ~= nil
             and player.Team.Name ~= LOBBY_TEAM_NAME
-
         local enabled = valid and isESPEnabled(player)
-        local is966 = isSCP966(player)
-        local teamColor = getTeamColor(player)
+        local distance = (origin and root) and (origin - root.Position).Magnitude or nil
+
+        local entry = {
+            Player = player,
+            Visuals = visuals,
+            Character = character,
+            Humanoid = humanoid,
+            Root = root,
+            Enabled = enabled,
+            Distance = distance,
+            Highlighted = false,
+        }
+        entries[#entries + 1] = entry
+
+        if enabled and distance and distance <= HIGHLIGHT_RANGE then
+            candidates[#candidates + 1] = entry
+        end
+    end
+
+    table.sort(candidates, function(a, b)
+        return a.Distance < b.Distance
+    end)
+    for index = 1, math.min(#candidates, MAX_HIGHLIGHTS) do
+        candidates[index].Highlighted = true
+    end
+
+    for _, entry in ipairs(entries) do
+        local player = entry.Player
+        local visuals = entry.Visuals
         local highlight = visuals.Highlight
         local billboard = visuals.Billboard
+        local teamColor = getTeamColor(player)
 
-        local visualModel = character
-        local visualRoot = root
+        local visualModel, visualRoot = nil, nil
 
-        if enabled and is966 then
-            local proxyData = getProxy(player, character)
-            if proxyData then
-                visualModel = proxyData.Model
-                visualRoot = proxyData.CloneRoot
+        if entry.Highlighted then
+            if isSCP966(player) then
+                local proxyData = getProxy(player, entry.Character)
+                if proxyData then
+                    visualModel = proxyData.Model
+                    visualRoot = proxyData.CloneRoot
+                end
             else
-                visualModel = nil
-                visualRoot = nil
+                removeProxy(player)
+                visualModel = entry.Character
+                visualRoot = entry.Root
             end
-        elseif is966 then
-            removeProxy(player)
         else
             removeProxy(player)
         end
 
-        local canDisplay = enabled and visualModel ~= nil and visualRoot ~= nil
-        highlight.Enabled = canDisplay
-
-        if canDisplay then
+        if visualModel then
             highlight.Adornee = visualModel
             highlight.FillColor = teamColor
             highlight.OutlineColor = teamColor
+            highlight.Enabled = true
         else
+            highlight.Enabled = false
             highlight.Adornee = nil
         end
 
         local distanceLabel = visuals.DistanceLabel
         local healthLabel = visuals.HealthLabel
+        local canShowInfo = entry.Enabled and entry.Root ~= nil
         local showDistance, showHealth = false, false
-        local distance
 
-        if canDisplay then
+        if canShowInfo then
             showDistance, showHealth = getESPOptions(player)
-            if localRoot then
-                distance = (localRoot.Position - root.Position).Magnitude
-            end
         end
 
-        distanceLabel.Visible = canDisplay and showDistance and distance ~= nil
-        healthLabel.Visible = canDisplay and showHealth
+        distanceLabel.Visible = canShowInfo and showDistance and entry.Distance ~= nil
+        healthLabel.Visible = canShowInfo and showHealth
         billboard.Enabled = distanceLabel.Visible or healthLabel.Visible
 
         if billboard.Enabled then
-            billboard.Adornee = visualRoot
+            billboard.Adornee = visualRoot or entry.Root
 
             if distanceLabel.Visible then
-                distanceLabel.Text = "Dist: " .. math.floor(distance) .. " studs"
+                distanceLabel.Text = "Dist: " .. math.floor(entry.Distance) .. " studs"
                 distanceLabel.TextColor3 = teamColor
             end
 
             if healthLabel.Visible then
+                local humanoid = entry.Humanoid
                 local percent = 0
                 if humanoid.MaxHealth > 0 then
                     percent = math.clamp(
@@ -1252,6 +1286,524 @@ Window:Loop(UPDATE_INTERVAL, function()
     end
 end)
 
+local FULLBRIGHT_VALUES = {
+    Brightness = 2,
+    ClockTime = 14,
+    GlobalShadows = false,
+    Ambient = Color3.fromRGB(178, 178, 178),
+    OutdoorAmbient = Color3.fromRGB(178, 178, 178),
+}
+
+local fullbrightEnabled = false
+local noFogEnabled = false
+local originalLighting = nil
+local originalFogEnd = nil
+local atmosphereState = {}
+
+local function applyFullbright()
+    for property, value in pairs(FULLBRIGHT_VALUES) do
+        if Lighting[property] ~= value then
+            Lighting[property] = value
+        end
+    end
+end
+
+local function setFullbright(enabled)
+    if enabled then
+        if not originalLighting then
+            originalLighting = {}
+            for property in pairs(FULLBRIGHT_VALUES) do
+                originalLighting[property] = Lighting[property]
+            end
+        end
+        fullbrightEnabled = true
+        applyFullbright()
+    else
+        fullbrightEnabled = false
+        if originalLighting then
+            local saved = originalLighting
+            originalLighting = nil
+            for property, value in pairs(saved) do
+                pcall(function()
+                    Lighting[property] = value
+                end)
+            end
+        end
+    end
+end
+
+local function setNoFog(enabled)
+    noFogEnabled = enabled
+    if enabled then
+        if originalFogEnd == nil then
+            originalFogEnd = Lighting.FogEnd
+        end
+        if Lighting.FogEnd ~= NO_FOG_DISTANCE then
+            Lighting.FogEnd = NO_FOG_DISTANCE
+        end
+        for _, item in ipairs(Lighting:GetDescendants()) do
+            if item:IsA("Atmosphere") then
+                if atmosphereState[item] == nil then
+                    atmosphereState[item] = {
+                        Density = item.Density,
+                        Haze = item.Haze,
+                    }
+                end
+                item.Density = 0
+                item.Haze = 0
+            end
+        end
+    else
+        if originalFogEnd ~= nil then
+            Lighting.FogEnd = originalFogEnd
+            originalFogEnd = nil
+        end
+        for item, state in pairs(atmosphereState) do
+            if item.Parent then
+                item.Density = state.Density
+                item.Haze = state.Haze
+            end
+        end
+        table.clear(atmosphereState)
+    end
+end
+
+Visuals:Toggle({
+    Text = "No fog",
+    Default = false,
+    Callback = setNoFog,
+})
+
+Visuals:Toggle({
+    Text = "Fullbright",
+    Default = false,
+    Callback = setFullbright,
+})
+
+local speedControl = nil
+local jumpControl = nil
+local speedEnabled = false
+local jumpEnabled = false
+local speedBase = 16
+local jumpBase = 50
+local speedApplied = nil
+local jumpApplied = nil
+local noclipEnabled = false
+local noclipOriginal = setmetatable({}, { __mode = "k" })
+
+local function getHumanoid()
+    local character = LocalPlayer.Character
+    return character and character:FindFirstChildOfClass("Humanoid")
+end
+
+local function readJumpProperty(humanoid)
+    if not humanoid then
+        return 50
+    end
+    if humanoid.UseJumpPower then
+        return humanoid.JumpPower
+    end
+    return humanoid.JumpHeight
+end
+
+local function writeJumpProperty(humanoid, value)
+    if not humanoid then
+        return
+    end
+    if humanoid.UseJumpPower then
+        humanoid.JumpPower = value
+    else
+        humanoid.JumpHeight = value
+    end
+end
+
+local function clampMovementValue(value)
+    local number = tonumber(value)
+    if not number then
+        return nil
+    end
+    return math.clamp(number, 1, 999999)
+end
+
+local function createMovementControl(title, initialValue, callback)
+    local page = Movement._page
+    local root = Instance.new("Frame")
+    root.Name = title:gsub("%s+", "") .. "Control"
+    root.BackgroundTransparency = 1
+    root.Size = UDim2.new(1, -20, 0, 74)
+    root.Parent = page
+
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Position = UDim2.fromOffset(4, 0)
+    titleLabel.Size = UDim2.new(0.58, -4, 0, 22)
+    titleLabel.Font = Enum.Font.GothamMedium
+    titleLabel.TextSize = 13
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.TextColor3 = Color3.fromRGB(235, 235, 235)
+    titleLabel.Text = title
+    titleLabel.Parent = root
+
+    local input = Instance.new("TextBox")
+    input.Name = "ValueInput"
+    input.AnchorPoint = Vector2.new(1, 0)
+    input.Position = UDim2.new(1, -2, 0, 0)
+    input.Size = UDim2.fromOffset(92, 22)
+    input.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
+    input.BorderSizePixel = 0
+    input.Font = Enum.Font.Gotham
+    input.TextSize = 12
+    input.TextColor3 = Color3.fromRGB(255, 255, 255)
+    input.ClearTextOnFocus = false
+    input.Text = tostring(math.floor(initialValue))
+    input.Parent = root
+    Instance.new("UICorner", input).CornerRadius = UDim.new(0, 5)
+
+    local track = Instance.new("TextButton")
+    track.Name = "SliderTrack"
+    track.AutoButtonColor = false
+    track.Text = ""
+    track.Position = UDim2.fromOffset(4, 35)
+    track.Size = UDim2.new(1, -8, 0, 12)
+    track.BackgroundColor3 = Color3.fromRGB(48, 48, 58)
+    track.BorderSizePixel = 0
+    track.Parent = root
+    Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+
+    local fill = Instance.new("Frame")
+    fill.Name = "Fill"
+    fill.Size = UDim2.new(0, 0, 1, 0)
+    fill.BackgroundColor3 = Color3.fromRGB(168, 85, 247)
+    fill.BorderSizePixel = 0
+    fill.Parent = track
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+
+    local knob = Instance.new("Frame")
+    knob.Name = "Knob"
+    knob.AnchorPoint = Vector2.new(0.5, 0.5)
+    knob.Position = UDim2.new(0, 0, 0.5, 0)
+    knob.Size = UDim2.fromOffset(16, 16)
+    knob.BackgroundColor3 = Color3.fromRGB(245, 245, 245)
+    knob.BorderSizePixel = 0
+    knob.Parent = track
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+
+    local rangeLabel = Instance.new("TextLabel")
+    rangeLabel.BackgroundTransparency = 1
+    rangeLabel.Position = UDim2.fromOffset(4, 51)
+    rangeLabel.Size = UDim2.new(1, -8, 0, 17)
+    rangeLabel.Font = Enum.Font.Gotham
+    rangeLabel.TextSize = 10
+    rangeLabel.TextColor3 = Color3.fromRGB(165, 165, 175)
+    rangeLabel.TextXAlignment = Enum.TextXAlignment.Left
+    rangeLabel.Parent = root
+
+    local control = {
+        Root = root,
+        Value = initialValue,
+        Base = math.max(1, initialValue),
+        Enabled = false,
+    }
+
+    local function visualBounds()
+        return control.Base, math.max(1000, control.Base)
+    end
+
+    local function render()
+        local minimum, maximum = visualBounds()
+        local pct
+        if maximum <= minimum then
+            pct = 0
+        else
+            pct = math.clamp((control.Value - minimum) / (maximum - minimum), 0, 1)
+        end
+        fill.Size = UDim2.new(pct, 0, 1, 0)
+        knob.Position = UDim2.new(pct, 0, 0.5, 0)
+        rangeLabel.Text = tostring(math.floor(minimum)) .. "  —  " .. tostring(math.floor(maximum)) .. "  |  Max input: 999999"
+        input.Text = tostring(math.floor(control.Value))
+    end
+
+    function control:SetBase(value)
+        control.Base = math.max(1, tonumber(value) or 1)
+        render()
+    end
+
+    function control:Set(value, silent)
+        local clamped = clampMovementValue(value)
+        if not clamped then
+            return
+        end
+        control.Value = clamped
+        render()
+        if not silent and callback then
+            callback(control.Value)
+        end
+    end
+
+    local dragging = false
+
+    local function setFromX(x)
+        local minimum, maximum = visualBounds()
+        local width = math.max(1, track.AbsoluteSize.X)
+        local pct = math.clamp((x - track.AbsolutePosition.X) / width, 0, 1)
+        control:Set(minimum + (maximum - minimum) * pct, false)
+    end
+
+    track.InputBegan:Connect(function(inputObject)
+        if inputObject.UserInputType == Enum.UserInputType.MouseButton1
+            or inputObject.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            setFromX(inputObject.Position.X)
+        end
+    end)
+
+    Window:Connect(UserInputService.InputChanged, function(inputObject)
+        if dragging and (inputObject.UserInputType == Enum.UserInputType.MouseMovement
+            or inputObject.UserInputType == Enum.UserInputType.Touch) then
+            setFromX(inputObject.Position.X)
+        end
+    end)
+
+    Window:Connect(UserInputService.InputEnded, function(inputObject)
+        if inputObject.UserInputType == Enum.UserInputType.MouseButton1
+            or inputObject.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+
+    input.FocusLost:Connect(function()
+        local value = clampMovementValue(input.Text)
+        if not value then
+            render()
+            return
+        end
+        control:Set(value, false)
+    end)
+
+    render()
+    return control
+end
+
+local function applySpeed(value)
+    local humanoid = getHumanoid()
+    if not humanoid then
+        return
+    end
+    local actual = clampMovementValue(value)
+    if not actual then
+        return
+    end
+    humanoid.WalkSpeed = actual
+    speedApplied = actual
+end
+
+local function applyJump(value)
+    local humanoid = getHumanoid()
+    if not humanoid then
+        return
+    end
+    local actual = clampMovementValue(value)
+    if not actual then
+        return
+    end
+    writeJumpProperty(humanoid, actual)
+    jumpApplied = actual
+end
+
+local function setSpeedhack(enabled)
+    speedEnabled = enabled
+    local humanoid = getHumanoid()
+    if not humanoid then
+        return
+    end
+    if enabled then
+        speedBase = humanoid.WalkSpeed
+        if speedControl then
+            speedControl:SetBase(speedBase)
+            applySpeed(speedControl.Value)
+        else
+            applySpeed(speedBase)
+        end
+    else
+        humanoid.WalkSpeed = speedBase
+        speedApplied = nil
+    end
+end
+
+local function setJumphack(enabled)
+    jumpEnabled = enabled
+    local humanoid = getHumanoid()
+    if not humanoid then
+        return
+    end
+    if enabled then
+        jumpBase = readJumpProperty(humanoid)
+        if jumpControl then
+            jumpControl:SetBase(jumpBase)
+            applyJump(jumpControl.Value)
+        else
+            applyJump(jumpBase)
+        end
+    else
+        writeJumpProperty(humanoid, jumpBase)
+        jumpApplied = nil
+    end
+end
+
+local function restoreNoclip()
+    for part, value in pairs(noclipOriginal) do
+        if part and part.Parent then
+            part.CanCollide = value
+        end
+    end
+    table.clear(noclipOriginal)
+end
+
+local function updateNoclip()
+    local character = LocalPlayer.Character
+    if not character then
+        return
+    end
+    for _, part in ipairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            if noclipOriginal[part] == nil then
+                noclipOriginal[part] = part.CanCollide
+            end
+            if part.CanCollide then
+                part.CanCollide = false
+            end
+        end
+    end
+end
+
+local noclipToggle = Movement:Toggle({
+    Text = "Noclip",
+    Default = false,
+    Callback = function(state)
+        noclipEnabled = state
+        if not state then
+            restoreNoclip()
+        end
+    end,
+})
+
+local speedToggle = Movement:Toggle({
+    Text = "Speed hack",
+    Default = false,
+    Callback = function(state)
+        if speedControl then
+            speedControl.Enabled = state
+        end
+        setSpeedhack(state)
+    end,
+})
+
+local jumpToggle = Movement:Toggle({
+    Text = "Jump hack",
+    Default = false,
+    Callback = function(state)
+        if jumpControl then
+            jumpControl.Enabled = state
+        end
+        setJumphack(state)
+    end,
+})
+
+local initialHumanoid = getHumanoid()
+if initialHumanoid then
+    speedBase = initialHumanoid.WalkSpeed
+    jumpBase = readJumpProperty(initialHumanoid)
+end
+
+speedControl = createMovementControl("Speed value", speedBase, function(value)
+    if speedControl and speedControl.Enabled then
+        applySpeed(value)
+    end
+end)
+
+jumpControl = createMovementControl("Jump value", jumpBase, function(value)
+    if jumpControl and jumpControl.Enabled then
+        applyJump(value)
+    end
+end)
+
+speedControl.Enabled = speedEnabled
+jumpControl.Enabled = jumpEnabled
+
+noclipToggle.Frame.LayoutOrder = 1
+speedToggle.Frame.LayoutOrder = 2
+speedControl.Root.LayoutOrder = 3
+jumpToggle.Frame.LayoutOrder = 4
+jumpControl.Root.LayoutOrder = 5
+
+Window:Loop(MOVEMENT_INTERVAL, function()
+    if noFogEnabled then
+        setNoFog(true)
+    end
+
+    local currentHumanoid = getHumanoid()
+    if not currentHumanoid then
+        return
+    end
+
+    if not speedEnabled then
+        speedBase = currentHumanoid.WalkSpeed
+        speedControl:SetBase(speedBase)
+        speedControl:Set(speedBase, true)
+    elseif speedApplied == nil or math.abs(currentHumanoid.WalkSpeed - speedApplied) > 0.01 then
+        if speedApplied ~= nil then
+            speedBase = currentHumanoid.WalkSpeed
+            speedControl:SetBase(speedBase)
+        end
+        applySpeed(speedControl.Value)
+    end
+
+    local currentJump = readJumpProperty(currentHumanoid)
+    if not jumpEnabled then
+        jumpBase = currentJump
+        jumpControl:SetBase(jumpBase)
+        jumpControl:Set(jumpBase, true)
+    elseif jumpApplied == nil or math.abs(currentJump - jumpApplied) > 0.01 then
+        if jumpApplied ~= nil then
+            jumpBase = currentJump
+            jumpControl:SetBase(jumpBase)
+        end
+        applyJump(jumpControl.Value)
+    end
+end)
+
+Window:Connect(RunService.Heartbeat, function()
+    if fullbrightEnabled then
+        applyFullbright()
+    end
+    if noFogEnabled and Lighting.FogEnd ~= NO_FOG_DISTANCE then
+        Lighting.FogEnd = NO_FOG_DISTANCE
+    end
+end)
+
+Window:Connect(RunService.Stepped, function()
+    if noclipEnabled then
+        updateNoclip()
+    end
+end)
+
+Window:Connect(LocalPlayer.CharacterAdded, function(character)
+    local newHumanoid = character:WaitForChild("Humanoid", 15)
+    if not newHumanoid then
+        return
+    end
+    speedBase = newHumanoid.WalkSpeed
+    jumpBase = readJumpProperty(newHumanoid)
+    speedApplied = nil
+    jumpApplied = nil
+    if speedEnabled then
+        applySpeed(speedControl.Value)
+    end
+    if jumpEnabled then
+        applyJump(jumpControl.Value)
+    end
+end)
+
 Window:OnClose(function()
     allEnabled = false
     aimEnabled = false
@@ -1261,6 +1813,18 @@ Window:OnClose(function()
     destroyAimGui()
     RunService:UnbindFromRenderStep(AIM_UPDATE_NAME)
     RunService:UnbindFromRenderStep(PROXY_UPDATE_NAME)
+
+    setFullbright(false)
+    setNoFog(false)
+    speedEnabled = false
+    jumpEnabled = false
+    local currentHumanoid = getHumanoid()
+    if currentHumanoid then
+        currentHumanoid.WalkSpeed = speedBase
+        writeJumpProperty(currentHumanoid, jumpBase)
+    end
+    noclipEnabled = false
+    restoreNoclip()
 
     for player in pairs(proxies) do removeProxy(player) end
     for player in pairs(visualsCache) do clearPlayerVisuals(player) end
